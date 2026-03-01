@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback, useState } from 'react'
 import { zoomAtPoint } from '../model/zoom'
 import { screenToDoc, getZoomPercent } from '../model/coordinates'
 import { getActiveTool } from '../tools/registry'
+import { setOverlayGroup } from '../model/selection'
 
 export interface DocumentDimensions {
   width: number  // mm
@@ -58,6 +59,13 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
     layer.setAttribute('data-layer-name', 'Layer 1')
     svg.appendChild(layer)
+
+    // Selection overlay group (non-document, rendered on top)
+    const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    overlay.setAttribute('data-role', 'overlay')
+    overlay.setAttribute('pointer-events', 'none')
+    svg.appendChild(overlay)
+    setOverlayGroup(overlay)
 
     container.appendChild(svg)
     svgRef.current = svg
