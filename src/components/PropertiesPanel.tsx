@@ -3,6 +3,21 @@ import { getSelection, subscribeSelection } from '../model/selection'
 import { useEditor } from '../model/EditorContext'
 import { ModifyAttributeCommand } from '../model/commands'
 import { ColorPicker } from './ColorPicker'
+import { refreshOverlay } from '../model/selection'
+
+const FONT_FAMILIES = [
+  'sans-serif',
+  'serif',
+  'monospace',
+  'Arial',
+  'Georgia',
+  'Times New Roman',
+  'Courier New',
+  'Verdana',
+  'Trebuchet MS',
+  'Impact',
+  'Comic Sans MS',
+]
 
 function getAttr(el: Element, attr: string): string {
   return el.getAttribute(attr) || ''
@@ -94,6 +109,39 @@ export function PropertiesPanel() {
                       <PropertyInput label="RY" value={getAttr(el, 'ry')} onChange={(v) => applyAttr(el, 'ry', v)} />
                     </>
                   )}
+                </div>
+              </div>
+            )}
+
+            {tag === 'text' && (
+              <div>
+                <div className="text-xs font-medium text-chrome-600 mb-1">Font</div>
+                <div className="space-y-1">
+                  <label className="flex items-center gap-1">
+                    <span className="text-xs text-chrome-500 w-8">Fam</span>
+                    <select
+                      value={getAttr(el, 'font-family') || 'sans-serif'}
+                      onChange={(e) => {
+                        applyAttr(el, 'font-family', e.target.value)
+                        refreshOverlay()
+                      }}
+                      className="flex-1 border border-chrome-300 px-1 py-0.5 text-xs w-16"
+                    >
+                      {FONT_FAMILIES.map((font) => (
+                        <option key={font} value={font} style={{ fontFamily: font }}>
+                          {font}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <PropertyInput
+                    label="Size"
+                    value={getAttr(el, 'font-size') || '16'}
+                    onChange={(v) => {
+                      applyAttr(el, 'font-size', v)
+                      refreshOverlay()
+                    }}
+                  />
                 </div>
               </div>
             )}
