@@ -5,8 +5,14 @@ import type { Command } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 
+const HIT_TOLERANCE_PX = 5
+
 function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element | null {
   const pt = screenToDoc(svg, screenX, screenY)
+  const vb = svg.viewBox.baseVal
+  const tolerance = vb.width > 0 && svg.clientWidth > 0
+    ? HIT_TOLERANCE_PX * (vb.width / svg.clientWidth)
+    : 2
   const layers = svg.querySelectorAll('g[data-layer-name]')
   for (let li = layers.length - 1; li >= 0; li--) {
     const layer = layers[li]
@@ -17,7 +23,12 @@ function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element 
       const child = children[ci]
       try {
         const bbox = (child as SVGGraphicsElement).getBBox()
-        if (pt.x >= bbox.x && pt.x <= bbox.x + bbox.width && pt.y >= bbox.y && pt.y <= bbox.y + bbox.height) {
+        const padX = bbox.width < tolerance * 2 ? tolerance : 0
+        const padY = bbox.height < tolerance * 2 ? tolerance : 0
+        if (
+          pt.x >= bbox.x - padX && pt.x <= bbox.x + bbox.width + padX &&
+          pt.y >= bbox.y - padY && pt.y <= bbox.y + bbox.height + padY
+        ) {
           return child
         }
       } catch { /* skip */ }
@@ -33,12 +44,26 @@ export function createEraserTool(
 ): ToolConfig {
   let dragging = false
   const erasedInDrag = new Set<Element>()
+  let highlightedEl: Element | null = null
+  let origOutline: string | null = null
+
+  function clearHighlight() {
+    if (highlightedEl) {
+      if (origOutline !== null) {
+        (highlightedEl as SVGElement).style.outline = origOutline
+      } else {
+        (highlightedEl as SVGElement).style.removeProperty('outline')
+      }
+      highlightedEl = null
+      origOutline = null
+    }
+  }
 
   return {
     name: 'eraser',
     icon: 'X',
     shortcut: 'x',
-    cursor: 'not-allowed',
+    cursor: 'crosshair',
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()
@@ -46,6 +71,7 @@ export function createEraserTool(
         if (!svg || !doc || e.button !== 0) return
         dragging = true
         erasedInDrag.clear()
+        clearHighlight()
 
         const hit = hitTest(svg, e.clientX, e.clientY)
         if (hit) {
@@ -55,19 +81,34 @@ export function createEraserTool(
       },
 
       onMouseMove(e: MouseEvent) {
-        if (!dragging) return
         const svg = getSvg()
         if (!svg) return
+
+        if (dragging) {
+          const hit = hitTest(svg, e.clientX, e.clientY)
+          if (hit && !erasedInDrag.has(hit)) {
+            erasedInDrag.add(hit)
+            hit.remove()
+          }
+          return
+        }
+
+        // Hover highlight — show red outline on element under cursor
         const hit = hitTest(svg, e.clientX, e.clientY)
-        if (hit && !erasedInDrag.has(hit)) {
-          erasedInDrag.add(hit)
-          hit.remove()
+        if (hit !== highlightedEl) {
+          clearHighlight()
+          if (hit) {
+            highlightedEl = hit
+            origOutline = (hit as SVGElement).style.outline || null
+            ;(hit as SVGElement).style.outline = '2px solid #ef4444'
+          }
         }
       },
 
       onMouseUp() {
         if (!dragging) return
         dragging = false
+        clearHighlight()
         const doc = getDoc()
         if (!doc || erasedInDrag.size === 0) return
 

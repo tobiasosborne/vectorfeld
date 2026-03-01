@@ -127,10 +127,22 @@ export function PropertiesPanel() {
                   Size
                   <button
                     onClick={() => setLockAspect(!lockAspect)}
-                    className={`text-xs px-1 ${lockAspect ? 'text-accent' : 'text-chrome-400'}`}
+                    className={`px-0.5 ${lockAspect ? 'text-accent' : 'text-chrome-400'} hover:text-chrome-600`}
                     title={lockAspect ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
                   >
-                    {lockAspect ? '🔗' : '⛓️‍💥'}
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+                      {lockAspect ? (
+                        <>
+                          <path d="M4 3.5V3a2 2 0 0 1 4 0v.5" />
+                          <rect x="3" y="5" width="6" height="4.5" rx="0.5" />
+                        </>
+                      ) : (
+                        <>
+                          <path d="M4 3.5V3a2 2 0 0 1 4 0v.5" opacity="0.4" />
+                          <rect x="3" y="5" width="6" height="4.5" rx="0.5" opacity="0.4" />
+                        </>
+                      )}
+                    </svg>
                   </button>
                 </div>
                 <div className="space-y-1">

@@ -191,17 +191,13 @@ describe('Selection overlay with scale handles', () => {
     expect(overlay.querySelectorAll('[data-role="scale-handle"]').length).toBe(0)
   })
 
-  it('shows rotation handle for single selection', () => {
+  it('shows corner rotation zones for single selection', () => {
     const rect = makeRect(svg, 10, 20, 50, 30)
     setSelection([rect])
 
-    const rotHandle = overlay.querySelector('[data-role="rotation-handle"]')
-    expect(rotHandle).not.toBeNull()
-    expect(rotHandle!.tagName).toBe('circle')
-    expect((rotHandle as SVGElement).style.cursor).toBe('grab')
-
-    const rotLine = overlay.querySelector('[data-role="rotation-line"]')
-    expect(rotLine).not.toBeNull()
+    const rotHandles = overlay.querySelectorAll('[data-role="rotation-handle"]')
+    expect(rotHandles.length).toBe(4) // one per corner
+    expect(rotHandles[0].tagName).toBe('rect')
   })
 
   it('does not show rotation handle for multi-selection', () => {
@@ -213,18 +209,19 @@ describe('Selection overlay with scale handles', () => {
     expect(rotHandle).toBeNull()
   })
 
-  it('rotation handle is positioned above top-center', () => {
+  it('corner rotation zones are positioned outside bbox corners', () => {
     const rect = makeRect(svg, 10, 20, 50, 30)
     setSelection([rect])
 
-    const rotHandle = overlay.querySelector('[data-role="rotation-handle"]')!
-    const cx = parseFloat(rotHandle.getAttribute('cx')!)
-    const cy = parseFloat(rotHandle.getAttribute('cy')!)
+    const rotHandles = overlay.querySelectorAll('[data-role="rotation-handle"]')
+    expect(rotHandles.length).toBe(4)
 
-    // Should be horizontally centered (10 + 50/2 = 35)
-    expect(cx).toBeCloseTo(35)
-    // Should be above the top of the bbox (y=20)
-    expect(cy).toBeLessThan(20)
+    // NW zone should be outside the top-left corner
+    const nwZone = rotHandles[0]
+    const zx = parseFloat(nwZone.getAttribute('x')!)
+    const zy = parseFloat(nwZone.getAttribute('y')!)
+    expect(zx).toBeLessThan(10) // left of bbox
+    expect(zy).toBeLessThan(20) // above bbox
   })
 
   it('refreshOverlay recalculates handle positions', () => {

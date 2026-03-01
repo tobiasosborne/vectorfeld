@@ -7,8 +7,15 @@ import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import { CompoundCommand, ModifyAttributeCommand } from '../model/commands'
 
+/** Minimum hit tolerance in screen pixels for thin elements like lines */
+const HIT_TOLERANCE_PX = 5
+
 function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element | null {
   const pt = screenToDoc(svg, screenX, screenY)
+  const vb = svg.viewBox.baseVal
+  const tolerance = vb.width > 0 && svg.clientWidth > 0
+    ? HIT_TOLERANCE_PX * (vb.width / svg.clientWidth)
+    : 2
   const layers = svg.querySelectorAll('g[data-layer-name]')
   for (let li = layers.length - 1; li >= 0; li--) {
     const layer = layers[li]
@@ -22,11 +29,14 @@ function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element 
         const bbox = (child as SVGGraphicsElement).getBBox()
         const transform = child.getAttribute('transform')
         const aabb = transformedAABB(bbox, transform)
+        // Expand thin bounding boxes by tolerance so lines/narrow elements are easier to click
+        const padX = aabb.width < tolerance * 2 ? tolerance : 0
+        const padY = aabb.height < tolerance * 2 ? tolerance : 0
         if (
-          pt.x >= aabb.x &&
-          pt.x <= aabb.x + aabb.width &&
-          pt.y >= aabb.y &&
-          pt.y <= aabb.y + aabb.height
+          pt.x >= aabb.x - padX &&
+          pt.x <= aabb.x + aabb.width + padX &&
+          pt.y >= aabb.y - padY &&
+          pt.y <= aabb.y + aabb.height + padY
         ) {
           return child
         }
