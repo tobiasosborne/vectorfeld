@@ -163,6 +163,33 @@ export function PropertiesPanel() {
               </div>
             )}
 
+            <div>
+              <div className="text-xs font-medium text-chrome-600 mb-1">Transform</div>
+              <div className="space-y-1">
+                <PropertyInput
+                  label="Rot"
+                  value={(() => {
+                    const transform = getAttr(el, 'transform')
+                    if (!transform) return '0'
+                    const match = transform.match(/rotate\(([-\d.]+)/)
+                    return match ? String(Math.round(parseFloat(match[1]) * 100) / 100) : '0'
+                  })()}
+                  onChange={(v) => {
+                    const angle = parseFloat(v) || 0
+                    try {
+                      const bbox = (el as SVGGraphicsElement).getBBox()
+                      const cx = bbox.x + bbox.width / 2
+                      const cy = bbox.y + bbox.height / 2
+                      applyAttr(el, 'transform', `rotate(${angle}, ${cx}, ${cy})`)
+                    } catch {
+                      applyAttr(el, 'transform', `rotate(${angle})`)
+                    }
+                    refreshOverlay()
+                  }}
+                />
+              </div>
+            </div>
+
             {tag === 'text' && (
               <div>
                 <div className="text-xs font-medium text-chrome-600 mb-1">Font</div>
