@@ -50,6 +50,13 @@ function PropertyInput({ label, value, onChange }: { label: string; value: strin
 
   const displayValue = editing ? localValue : formatNumeric(value)
 
+  const commit = () => {
+    if (localValue !== value) {
+      onChange(localValue)
+    }
+    setEditing(false)
+  }
+
   return (
     <label className="flex items-center gap-1">
       <span className="text-xs text-chrome-500 w-8">{label}</span>
@@ -57,15 +64,23 @@ function PropertyInput({ label, value, onChange }: { label: string; value: strin
         ref={inputRef}
         type="text"
         value={displayValue}
-        onChange={(e) => {
-          setLocalValue(e.target.value)
-          onChange(e.target.value)
-        }}
+        onChange={(e) => setLocalValue(e.target.value)}
         onFocus={() => {
           setEditing(true)
           setLocalValue(value)
         }}
-        onBlur={() => setEditing(false)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            commit()
+            inputRef.current?.blur()
+          } else if (e.key === 'Escape') {
+            setLocalValue(value)
+            setEditing(false)
+            inputRef.current?.blur()
+          }
+        }}
         className="flex-1 border border-chrome-300 px-1 py-0.5 text-xs font-mono w-16"
       />
     </label>

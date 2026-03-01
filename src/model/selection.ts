@@ -1,3 +1,5 @@
+import { transformedAABB as sharedTransformedAABB } from './geometry'
+
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
 
 const HANDLE_CURSORS: Record<HandlePosition, string> = {
@@ -81,36 +83,8 @@ export function setOverlayGroup(g: SVGGElement): void {
 }
 
 /** Transform a local-space bbox through a rotation to get the axis-aligned bounding box */
-function transformedAABB(
-  bbox: DOMRect,
-  transform: string | null
-): { x: number; y: number; width: number; height: number } {
-  if (!transform) return bbox
-  const match = transform.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
-  if (!match) return bbox
-  const angle = (parseFloat(match[1]) * Math.PI) / 180
-  const cx = match[2] ? parseFloat(match[2]) : 0
-  const cy = match[3] ? parseFloat(match[3]) : 0
-  const cos = Math.cos(angle)
-  const sin = Math.sin(angle)
-  const corners = [
-    { x: bbox.x, y: bbox.y },
-    { x: bbox.x + bbox.width, y: bbox.y },
-    { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
-    { x: bbox.x, y: bbox.y + bbox.height },
-  ]
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-  for (const pt of corners) {
-    const rx = pt.x - cx
-    const ry = pt.y - cy
-    const tx = cx + rx * cos - ry * sin
-    const ty = cy + rx * sin + ry * cos
-    minX = Math.min(minX, tx)
-    minY = Math.min(minY, ty)
-    maxX = Math.max(maxX, tx)
-    maxY = Math.max(maxY, ty)
-  }
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+function transformedAABB(bbox: DOMRect, transform: string | null) {
+  return sharedTransformedAABB(bbox, transform)
 }
 
 /** Compute the union bounding box of multiple elements (transform-aware) */

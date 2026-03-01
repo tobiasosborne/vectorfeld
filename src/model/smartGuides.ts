@@ -3,6 +3,8 @@
  * Snaps to edges and centers within a tolerance.
  */
 
+import { transformedAABB } from './geometry'
+
 interface AlignCandidate {
   value: number
   axis: 'x' | 'y'
@@ -16,11 +18,22 @@ interface SnapResult {
 
 let enabled = true
 let guideGroup: SVGGElement | null = null
+let cachedCandidates: AlignCandidate[] | null = null
 
 export function setSmartGuidesEnabled(v: boolean): void { enabled = v }
 export function getSmartGuidesEnabled(): boolean { return enabled }
 
 export function setGuideGroup(g: SVGGElement): void { guideGroup = g }
+
+/** Cache candidates at drag-start for performance (avoids getBBox per frame) */
+export function cacheSmartGuideCandidates(svg: SVGSVGElement, exclude: Set<Element>): void {
+  cachedCandidates = collectCandidates(svg, exclude)
+}
+
+/** Clear cached candidates when drag ends */
+export function clearCachedCandidates(): void {
+  cachedCandidates = null
+}
 
 /** Collect alignment candidates from all non-dragged elements */
 function collectCandidates(svg: SVGSVGElement, exclude: Set<Element>): AlignCandidate[] {
@@ -49,38 +62,6 @@ function collectCandidates(svg: SVGSVGElement, exclude: Set<Element>): AlignCand
   return candidates
 }
 
-function transformedAABB(
-  bbox: DOMRect,
-  transform: string | null
-): { x: number; y: number; width: number; height: number } {
-  if (!transform) return bbox
-  const match = transform.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
-  if (!match) return bbox
-  const angle = (parseFloat(match[1]) * Math.PI) / 180
-  const cx = match[2] ? parseFloat(match[2]) : 0
-  const cy = match[3] ? parseFloat(match[3]) : 0
-  const cos = Math.cos(angle)
-  const sin = Math.sin(angle)
-  const corners = [
-    { x: bbox.x, y: bbox.y },
-    { x: bbox.x + bbox.width, y: bbox.y },
-    { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
-    { x: bbox.x, y: bbox.y + bbox.height },
-  ]
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-  for (const pt of corners) {
-    const rx = pt.x - cx
-    const ry = pt.y - cy
-    const tx = cx + rx * cos - ry * sin
-    const ty = cy + rx * sin + ry * cos
-    minX = Math.min(minX, tx)
-    minY = Math.min(minY, ty)
-    maxX = Math.max(maxX, tx)
-    maxY = Math.max(maxY, ty)
-  }
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
-}
-
 /**
  * Check dragged elements against alignment candidates.
  * Returns snap corrections and guide line positions.
@@ -92,8 +73,8 @@ export function computeSmartGuides(
 ): SnapResult {
   if (!enabled) return { dx: 0, dy: 0, guides: [] }
 
-  const exclude = new Set(draggedElements)
-  const candidates = collectCandidates(svg, exclude)
+  // Use cached candidates if available (set at drag-start), else collect fresh
+  const candidates = cachedCandidates ?? collectCandidates(svg, new Set(draggedElements))
   if (candidates.length === 0) return { dx: 0, dy: 0, guides: [] }
 
   // Get the AABB of dragged elements
