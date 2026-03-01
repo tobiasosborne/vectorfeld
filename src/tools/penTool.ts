@@ -347,12 +347,9 @@ export function createPenTool(
 
       onKeyDown(e: KeyboardEvent) {
         if (!state.drawing) return
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' || e.key === 'Escape') {
           e.preventDefault()
           finish()
-        } else if (e.key === 'Escape') {
-          e.preventDefault()
-          cleanup()
         }
       },
     },

@@ -68,23 +68,36 @@ export function importSvg(doc: DocumentModel): Promise<void> {
           doc.svg.setAttribute('viewBox', viewBox)
         }
 
-        // Find or create a layer
-        let layer = doc.getActiveLayer()
-        if (!layer) {
-          const g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
-          g.setAttribute('data-layer-name', 'Imported')
-          doc.svg.appendChild(g)
-          layer = g
+        // Clear existing layers and their content before importing
+        const existingLayers = doc.getLayerElements()
+        for (const layer of existingLayers) {
+          layer.remove()
         }
 
-        // Import child elements
+        // Import child elements — look for layer groups or create one
         const children = Array.from(importedSvg.children)
+        let hasLayers = false
         for (const child of children) {
-          // Skip metadata, defs for now — import visual elements
           const tag = child.tagName
-          if (['g', 'line', 'rect', 'ellipse', 'circle', 'path', 'text', 'polygon', 'polyline'].includes(tag)) {
+          if (tag === 'g' && child.getAttribute('data-layer-name')) {
+            // Import entire layer group
             const imported = document.importNode(child, true)
-            layer.appendChild(imported)
+            doc.svg.appendChild(imported)
+            hasLayers = true
+          }
+        }
+
+        // If no layer groups found, create a layer and import flat elements
+        if (!hasLayers) {
+          const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+          layer.setAttribute('data-layer-name', 'Layer 1')
+          doc.svg.appendChild(layer)
+          for (const child of children) {
+            const tag = child.tagName
+            if (['g', 'line', 'rect', 'ellipse', 'circle', 'path', 'text', 'polygon', 'polyline'].includes(tag)) {
+              const imported = document.importNode(child, true)
+              layer.appendChild(imported)
+            }
           }
         }
 
