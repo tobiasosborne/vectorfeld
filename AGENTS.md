@@ -181,19 +181,130 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 ## Project Handoff Context
 
-**Current state (updated each session):**
+**Current state (updated 2026-03-01, Phase 2 session):**
 
-- **Sprints completed:** ALL sprints 0-11 complete. All 62 issues closed (100%).
-- **Test count:** 127 tests passing (Vitest)
-- **Issues closed:** 62 of 62 (100%)
-- **This session closed:** All remaining 21 issues — S5-01 through S5-06, S8-01 through S8-06, S9-01 through S9-04, S11-01 through S11-03, R-03, S10-05
-- **New tools:** Pen (P) with bezier curves, Text (T) with keyboard capture, Direct Select (A) with anchor/handle editing
-- **New features:** Scale handles + drag-to-scale, rotation handle + drag-to-rotate, font family dropdown, letter-spacing, lock aspect ratio, text cursor navigation + selection, direct path editing, Bezier control handle manipulation
-- **Next work:** All issues closed. Future work: polish, performance, Tauri native integration
-- **Dev server:** `npm run dev` → `http://localhost:5173` (or 5174 if 5173 in use)
-- **Build:** `npm run build` (TypeScript + Vite), `cargo check` in `src-tauri/`
-- **Key commands:** `bd ready` (next work), `bd list --all` (full backlog), `npm test` (run tests)
-- **playwright-cli:** installed globally, skill at `.claude/skills/playwright-cli`. Use for e2e verification.
-- **Architecture:** React app shell with imperatively managed SVG canvas, tool registry pattern, command-based undo. See `vectorfeld-prd.md` for full details.
-- **API Reference:** `docs/API.md` — comprehensive agent-first reference for all functions, classes, components, keybindings, and testing patterns. READ THIS FIRST.
-- **Key patterns added:** keyboard capture (`setKeyboardCapture`/`isKeyboardCaptured` in registry.ts) for text tool, `AnchorPoint` type with bezier handles in pen tool, `handleDocSize()` for screen-space-constant sizing, `unionBBox()` in selection.ts
+### Summary
+
+Phase 2 implementation complete. 5 sprints (27 features) built, 7-agent code review performed, all findings fixed and verified. 137/137 total issues closed. 200 tests passing.
+
+### What was built this session
+
+**Sprint 12 — MVP Completion (6 issues):**
+- Marquee selection (rubber-band drag on empty canvas)
+- Layer reordering (up/down buttons, undoable)
+- Arrange commands (Ctrl+]/[, Ctrl+Shift+]/[ for z-order)
+- Default style module (last-used stroke/fill/strokeWidth inherited by new elements)
+- Line tool shift-snap (45-degree angle constraint)
+- Oriented bounding box (scale handles follow element rotation)
+
+**Sprint 13 — Align, Distribute & Grid (5 issues):**
+- Align commands (6 operations: left/center-h/right/top/center-v/bottom)
+- Distribute commands (horizontal/vertical for 3+ elements)
+- Grid display overlay (10mm major, 5mm minor, Ctrl+' toggle)
+- Snap-to-grid (all tools snap when enabled, Ctrl+Shift+' toggle)
+- Smart guides (magenta alignment lines during drag, 2px tolerance)
+
+**Sprint 14 — Stroke Styles & Arrows (6 issues):**
+- SVG `<defs>` infrastructure (auto-created, preserved in export/import)
+- Arrow marker definitions (triangle, open, reverse, circle in `<defs>`)
+- Arrow marker UI (start/end dropdowns for line/path)
+- Stroke dash patterns (solid, dashed, dotted, dash-dot)
+- Stroke caps (butt/round/square) and joins (miter/round/bevel)
+- Opacity control (0-1)
+
+**Sprint 15 — PDF Export & Gradients (5 issues):**
+- PDF export (jsPDF + svg2pdf.js, toolbar button)
+- Linear gradient fill (with color pickers, fill-type selector)
+- Radial gradient fill (shares gradient infrastructure)
+- Eyedropper tool (sample colors into default style, shortcut: I)
+
+**Sprint 16 — UI Overhaul (5 issues):**
+- Vertical tool strip (40px left sidebar with SVG icons)
+- Menu bar (File/Edit/View dropdowns with shortcuts)
+- Collapsible panels (Layers & Properties collapse to thin strips)
+- Tool icons (SVG silhouettes for all 9 tools)
+
+### Code review & bug fixes
+
+7-agent code review (test coverage, code smells, line-by-line, architecture, Knuth, Torvalds, Carmack) found 37 issues. All fixed:
+
+**Showstoppers fixed:**
+- Group/Ungroup now fully undoable (GroupCommand/UngroupCommand)
+- Scale division-by-zero guard for zero-dimension bboxes
+
+**Critical bugs fixed:**
+- Nudge + paste update rotation centers in transforms
+- Ctrl+Shift+' keybinding (Shift produces `"` not `'`)
+- ID counter syncs past imported IDs (syncIdCounter)
+- Gradient colors update stops in-place (no orphan defs leak)
+- Layer operations use command history (undoable add/delete/reorder)
+- Aspect-ratio lock uses CompoundCommand (single undo entry)
+- Eyedropper hit test uses transformedAABB for rotated elements
+- Path/group elements movable via translate transform
+- Scale mode populates origTransforms for proper commit
+- Gradient fills disabled for line elements (zero-dim bbox)
+- clearSelection() before import (prevents stale DOM refs)
+- Active layer model (new activeLayer.ts pub-sub module)
+- Tool deactivation hooks (cleanup on switch: caret, preview, marquee)
+- PropertyInput commits on blur/Enter (not per-keystroke)
+- Grid isMajor uses iteration count (not float modulo)
+- Grid line count capped at 500
+- Circle scaling from edge handles now shrinks correctly
+- Rotation center preserves existing center from transform
+- importSvg handles cancel and file errors
+- Pan rate fix: uses getScreenCTM() for accurate scale with preserveAspectRatio
+- Pan stale-closure fix: isPanningRef prevents event handler gaps
+
+**Architecture improvements:**
+- Shared `geometry.ts` (deduplicated transformedAABB from 4 files + computeTranslateAttrs)
+- Deleted dead Toolbar.tsx
+- Smart guides cache candidates at drag-start (O(1) per frame)
+
+### Playwright testing
+
+- Feature tests: draw rect/line/ellipse, select, undo, marquee, delete, pan — all PASS
+- Chaos monkey (200+ random actions): 8 phases all PASS, zero errors, app survived
+- Pan rate verified at 0.0% error after fix
+
+### Numbers
+
+- **Total issues:** 137 (100 Phase 2 features + 37 code review findings)
+- **Issues closed:** 137/137 (100%)
+- **Test count:** 200 (15 test files)
+- **Type errors:** 0
+
+### Key files added/modified
+
+| File | Purpose |
+|------|---------|
+| `src/model/defaultStyle.ts` | Last-used style pub-sub |
+| `src/model/align.ts` | Align/distribute pure functions |
+| `src/model/grid.ts` | Grid display + snap-to-grid |
+| `src/model/smartGuides.ts` | Smart alignment guides during drag |
+| `src/model/markers.ts` | Arrow marker definitions |
+| `src/model/gradients.ts` | Gradient fill management |
+| `src/model/geometry.ts` | Shared transformedAABB + computeTranslateAttrs |
+| `src/model/activeLayer.ts` | Active layer pub-sub |
+| `src/tools/eyedropperTool.ts` | Eyedropper tool |
+| `src/components/ToolStrip.tsx` | Vertical tool sidebar |
+| `src/components/MenuBar.tsx` | Dropdown menu bar |
+| `src/components/icons.tsx` | SVG tool icons |
+
+### Known limitations / future work
+
+- `transformedAABB` only handles `rotate()` transforms (not `translate`/`scale`/`matrix`). Works for editor-generated content but may fail for imported SVGs with complex transforms.
+- EditorContext.tsx is a 290-line god-file with all keyboard handlers. Should be extracted to keyboardCommands.ts.
+- LayersPanel still polls on 500ms interval instead of pub-sub.
+- Selection overlay rebuilds fully on every mousemove (could be incremental).
+- No collaborative editing support (global mutable singletons).
+- Text content not part of command data model (works via DOM node reuse but fragile).
+
+### Dev environment
+
+- **Dev server:** `npm run dev` → `http://localhost:5173`
+- **Build:** `npm run build` (TypeScript + Vite)
+- **Tests:** `npx vitest run` (200 tests)
+- **Type check:** `npx tsc --noEmit`
+- **Issue tracking:** `bd ready` / `bd stats` / `bd list`
+- **playwright-cli:** `.claude/skills/playwright-cli` for e2e verification
+- **API Reference:** `docs/API.md` — read before writing code
