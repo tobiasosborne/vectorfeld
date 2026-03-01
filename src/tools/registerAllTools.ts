@@ -1,3 +1,4 @@
+import { registerSelectTool } from './selectTool'
 import { registerLineTool } from './lineTool'
 import { registerRectTool } from './rectTool'
 import { registerEllipseTool } from './ellipseTool'
@@ -10,10 +11,11 @@ export function registerAllTools(
   getDoc: () => DocumentModel | null,
   getHistory: () => CommandHistory
 ): void {
+  registerSelectTool(getSvg, getDoc, getHistory)
   registerLineTool(getSvg, getDoc, getHistory)
   registerRectTool(getSvg, getDoc, getHistory)
   registerEllipseTool(getSvg, getDoc, getHistory)
 
-  // Default to line tool
-  setActiveTool('line')
+  // Default to select tool
+  setActiveTool('select')
 }

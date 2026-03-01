@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { CommandHistory } from './commands'
+import { CommandHistory, RemoveElementCommand, CompoundCommand } from './commands'
 import { createDocumentModel } from './document'
 import type { DocumentModel } from './document'
+import { getSelection, clearSelection } from './selection'
 
 interface EditorContextValue {
   history: CommandHistory
@@ -41,6 +42,15 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       } else if (e.ctrlKey && e.key === 'Z' && e.shiftKey) {
         e.preventDefault()
         history.redo()
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && !e.ctrlKey) {
+        const sel = getSelection()
+        if (sel.length > 0 && docRef.current) {
+          e.preventDefault()
+          const cmds = sel.map((el) => new RemoveElementCommand(docRef.current!, el))
+          const compound = new CompoundCommand(cmds, 'Delete')
+          history.execute(compound)
+          clearSelection()
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
