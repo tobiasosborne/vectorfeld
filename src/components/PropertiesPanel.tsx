@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { getSelection, subscribeSelection } from '../model/selection'
 import { useEditor } from '../model/EditorContext'
 import { ModifyAttributeCommand } from '../model/commands'
+import { ColorPicker } from './ColorPicker'
 
 function getAttr(el: Element, attr: string): string {
   return el.getAttribute(attr) || ''
@@ -99,10 +100,16 @@ export function PropertiesPanel() {
 
             <div>
               <div className="text-xs font-medium text-chrome-600 mb-1">Style</div>
-              <div className="space-y-1">
-                <PropertyInput label="Str" value={getAttr(el, 'stroke')} onChange={(v) => applyAttr(el, 'stroke', v)} />
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-chrome-500 w-8">Str</span>
+                  <ColorPicker value={getAttr(el, 'stroke') || '#000000'} onChange={(v) => applyAttr(el, 'stroke', v)} allowNone={false} />
+                </div>
                 <PropertyInput label="SW" value={getAttr(el, 'stroke-width')} onChange={(v) => applyAttr(el, 'stroke-width', v)} />
-                <PropertyInput label="Fill" value={getAttr(el, 'fill')} onChange={(v) => applyAttr(el, 'fill', v)} />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-chrome-500 w-8">Fill</span>
+                  <ColorPicker value={getAttr(el, 'fill') || 'none'} onChange={(v) => applyAttr(el, 'fill', v)} />
+                </div>
               </div>
             </div>
           </>
