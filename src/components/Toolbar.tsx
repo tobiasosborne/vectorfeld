@@ -1,11 +1,37 @@
+import { useState, useEffect } from 'react'
+import { getAllTools, getActiveToolName, setActiveTool, subscribe } from '../tools/registry'
+
 interface ToolbarProps {
   onArtboardSetup?: () => void
 }
 
 export function Toolbar({ onArtboardSetup }: ToolbarProps) {
+  const [activeToolName, setActiveToolName] = useState<string | null>(getActiveToolName())
+  const tools = getAllTools()
+
+  useEffect(() => {
+    return subscribe(() => {
+      setActiveToolName(getActiveToolName())
+    })
+  }, [])
+
   return (
-    <div className="h-10 bg-chrome-100 border-b border-chrome-300 flex items-center px-2 gap-2">
-      <span className="text-xs font-medium text-chrome-600 select-none">vectorfeld</span>
+    <div className="h-10 bg-chrome-100 border-b border-chrome-300 flex items-center px-2 gap-1">
+      <span className="text-xs font-medium text-chrome-600 select-none mr-2">vectorfeld</span>
+      {tools.map((tool) => (
+        <button
+          key={tool.name}
+          onClick={() => setActiveTool(tool.name)}
+          className={`w-8 h-8 flex items-center justify-center text-xs border ${
+            activeToolName === tool.name
+              ? 'border-accent bg-accent/10 text-accent'
+              : 'border-transparent hover:bg-chrome-200 text-chrome-600'
+          }`}
+          title={`${tool.name} (${tool.shortcut.toUpperCase()})`}
+        >
+          {tool.icon}
+        </button>
+      ))}
       <div className="flex-1" />
       {onArtboardSetup && (
         <button

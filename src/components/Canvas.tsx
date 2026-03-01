@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
 import { zoomAtPoint } from '../model/zoom'
 import { screenToDoc, getZoomPercent } from '../model/coordinates'
+import { getActiveTool } from '../tools/registry'
 
 export interface DocumentDimensions {
   width: number  // mm
@@ -18,9 +19,10 @@ export interface CanvasState {
 interface CanvasProps {
   dimensions?: DocumentDimensions
   onStateChange?: (state: CanvasState) => void
+  onSvgReady?: (svg: SVGSVGElement) => void
 }
 
-export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange }: CanvasProps) {
+export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgReady }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [isPanning, setIsPanning] = useState(false)
@@ -59,7 +61,8 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange }: Canva
 
     container.appendChild(svg)
     svgRef.current = svg
-  }, [dimensions.width, dimensions.height])
+    onSvgReady?.(svg)
+  }, [dimensions.width, dimensions.height, onSvgReady])
 
   useEffect(() => {
     initSvg()
@@ -108,18 +111,20 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange }: Canva
     return () => container.removeEventListener('wheel', handleWheel)
   }, [emitState])
 
-  // Mouse move for cursor coordinates
+  // Mouse move for cursor coordinates + tool dispatch
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
     const handleMouseMove = (e: MouseEvent) => {
-      if (!svgRef.current || !onStateChange) return
-      const doc = screenToDoc(svgRef.current, e.clientX, e.clientY)
-      onStateChange({
-        cursorX: doc.x,
-        cursorY: doc.y,
-        zoomPercent: getZoomPercent(svgRef.current),
-      })
+      if (!svgRef.current) return
+      if (onStateChange) {
+        const doc = screenToDoc(svgRef.current, e.clientX, e.clientY)
+        onStateChange({
+          cursorX: doc.x,
+          cursorY: doc.y,
+          zoomPercent: getZoomPercent(svgRef.current),
+        })
+      }
 
       // Pan while dragging
       if (isPanning && panStart.current) {
@@ -132,13 +137,15 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange }: Canva
           'viewBox',
           `${panStart.current.vbX - dx} ${panStart.current.vbY - dy} ${vb.width} ${vb.height}`
         )
+      } else {
+        getActiveTool()?.handlers.onMouseMove?.(e)
       }
     }
     container.addEventListener('mousemove', handleMouseMove)
     return () => container.removeEventListener('mousemove', handleMouseMove)
   }, [onStateChange, isPanning])
 
-  // Pan: middle-click drag
+  // Pan + tool event dispatch
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -149,12 +156,18 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange }: Canva
         const vb = svgRef.current.viewBox.baseVal
         panStart.current = { x: e.clientX, y: e.clientY, vbX: vb.x, vbY: vb.y }
         setIsPanning(true)
+      } else if (e.button === 0) {
+        getActiveTool()?.handlers.onMouseDown?.(e)
       }
     }
     const handleUp = (e: MouseEvent) => {
       if (e.button === 1 || e.button === 0) {
-        panStart.current = null
-        setIsPanning(false)
+        if (isPanning) {
+          panStart.current = null
+          setIsPanning(false)
+        } else {
+          getActiveTool()?.handlers.onMouseUp?.(e)
+        }
       }
     }
     container.addEventListener('mousedown', handleDown)
@@ -163,7 +176,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange }: Canva
       container.removeEventListener('mousedown', handleDown)
       window.removeEventListener('mouseup', handleUp)
     }
-  }, [])
+  }, [isPanning])
 
   // Pan: space+drag
   useEffect(() => {
