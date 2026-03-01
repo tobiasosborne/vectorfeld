@@ -183,13 +183,13 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 **Current state (updated each session):**
 
-- **Sprints completed:** 0-5 fully, 6-11 partially (all Sprint 5 transforms done, Sprint 8 pen/bezier done, Sprint 9 text tool done, Sprint 11 cursors/shortcuts done)
-- **Test count:** 109 tests passing (Vitest)
-- **Issues closed:** 56 of 62 (90%)
-- **This session closed:** S5-01 (scale handles), S5-02 (scale drag), S5-03 (numeric scale), S5-04 (rotation handle), S5-05 (rotation drag), S5-06 (numeric rotation), S8-01 (pen tool), S8-02 (bezier handles), S8-03 (close path), S8-04 (finish path), S9-01 (text tool), S9-03 (font dropdown), S9-04 (font size/letter-spacing), S11-01 (shortcuts), S11-02 (cursors)
-- **New tools:** Pen (P) with bezier curves, Text (T) with keyboard capture, cursor support per tool
-- **New features:** 8 scale handles with drag-to-scale, rotation handle with drag-to-rotate, font family dropdown, letter-spacing, lock aspect ratio toggle, Transform section in properties panel
-- **Next work:** S9-02 (text editing cursor/selection), S8-05 (direct selection/anchor editing), 3 research issues
+- **Sprints completed:** ALL sprints 0-11 complete. All 62 issues closed (100%).
+- **Test count:** 127 tests passing (Vitest)
+- **Issues closed:** 62 of 62 (100%)
+- **This session closed:** All remaining 21 issues — S5-01 through S5-06, S8-01 through S8-06, S9-01 through S9-04, S11-01 through S11-03, R-03, S10-05
+- **New tools:** Pen (P) with bezier curves, Text (T) with keyboard capture, Direct Select (A) with anchor/handle editing
+- **New features:** Scale handles + drag-to-scale, rotation handle + drag-to-rotate, font family dropdown, letter-spacing, lock aspect ratio, text cursor navigation + selection, direct path editing, Bezier control handle manipulation
+- **Next work:** All issues closed. Future work: polish, performance, Tauri native integration
 - **Dev server:** `npm run dev` → `http://localhost:5173` (or 5174 if 5173 in use)
 - **Build:** `npm run build` (TypeScript + Vite), `cargo check` in `src-tauri/`
 - **Key commands:** `bd ready` (next work), `bd list --all` (full backlog), `npm test` (run tests)
