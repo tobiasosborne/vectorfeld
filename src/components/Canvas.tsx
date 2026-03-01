@@ -29,10 +29,12 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
   const gridGroupRef = useRef<SVGGElement | null>(null)
-  const [isPanning, setIsPanning] = useState(false)
+  const [isPanningState, setIsPanningState] = useState(false)
+  const isPanningRef = useRef(false)
   const [, setToolTick] = useState(0) // force re-render on tool change for cursor
   const panStart = useRef<{ x: number; y: number; vbX: number; vbY: number } | null>(null)
   const spaceHeld = useRef(false)
+  const setIsPanning = (v: boolean) => { isPanningRef.current = v; setIsPanningState(v) }
 
   useEffect(() => subscribeTool(() => setToolTick((n) => n + 1)), [])
 
@@ -168,8 +170,8 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
         })
       }
 
-      // Pan while dragging
-      if (isPanning && panStart.current) {
+      // Pan while dragging (use ref to avoid re-registering handler on state change)
+      if (isPanningRef.current && panStart.current) {
         const svg = svgRef.current
         const vb = svg.viewBox.baseVal
         const scale = vb.width / svg.clientWidth
@@ -186,7 +188,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     }
     container.addEventListener('mousemove', handleMouseMove)
     return () => container.removeEventListener('mousemove', handleMouseMove)
-  }, [onStateChange, isPanning])
+  }, [onStateChange])
 
   // Pan + tool event dispatch
   useEffect(() => {
@@ -205,7 +207,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     }
     const handleUp = (e: MouseEvent) => {
       if (e.button === 1 || e.button === 0) {
-        if (isPanning) {
+        if (isPanningRef.current) {
           panStart.current = null
           setIsPanning(false)
         } else {
@@ -219,7 +221,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
       container.removeEventListener('mousedown', handleDown)
       window.removeEventListener('mouseup', handleUp)
     }
-  }, [isPanning])
+  }, [])
 
   // Pan: space+drag + tool keydown dispatch
   useEffect(() => {
@@ -255,7 +257,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     <div
       ref={containerRef}
       className="flex-1 bg-canvas-bg overflow-hidden"
-      style={{ cursor: isPanning ? 'grabbing' : (getActiveTool()?.cursor || undefined) }}
+      style={{ cursor: isPanningState ? 'grabbing' : (getActiveTool()?.cursor || undefined) }}
       data-testid="canvas-container"
     />
   )
