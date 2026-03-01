@@ -86,10 +86,12 @@ export async function exportPdf(doc: DocumentModel, filename: string = 'document
  * Returns a promise that resolves when the file is loaded.
  */
 export function importSvg(doc: DocumentModel): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = '.svg,image/svg+xml'
+    // Handle cancel (user closes file dialog without selecting)
+    input.addEventListener('cancel', () => resolve())
     input.onchange = () => {
       const file = input.files?.[0]
       if (!file) {
@@ -97,6 +99,7 @@ export function importSvg(doc: DocumentModel): Promise<void> {
         return
       }
       const reader = new FileReader()
+      reader.onerror = () => reject(new Error('Failed to read file'))
       reader.onload = () => {
         const text = reader.result as string
         const parser = new DOMParser()

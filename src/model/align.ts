@@ -3,52 +3,12 @@
  * Pure functions that return attribute changes (consumed via CompoundCommand).
  */
 
-interface BBox {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
-/** Get the AABB for an element (transform-aware) */
-function getAABB(el: Element): BBox | null {
-  try {
-    const bbox = (el as SVGGraphicsElement).getBBox()
-    const transform = el.getAttribute('transform')
-    if (!transform) return bbox
-    const match = transform.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
-    if (!match) return bbox
-    const angle = (parseFloat(match[1]) * Math.PI) / 180
-    const cx = match[2] ? parseFloat(match[2]) : 0
-    const cy = match[3] ? parseFloat(match[3]) : 0
-    const cos = Math.cos(angle)
-    const sin = Math.sin(angle)
-    const corners = [
-      { x: bbox.x, y: bbox.y },
-      { x: bbox.x + bbox.width, y: bbox.y },
-      { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
-      { x: bbox.x, y: bbox.y + bbox.height },
-    ]
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-    for (const pt of corners) {
-      const rx = pt.x - cx
-      const ry = pt.y - cy
-      const tx = cx + rx * cos - ry * sin
-      const ty = cy + rx * sin + ry * cos
-      minX = Math.min(minX, tx)
-      minY = Math.min(minY, ty)
-      maxX = Math.max(maxX, tx)
-      maxY = Math.max(maxY, ty)
-    }
-    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
-  } catch {
-    return null
-  }
-}
+import { getElementAABB, computeTranslateAttrs } from './geometry'
+import type { BBox } from './geometry'
 
 /** Get position attributes for an element to compute deltas */
 function getPositionCenter(el: Element): { cx: number; cy: number } | null {
-  const aabb = getAABB(el)
+  const aabb = getElementAABB(el)
   if (!aabb) return null
   return { cx: aabb.x + aabb.width / 2, cy: aabb.y + aabb.height / 2 }
 }
@@ -65,7 +25,7 @@ export function computeAlign(elements: Element[], op: AlignOp): Map<Element, { d
 
   const bboxes = new Map<Element, BBox>()
   for (const el of elements) {
-    const aabb = getAABB(el)
+    const aabb = getElementAABB(el)
     if (aabb) bboxes.set(el, aabb)
   }
   if (bboxes.size < 2) return result
@@ -130,7 +90,7 @@ export function computeDistribute(elements: Element[], op: DistributeOp): Map<El
 
   const items: Array<{ el: Element; bbox: BBox }> = []
   for (const el of elements) {
-    const aabb = getAABB(el)
+    const aabb = getElementAABB(el)
     if (aabb) items.push({ el, bbox: aabb })
   }
   if (items.length < 3) return result
@@ -165,32 +125,8 @@ export function computeDistribute(elements: Element[], op: DistributeOp): Map<El
 /**
  * Apply delta translations to an element by modifying its position attributes.
  * Returns the attribute changes as [attr, newValue] pairs for command creation.
+ * Supports all element types including path, g, polygon, polyline.
  */
 export function applyDelta(el: Element, dx: number, dy: number): Array<[string, string]> {
-  const changes: Array<[string, string]> = []
-  const tag = el.tagName
-  if (tag === 'line') {
-    changes.push(['x1', String(parseFloat(el.getAttribute('x1') || '0') + dx)])
-    changes.push(['y1', String(parseFloat(el.getAttribute('y1') || '0') + dy)])
-    changes.push(['x2', String(parseFloat(el.getAttribute('x2') || '0') + dx)])
-    changes.push(['y2', String(parseFloat(el.getAttribute('y2') || '0') + dy)])
-  } else if (tag === 'rect' || tag === 'text') {
-    changes.push(['x', String(parseFloat(el.getAttribute('x') || '0') + dx)])
-    changes.push(['y', String(parseFloat(el.getAttribute('y') || '0') + dy)])
-  } else if (tag === 'ellipse' || tag === 'circle') {
-    changes.push(['cx', String(parseFloat(el.getAttribute('cx') || '0') + dx)])
-    changes.push(['cy', String(parseFloat(el.getAttribute('cy') || '0') + dy)])
-  }
-  // Update rotation center in transform if present
-  const transform = el.getAttribute('transform')
-  if (transform) {
-    const match = transform.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
-    if (match) {
-      const angle = match[1]
-      const cx = parseFloat(match[2] || '0') + dx
-      const cy = parseFloat(match[3] || '0') + dy
-      changes.push(['transform', `rotate(${angle}, ${cx}, ${cy})`])
-    }
-  }
-  return changes
+  return computeTranslateAttrs(el, dx, dy)
 }

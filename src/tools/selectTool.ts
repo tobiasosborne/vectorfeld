@@ -7,7 +7,8 @@ import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import { CompoundCommand, ModifyAttributeCommand } from '../model/commands'
 import { snapToGrid } from '../model/grid'
-import { computeSmartGuides, renderGuides, clearGuides } from '../model/smartGuides'
+import { computeSmartGuides, renderGuides, clearGuides, cacheSmartGuideCandidates, clearCachedCandidates } from '../model/smartGuides'
+import { transformedAABB as sharedTransformedAABB } from '../model/geometry'
 
 /** Minimum hit tolerance in screen pixels for thin elements like lines */
 const HIT_TOLERANCE_PX = 5
@@ -43,7 +44,7 @@ function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element 
           return child
         }
       } catch {
-        // skip elements without bbox
+        // getBBox throws for elements without geometric layout (e.g., empty groups)
       }
     }
   }
@@ -149,33 +150,8 @@ function handleAxes(handle: HandlePosition): { scaleX: boolean; scaleY: boolean 
 function transformedAABB(
   bbox: { x: number; y: number; width: number; height: number },
   transform: string | null
-): { x: number; y: number; width: number; height: number } {
-  if (!transform) return bbox
-  const match = transform.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
-  if (!match) return bbox
-  const angle = (parseFloat(match[1]) * Math.PI) / 180
-  const cx = match[2] ? parseFloat(match[2]) : 0
-  const cy = match[3] ? parseFloat(match[3]) : 0
-  const cos = Math.cos(angle)
-  const sin = Math.sin(angle)
-  const corners = [
-    { x: bbox.x, y: bbox.y },
-    { x: bbox.x + bbox.width, y: bbox.y },
-    { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
-    { x: bbox.x, y: bbox.y + bbox.height },
-  ]
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-  for (const pt of corners) {
-    const rx = pt.x - cx
-    const ry = pt.y - cy
-    const tx = cx + rx * cos - ry * sin
-    const ty = cy + rx * sin + ry * cos
-    minX = Math.min(minX, tx)
-    minY = Math.min(minY, ty)
-    maxX = Math.max(maxX, tx)
-    maxY = Math.max(maxY, ty)
-  }
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+) {
+  return sharedTransformedAABB(bbox, transform)
 }
 
 /** Compute union bounding box of elements (transform-aware) */
@@ -288,7 +264,10 @@ export function createSelectTool(
     } else if (tag === 'circle') {
       const origCx = start.vals.cx, origCy = start.vals.cy
       const origR = start.vals.r
-      const s = Math.max(Math.abs(sx), Math.abs(sy))
+      // Use average of active axes so edge handles can shrink the radius
+      const activeSx = sx !== 1 ? Math.abs(sx) : Math.abs(sy)
+      const activeSy = sy !== 1 ? Math.abs(sy) : Math.abs(sx)
+      const s = (activeSx + activeSy) / 2
       el.setAttribute('cx', String(anchorX + (origCx - anchorX) * sx))
       el.setAttribute('cy', String(anchorY + (origCy - anchorY) * sy))
       el.setAttribute('r', String(origR * s))
@@ -369,8 +348,17 @@ export function createSelectTool(
             const bbox = unionBBox(sel)
             if (!bbox) return
             const pt = screenToDoc(svg, e.clientX, e.clientY)
-            const cx = bbox.x + bbox.width / 2
-            const cy = bbox.y + bbox.height / 2
+            // Use existing rotation center if present, else use bbox center
+            let cx = bbox.x + bbox.width / 2
+            let cy = bbox.y + bbox.height / 2
+            const existingTransform = sel[0].getAttribute('transform')
+            if (existingTransform) {
+              const rotMatch = existingTransform.match(/rotate\(([-\d.]+),\s*([-\d.]+),\s*([-\d.]+)\)/)
+              if (rotMatch) {
+                cx = parseFloat(rotMatch[2])
+                cy = parseFloat(rotMatch[3])
+              }
+            }
             const startAngle = Math.atan2(pt.y - cy, pt.x - cx)
             dragState.mode = 'rotate'
             dragState.startX = pt.x
@@ -430,14 +418,17 @@ export function createSelectTool(
             setSelection([hit])
           }
           dragState.mode = 'move'
-          dragState.startX = pt.x
-          dragState.startY = pt.y
+          const startSnapped = snapToGrid(pt.x, pt.y)
+          dragState.startX = startSnapped.x
+          dragState.startY = startSnapped.y
           dragState.startPositions.clear()
           dragState.origTransforms.clear()
           for (const el of getSelection()) {
             dragState.startPositions.set(el, getPositionAttrs(el))
             dragState.origTransforms.set(el, el.getAttribute('transform'))
           }
+          // Cache smart guide candidates at drag-start for performance
+          cacheSmartGuideCandidates(svg, new Set(getSelection()))
         } else {
           // Start marquee selection
           clearSelection()
@@ -565,6 +556,7 @@ export function createSelectTool(
         const mode = dragState.mode
         dragState.mode = 'none'
         clearGuides()
+        clearCachedCandidates()
 
         const svg = getSvg()
         if (!svg) return
