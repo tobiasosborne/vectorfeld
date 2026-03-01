@@ -66,6 +66,11 @@ When a logical group of features is complete (e.g., all Sprint 3 drawing tools, 
 - **Demo After Completion**: Verify with playwright-cli after feature groups (see rule 7 above)
 - **Capture Lessons**: Update `docs/lessons.md` after corrections
 
+## Essential Reading
+
+- **[docs/API.md](docs/API.md)** — Agent-first API reference. Read this BEFORE writing any code. Covers every function, class, interface, component, keybinding, and testing pattern. Includes "how to add a new tool" and "how to add a new property" recipes.
+- **[vectorfeld-prd.md](vectorfeld-prd.md)** — Product requirements and implementation plan.
+
 ## Core Principles
 
 - **Simplicity First**: Make every change as simple as possible. Impact minimal code.

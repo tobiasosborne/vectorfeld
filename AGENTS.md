@@ -1,5 +1,7 @@
 # Agent Instructions
 
+**START HERE:** Read **[docs/API.md](docs/API.md)** before writing any code. It is the comprehensive agent-first API reference covering every function, class, component, keybinding, and testing pattern in the project.
+
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
 
 ## Quick Reference
@@ -191,3 +193,4 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 - **Key commands:** `bd ready` (next work), `bd list --all` (full backlog), `npm test` (run tests)
 - **playwright-cli:** installed globally, skill at `.claude/skills/playwright-cli`. Use for e2e verification.
 - **Architecture:** React app shell with imperatively managed SVG canvas, tool registry pattern, command-based undo. See `vectorfeld-prd.md` for full details.
+- **API Reference:** `docs/API.md` — comprehensive agent-first reference for all functions, classes, components, keybindings, and testing patterns. READ THIS FIRST.
