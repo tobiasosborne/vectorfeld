@@ -1,4 +1,6 @@
 import type { DocumentModel } from './document'
+import { jsPDF } from 'jspdf'
+import { svg2pdf } from 'svg2pdf.js'
 
 /**
  * Export the document as an SVG file download.
@@ -34,6 +36,47 @@ export function exportSvg(doc: DocumentModel, filename: string = 'document.svg')
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+/**
+ * Export the document as a PDF file download.
+ * Uses svg2pdf.js for client-side SVG-to-PDF conversion.
+ */
+export async function exportPdf(doc: DocumentModel, filename: string = 'document.pdf'): Promise<void> {
+  // Clone and clean SVG
+  const svgClone = doc.svg.cloneNode(true) as SVGSVGElement
+  for (const el of svgClone.querySelectorAll('[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"]')) {
+    el.remove()
+  }
+
+  // Parse viewBox for dimensions
+  const vb = doc.svg.viewBox.baseVal
+  const width = vb.width || 210
+  const height = vb.height || 297
+
+  // Set explicit dimensions on clone for svg2pdf
+  svgClone.setAttribute('width', String(width))
+  svgClone.setAttribute('height', String(height))
+
+  // Create PDF with matching dimensions (mm)
+  const orientation = width > height ? 'landscape' : 'portrait'
+  const pdf = new jsPDF({
+    orientation,
+    unit: 'mm',
+    format: [width, height],
+  })
+
+  // Temporarily add to DOM for measurement (svg2pdf needs this)
+  svgClone.style.position = 'absolute'
+  svgClone.style.left = '-9999px'
+  document.body.appendChild(svgClone)
+
+  try {
+    await svg2pdf(svgClone, pdf, { x: 0, y: 0, width, height })
+    pdf.save(filename)
+  } finally {
+    document.body.removeChild(svgClone)
+  }
 }
 
 /**

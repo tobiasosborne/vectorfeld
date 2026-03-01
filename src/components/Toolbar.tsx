@@ -4,10 +4,11 @@ import { getAllTools, getActiveToolName, setActiveTool, subscribe } from '../too
 interface ToolbarProps {
   onArtboardSetup?: () => void
   onExportSvg?: () => void
+  onExportPdf?: () => void
   onImportSvg?: () => void
 }
 
-export function Toolbar({ onArtboardSetup, onExportSvg, onImportSvg }: ToolbarProps) {
+export function Toolbar({ onArtboardSetup, onExportSvg, onExportPdf, onImportSvg }: ToolbarProps) {
   const [activeToolName, setActiveToolName] = useState<string | null>(getActiveToolName())
   const tools = getAllTools()
 
@@ -51,6 +52,15 @@ export function Toolbar({ onArtboardSetup, onExportSvg, onImportSvg }: ToolbarPr
           title="Export SVG"
         >
           Save
+        </button>
+      )}
+      {onExportPdf && (
+        <button
+          onClick={onExportPdf}
+          className="px-2 py-0.5 text-xs border border-chrome-300 bg-chrome-50 hover:bg-chrome-200"
+          title="Export PDF"
+        >
+          PDF
         </button>
       )}
       {onArtboardSetup && (

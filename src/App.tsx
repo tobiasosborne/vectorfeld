@@ -9,7 +9,7 @@ import { ArtboardDialog } from './components/ArtboardDialog'
 import { EditorProvider, useEditor } from './model/EditorContext'
 import { useToolShortcuts } from './tools/useToolShortcuts'
 import { registerAllTools } from './tools/registerAllTools'
-import { exportSvg, importSvg } from './model/fileio'
+import { exportSvg, exportPdf, importSvg } from './model/fileio'
 
 function AppContent() {
   useToolShortcuts()
@@ -47,6 +47,7 @@ function AppContent() {
       <Toolbar
         onArtboardSetup={() => setShowArtboard(true)}
         onExportSvg={() => editor.doc && exportSvg(editor.doc)}
+        onExportPdf={() => editor.doc && exportPdf(editor.doc)}
         onImportSvg={() => editor.doc && importSvg(editor.doc)}
       />
       <div className="flex flex-1 min-h-0">
