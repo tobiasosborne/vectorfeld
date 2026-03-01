@@ -174,9 +174,12 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
       if (isPanningRef.current && panStart.current) {
         const svg = svgRef.current
         const vb = svg.viewBox.baseVal
-        const scale = vb.width / svg.clientWidth
-        const dx = (e.clientX - panStart.current.x) * scale
-        const dy = (e.clientY - panStart.current.y) * scale
+        // Use getScreenCTM for accurate scale that respects preserveAspectRatio
+        const ctm = svg.getScreenCTM()
+        const scaleX = ctm ? 1 / ctm.a : vb.width / svg.clientWidth
+        const scaleY = ctm ? 1 / ctm.d : vb.height / svg.clientHeight
+        const dx = (e.clientX - panStart.current.x) * scaleX
+        const dy = (e.clientY - panStart.current.y) * scaleY
         svg.setAttribute(
           'viewBox',
           `${panStart.current.vbX - dx} ${panStart.current.vbY - dy} ${vb.width} ${vb.height}`
