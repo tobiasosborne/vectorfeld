@@ -183,14 +183,17 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 **Current state (updated each session):**
 
-- **Sprints completed:** 0-4 fully, 5-10 partially (styling, layers, file I/O, eraser done)
-- **Test count:** 66 tests passing (Vitest)
-- **Issues closed:** 41 of 62 (66%)
-- **Next work:** Sprint 5 (scale/rotate handles), Sprint 8 (pen/bezier tool), Sprint 9 (text tool), Sprint 11 (polish)
-- **Ready issues:** S5-01 (scale handles), S8-01 (pen tool), S9-01 (text tool), 3 research issues
-- **Dev server:** `npm run dev` → `http://localhost:5173`
+- **Sprints completed:** 0-5 fully, 6-11 partially (all Sprint 5 transforms done, Sprint 8 pen/bezier done, Sprint 9 text tool done, Sprint 11 cursors/shortcuts done)
+- **Test count:** 109 tests passing (Vitest)
+- **Issues closed:** 56 of 62 (90%)
+- **This session closed:** S5-01 (scale handles), S5-02 (scale drag), S5-03 (numeric scale), S5-04 (rotation handle), S5-05 (rotation drag), S5-06 (numeric rotation), S8-01 (pen tool), S8-02 (bezier handles), S8-03 (close path), S8-04 (finish path), S9-01 (text tool), S9-03 (font dropdown), S9-04 (font size/letter-spacing), S11-01 (shortcuts), S11-02 (cursors)
+- **New tools:** Pen (P) with bezier curves, Text (T) with keyboard capture, cursor support per tool
+- **New features:** 8 scale handles with drag-to-scale, rotation handle with drag-to-rotate, font family dropdown, letter-spacing, lock aspect ratio toggle, Transform section in properties panel
+- **Next work:** S9-02 (text editing cursor/selection), S8-05 (direct selection/anchor editing), 3 research issues
+- **Dev server:** `npm run dev` → `http://localhost:5173` (or 5174 if 5173 in use)
 - **Build:** `npm run build` (TypeScript + Vite), `cargo check` in `src-tauri/`
 - **Key commands:** `bd ready` (next work), `bd list --all` (full backlog), `npm test` (run tests)
 - **playwright-cli:** installed globally, skill at `.claude/skills/playwright-cli`. Use for e2e verification.
 - **Architecture:** React app shell with imperatively managed SVG canvas, tool registry pattern, command-based undo. See `vectorfeld-prd.md` for full details.
 - **API Reference:** `docs/API.md` — comprehensive agent-first reference for all functions, classes, components, keybindings, and testing patterns. READ THIS FIRST.
+- **Key patterns added:** keyboard capture (`setKeyboardCapture`/`isKeyboardCaptured` in registry.ts) for text tool, `AnchorPoint` type with bezier handles in pen tool, `handleDocSize()` for screen-space-constant sizing, `unionBBox()` in selection.ts
