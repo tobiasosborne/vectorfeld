@@ -17,9 +17,23 @@ export interface DocumentModel {
   serialize(): string
   getLayerElements(): Element[]
   getActiveLayer(): Element | null
+  getDefs(): SVGDefsElement
 }
 
 export function createDocumentModel(svg: SVGSVGElement): DocumentModel {
+  // Ensure <defs> exists as the first child (after artboard)
+  let defsEl = svg.querySelector('defs') as SVGDefsElement | null
+  if (!defsEl) {
+    defsEl = document.createElementNS('http://www.w3.org/2000/svg', 'defs') as SVGDefsElement
+    // Insert after artboard (first child), or as first child
+    const artboard = svg.querySelector('[data-role="artboard"]')
+    if (artboard && artboard.nextSibling) {
+      svg.insertBefore(defsEl, artboard.nextSibling)
+    } else {
+      svg.insertBefore(defsEl, svg.firstChild)
+    }
+  }
+
   return {
     svg,
 
@@ -64,6 +78,10 @@ export function createDocumentModel(svg: SVGSVGElement): DocumentModel {
     getActiveLayer(): Element | null {
       const layers = this.getLayerElements()
       return layers.length > 0 ? layers[0] : null
+    },
+
+    getDefs(): SVGDefsElement {
+      return defsEl!
     },
   }
 }

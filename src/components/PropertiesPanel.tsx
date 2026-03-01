@@ -5,6 +5,8 @@ import { ModifyAttributeCommand } from '../model/commands'
 import { ColorPicker } from './ColorPicker'
 import { refreshOverlay } from '../model/selection'
 import { setDefaultStyle } from '../model/defaultStyle'
+import { MARKER_TYPES, getMarkerLabel, getMarkerUrl, parseMarkerType, ensureMarkerDef } from '../model/markers'
+import type { MarkerType } from '../model/markers'
 import { computeAlign, computeDistribute, applyDelta } from '../model/align'
 import type { AlignOp, DistributeOp } from '../model/align'
 import { CompoundCommand } from '../model/commands'
@@ -69,7 +71,7 @@ function PropertyInput({ label, value, onChange }: { label: string; value: strin
 }
 
 export function PropertiesPanel() {
-  const { history } = useEditor()
+  const { history, doc } = useEditor()
   const [selection, setSelectionState] = useState<Element[]>([])
   const [lockAspect, setLockAspect] = useState(false)
 
@@ -358,8 +360,98 @@ export function PropertiesPanel() {
                   <span className="text-xs text-chrome-500 w-8">Fill</span>
                   <ColorPicker value={getAttr(el, 'fill') || 'none'} onChange={(v) => applyAttr(el, 'fill', v)} />
                 </div>
+                <label className="flex items-center gap-1">
+                  <span className="text-xs text-chrome-500 w-8">Dash</span>
+                  <select
+                    value={getAttr(el, 'stroke-dasharray') || ''}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        applyAttr(el, 'stroke-dasharray', e.target.value)
+                      } else {
+                        // Remove dasharray for solid
+                        const cmd = new ModifyAttributeCommand(el, 'stroke-dasharray', '')
+                        history.execute(cmd)
+                      }
+                    }}
+                    className="flex-1 border border-chrome-300 px-1 py-0.5 text-xs"
+                  >
+                    <option value="">Solid</option>
+                    <option value="4 2">Dashed</option>
+                    <option value="2 2">Dotted</option>
+                    <option value="4 2 2 2">Dash-Dot</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-1">
+                  <span className="text-xs text-chrome-500 w-8">Cap</span>
+                  <select
+                    value={getAttr(el, 'stroke-linecap') || 'butt'}
+                    onChange={(e) => applyAttr(el, 'stroke-linecap', e.target.value)}
+                    className="flex-1 border border-chrome-300 px-1 py-0.5 text-xs"
+                  >
+                    <option value="butt">Butt</option>
+                    <option value="round">Round</option>
+                    <option value="square">Square</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-1">
+                  <span className="text-xs text-chrome-500 w-8">Join</span>
+                  <select
+                    value={getAttr(el, 'stroke-linejoin') || 'miter'}
+                    onChange={(e) => applyAttr(el, 'stroke-linejoin', e.target.value)}
+                    className="flex-1 border border-chrome-300 px-1 py-0.5 text-xs"
+                  >
+                    <option value="miter">Miter</option>
+                    <option value="round">Round</option>
+                    <option value="bevel">Bevel</option>
+                  </select>
+                </label>
+                <PropertyInput
+                  label="Opa"
+                  value={getAttr(el, 'opacity') || '1'}
+                  onChange={(v) => applyAttr(el, 'opacity', v)}
+                />
               </div>
             </div>
+
+            {(tag === 'line' || tag === 'path') && doc && (
+              <div>
+                <div className="text-xs font-medium text-chrome-600 mb-1">Markers</div>
+                <div className="space-y-1">
+                  <label className="flex items-center gap-1">
+                    <span className="text-xs text-chrome-500 w-8">Start</span>
+                    <select
+                      value={parseMarkerType(getAttr(el, 'marker-start'))}
+                      onChange={(e) => {
+                        const mt = e.target.value as MarkerType
+                        ensureMarkerDef(doc.getDefs(), mt)
+                        applyAttr(el, 'marker-start', getMarkerUrl(mt))
+                      }}
+                      className="flex-1 border border-chrome-300 px-1 py-0.5 text-xs"
+                    >
+                      {MARKER_TYPES.map((mt) => (
+                        <option key={mt} value={mt}>{getMarkerLabel(mt)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <span className="text-xs text-chrome-500 w-8">End</span>
+                    <select
+                      value={parseMarkerType(getAttr(el, 'marker-end'))}
+                      onChange={(e) => {
+                        const mt = e.target.value as MarkerType
+                        ensureMarkerDef(doc.getDefs(), mt)
+                        applyAttr(el, 'marker-end', getMarkerUrl(mt))
+                      }}
+                      className="flex-1 border border-chrome-300 px-1 py-0.5 text-xs"
+                    >
+                      {MARKER_TYPES.map((mt) => (
+                        <option key={mt} value={mt}>{getMarkerLabel(mt)}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
