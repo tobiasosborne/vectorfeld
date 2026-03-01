@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { CommandHistory, RemoveElementCommand, CompoundCommand } from './commands'
+import { CommandHistory, RemoveElementCommand, ModifyAttributeCommand, CompoundCommand } from './commands'
 import { createDocumentModel } from './document'
 import type { DocumentModel } from './document'
-import { getSelection, clearSelection } from './selection'
+import { getSelection, clearSelection, refreshOverlay } from './selection'
 
 interface EditorContextValue {
   history: CommandHistory
@@ -42,6 +42,34 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       } else if (e.ctrlKey && e.key === 'Z' && e.shiftKey) {
         e.preventDefault()
         history.redo()
+      } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && !e.ctrlKey) {
+        const sel = getSelection()
+        if (sel.length > 0) {
+          e.preventDefault()
+          const step = e.shiftKey ? 10 : 1
+          const dx = e.key === 'ArrowRight' ? step : e.key === 'ArrowLeft' ? -step : 0
+          const dy = e.key === 'ArrowDown' ? step : e.key === 'ArrowUp' ? -step : 0
+          const cmds: ModifyAttributeCommand[] = []
+          for (const el of sel) {
+            const tag = el.tagName
+            if (tag === 'line') {
+              cmds.push(new ModifyAttributeCommand(el, 'x1', String(parseFloat(el.getAttribute('x1') || '0') + dx)))
+              cmds.push(new ModifyAttributeCommand(el, 'y1', String(parseFloat(el.getAttribute('y1') || '0') + dy)))
+              cmds.push(new ModifyAttributeCommand(el, 'x2', String(parseFloat(el.getAttribute('x2') || '0') + dx)))
+              cmds.push(new ModifyAttributeCommand(el, 'y2', String(parseFloat(el.getAttribute('y2') || '0') + dy)))
+            } else if (tag === 'rect' || tag === 'text') {
+              cmds.push(new ModifyAttributeCommand(el, 'x', String(parseFloat(el.getAttribute('x') || '0') + dx)))
+              cmds.push(new ModifyAttributeCommand(el, 'y', String(parseFloat(el.getAttribute('y') || '0') + dy)))
+            } else if (tag === 'ellipse' || tag === 'circle') {
+              cmds.push(new ModifyAttributeCommand(el, 'cx', String(parseFloat(el.getAttribute('cx') || '0') + dx)))
+              cmds.push(new ModifyAttributeCommand(el, 'cy', String(parseFloat(el.getAttribute('cy') || '0') + dy)))
+            }
+          }
+          if (cmds.length > 0) {
+            history.execute(new CompoundCommand(cmds, 'Nudge'))
+            refreshOverlay()
+          }
+        }
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && !e.ctrlKey) {
         const sel = getSelection()
         if (sel.length > 0 && docRef.current) {
