@@ -30,27 +30,30 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
   const panStart = useRef<{ x: number; y: number; vbX: number; vbY: number } | null>(null)
   const spaceHeld = useRef(false)
 
-  const initSvg = useCallback(() => {
-    const container = containerRef.current
-    if (!container) return
-    if (svgRef.current) return
+  const dimensionsRef = useRef(dimensions)
+  dimensionsRef.current = dimensions
+  const onSvgReadyRef = useRef(onSvgReady)
+  onSvgReadyRef.current = onSvgReady
 
+  // Create SVG only once on mount
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || svgRef.current) return
+
+    const dims = dimensionsRef.current
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
     svg.setAttribute('width', '100%')
     svg.setAttribute('height', '100%')
-    svg.setAttribute(
-      'viewBox',
-      `0 0 ${dimensions.width} ${dimensions.height}`
-    )
+    svg.setAttribute('viewBox', `0 0 ${dims.width} ${dims.height}`)
     svg.style.display = 'block'
 
     // Artboard background
     const artboard = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
     artboard.setAttribute('x', '0')
     artboard.setAttribute('y', '0')
-    artboard.setAttribute('width', String(dimensions.width))
-    artboard.setAttribute('height', String(dimensions.height))
+    artboard.setAttribute('width', String(dims.width))
+    artboard.setAttribute('height', String(dims.height))
     artboard.setAttribute('fill', '#ffffff')
     artboard.setAttribute('data-role', 'artboard')
     svg.appendChild(artboard)
@@ -69,18 +72,16 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
 
     container.appendChild(svg)
     svgRef.current = svg
-    onSvgReady?.(svg)
-  }, [dimensions.width, dimensions.height, onSvgReady])
+    onSvgReadyRef.current?.(svg)
 
-  useEffect(() => {
-    initSvg()
     return () => {
-      if (svgRef.current && containerRef.current) {
-        containerRef.current.removeChild(svgRef.current)
+      if (svgRef.current && container) {
+        container.removeChild(svgRef.current)
         svgRef.current = null
       }
     }
-  }, [initSvg])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Update viewBox when dimensions change
   useEffect(() => {
