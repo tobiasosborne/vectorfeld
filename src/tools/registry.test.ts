@@ -79,6 +79,7 @@ describe('Tool Registry', () => {
     // Register all production tools with their actual shortcuts
     const toolShortcuts = [
       { name: 'select', shortcut: 'v' },
+      { name: 'direct-select', shortcut: 'a' },
       { name: 'line', shortcut: 'l' },
       { name: 'rectangle', shortcut: 'r' },
       { name: 'ellipse', shortcut: 'e' },
