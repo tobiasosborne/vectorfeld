@@ -35,6 +35,7 @@ export function createEllipseTool(
     name: 'ellipse',
     icon: 'E',
     shortcut: 'e',
+    cursor: 'crosshair',
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()

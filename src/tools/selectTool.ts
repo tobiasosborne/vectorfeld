@@ -2,20 +2,17 @@ import { registerTool } from './registry'
 import type { ToolConfig } from './registry'
 import { screenToDoc } from '../model/coordinates'
 import { setSelection, clearSelection, toggleSelection, getSelection, refreshOverlay } from '../model/selection'
+import type { HandlePosition } from '../model/selection'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import { CompoundCommand, ModifyAttributeCommand } from '../model/commands'
 
 function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element | null {
   const pt = screenToDoc(svg, screenX, screenY)
-  // Find the topmost element at this document point.
-  // Walk through layer children in reverse (top to bottom visually)
   const layers = svg.querySelectorAll('g[data-layer-name]')
   for (let li = layers.length - 1; li >= 0; li--) {
     const layer = layers[li]
-    // Skip locked layers
     if (layer.getAttribute('data-locked') === 'true') continue
-    // Skip hidden layers
     if ((layer as SVGElement).style.display === 'none') continue
 
     const children = layer.children
@@ -39,11 +36,107 @@ function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element 
   return null
 }
 
+type DragMode = 'none' | 'move' | 'scale'
+
+interface ScaleState {
+  handle: HandlePosition
+  anchorX: number
+  anchorY: number
+  origBBox: { x: number; y: number; width: number; height: number }
+}
+
 interface DragState {
-  dragging: boolean
+  mode: DragMode
   startX: number
   startY: number
   startPositions: Map<Element, { attr: string; vals: Record<string, number> }>
+  scale: ScaleState | null
+}
+
+/** Get all geometry attributes for an element (position + size) */
+function getAllGeomAttrs(el: Element): Record<string, number> {
+  const tag = el.tagName
+  if (tag === 'line') {
+    return {
+      x1: parseFloat(el.getAttribute('x1') || '0'),
+      y1: parseFloat(el.getAttribute('y1') || '0'),
+      x2: parseFloat(el.getAttribute('x2') || '0'),
+      y2: parseFloat(el.getAttribute('y2') || '0'),
+    }
+  } else if (tag === 'rect') {
+    return {
+      x: parseFloat(el.getAttribute('x') || '0'),
+      y: parseFloat(el.getAttribute('y') || '0'),
+      width: parseFloat(el.getAttribute('width') || '0'),
+      height: parseFloat(el.getAttribute('height') || '0'),
+    }
+  } else if (tag === 'ellipse') {
+    return {
+      cx: parseFloat(el.getAttribute('cx') || '0'),
+      cy: parseFloat(el.getAttribute('cy') || '0'),
+      rx: parseFloat(el.getAttribute('rx') || '0'),
+      ry: parseFloat(el.getAttribute('ry') || '0'),
+    }
+  } else if (tag === 'circle') {
+    return {
+      cx: parseFloat(el.getAttribute('cx') || '0'),
+      cy: parseFloat(el.getAttribute('cy') || '0'),
+      r: parseFloat(el.getAttribute('r') || '0'),
+    }
+  } else if (tag === 'text') {
+    return {
+      x: parseFloat(el.getAttribute('x') || '0'),
+      y: parseFloat(el.getAttribute('y') || '0'),
+      'font-size': parseFloat(el.getAttribute('font-size') || '16'),
+    }
+  }
+  return {}
+}
+
+/** Compute the anchor point (opposite corner/edge) for a given handle */
+function computeAnchor(
+  handle: HandlePosition,
+  bbox: { x: number; y: number; width: number; height: number }
+): { x: number; y: number } {
+  const cx = bbox.x + bbox.width / 2
+  const cy = bbox.y + bbox.height / 2
+  switch (handle) {
+    case 'nw': return { x: bbox.x + bbox.width, y: bbox.y + bbox.height }
+    case 'n':  return { x: cx, y: bbox.y + bbox.height }
+    case 'ne': return { x: bbox.x, y: bbox.y + bbox.height }
+    case 'e':  return { x: bbox.x, y: cy }
+    case 'se': return { x: bbox.x, y: bbox.y }
+    case 's':  return { x: cx, y: bbox.y }
+    case 'sw': return { x: bbox.x + bbox.width, y: bbox.y }
+    case 'w':  return { x: bbox.x + bbox.width, y: cy }
+  }
+}
+
+/** Which axes does this handle scale? */
+function handleAxes(handle: HandlePosition): { scaleX: boolean; scaleY: boolean } {
+  switch (handle) {
+    case 'n': case 's':  return { scaleX: false, scaleY: true }
+    case 'e': case 'w':  return { scaleX: true, scaleY: false }
+    default:             return { scaleX: true, scaleY: true } // corners
+  }
+}
+
+/** Compute union bounding box of elements */
+function unionBBox(elements: Element[]): { x: number; y: number; width: number; height: number } | null {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  let hasBox = false
+  for (const el of elements) {
+    try {
+      const bbox = (el as SVGGraphicsElement).getBBox()
+      minX = Math.min(minX, bbox.x)
+      minY = Math.min(minY, bbox.y)
+      maxX = Math.max(maxX, bbox.x + bbox.width)
+      maxY = Math.max(maxY, bbox.y + bbox.height)
+      hasBox = true
+    } catch { /* skip */ }
+  }
+  if (!hasBox) return null
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 }
 
 export function createSelectTool(
@@ -52,56 +145,25 @@ export function createSelectTool(
   getHistory: () => CommandHistory
 ): ToolConfig {
   const dragState: DragState = {
-    dragging: false,
+    mode: 'none',
     startX: 0,
     startY: 0,
     startPositions: new Map(),
+    scale: null,
   }
 
   function getPositionAttrs(el: Element): { attr: string; vals: Record<string, number> } {
     const tag = el.tagName
     if (tag === 'line') {
-      return {
-        attr: 'line',
-        vals: {
-          x1: parseFloat(el.getAttribute('x1') || '0'),
-          y1: parseFloat(el.getAttribute('y1') || '0'),
-          x2: parseFloat(el.getAttribute('x2') || '0'),
-          y2: parseFloat(el.getAttribute('y2') || '0'),
-        },
-      }
+      return { attr: 'line', vals: { x1: parseFloat(el.getAttribute('x1') || '0'), y1: parseFloat(el.getAttribute('y1') || '0'), x2: parseFloat(el.getAttribute('x2') || '0'), y2: parseFloat(el.getAttribute('y2') || '0') } }
     } else if (tag === 'rect') {
-      return {
-        attr: 'rect',
-        vals: {
-          x: parseFloat(el.getAttribute('x') || '0'),
-          y: parseFloat(el.getAttribute('y') || '0'),
-        },
-      }
+      return { attr: 'rect', vals: { x: parseFloat(el.getAttribute('x') || '0'), y: parseFloat(el.getAttribute('y') || '0') } }
     } else if (tag === 'ellipse') {
-      return {
-        attr: 'ellipse',
-        vals: {
-          cx: parseFloat(el.getAttribute('cx') || '0'),
-          cy: parseFloat(el.getAttribute('cy') || '0'),
-        },
-      }
+      return { attr: 'ellipse', vals: { cx: parseFloat(el.getAttribute('cx') || '0'), cy: parseFloat(el.getAttribute('cy') || '0') } }
     } else if (tag === 'circle') {
-      return {
-        attr: 'circle',
-        vals: {
-          cx: parseFloat(el.getAttribute('cx') || '0'),
-          cy: parseFloat(el.getAttribute('cy') || '0'),
-        },
-      }
+      return { attr: 'circle', vals: { cx: parseFloat(el.getAttribute('cx') || '0'), cy: parseFloat(el.getAttribute('cy') || '0') } }
     } else if (tag === 'text') {
-      return {
-        attr: 'text',
-        vals: {
-          x: parseFloat(el.getAttribute('x') || '0'),
-          y: parseFloat(el.getAttribute('y') || '0'),
-        },
-      }
+      return { attr: 'text', vals: { x: parseFloat(el.getAttribute('x') || '0'), y: parseFloat(el.getAttribute('y') || '0') } }
     }
     return { attr: 'unknown', vals: {} }
   }
@@ -125,14 +187,104 @@ export function createSelectTool(
     }
   }
 
+  /** Apply scale factors to an element relative to an anchor point */
+  function scaleElement(el: Element, sx: number, sy: number, anchorX: number, anchorY: number) {
+    const start = dragState.startPositions.get(el)
+    if (!start) return
+    const tag = el.tagName
+
+    if (tag === 'rect') {
+      const origX = start.vals.x, origY = start.vals.y
+      const origW = start.vals.width, origH = start.vals.height
+      el.setAttribute('x', String(anchorX + (origX - anchorX) * sx))
+      el.setAttribute('y', String(anchorY + (origY - anchorY) * sy))
+      el.setAttribute('width', String(Math.abs(origW * sx)))
+      el.setAttribute('height', String(Math.abs(origH * sy)))
+    } else if (tag === 'ellipse') {
+      const origCx = start.vals.cx, origCy = start.vals.cy
+      const origRx = start.vals.rx, origRy = start.vals.ry
+      el.setAttribute('cx', String(anchorX + (origCx - anchorX) * sx))
+      el.setAttribute('cy', String(anchorY + (origCy - anchorY) * sy))
+      el.setAttribute('rx', String(Math.abs(origRx * sx)))
+      el.setAttribute('ry', String(Math.abs(origRy * sy)))
+    } else if (tag === 'circle') {
+      const origCx = start.vals.cx, origCy = start.vals.cy
+      const origR = start.vals.r
+      const s = Math.max(Math.abs(sx), Math.abs(sy))
+      el.setAttribute('cx', String(anchorX + (origCx - anchorX) * sx))
+      el.setAttribute('cy', String(anchorY + (origCy - anchorY) * sy))
+      el.setAttribute('r', String(origR * s))
+    } else if (tag === 'line') {
+      el.setAttribute('x1', String(anchorX + (start.vals.x1 - anchorX) * sx))
+      el.setAttribute('y1', String(anchorY + (start.vals.y1 - anchorY) * sy))
+      el.setAttribute('x2', String(anchorX + (start.vals.x2 - anchorX) * sx))
+      el.setAttribute('y2', String(anchorY + (start.vals.y2 - anchorY) * sy))
+    } else if (tag === 'text') {
+      const origX = start.vals.x, origY = start.vals.y
+      const origFs = start.vals['font-size']
+      const s = Math.max(Math.abs(sx), Math.abs(sy))
+      el.setAttribute('x', String(anchorX + (origX - anchorX) * sx))
+      el.setAttribute('y', String(anchorY + (origY - anchorY) * sy))
+      el.setAttribute('font-size', String(origFs * s))
+    }
+  }
+
+  /** Commit changed attributes via CompoundCommand (reset-then-execute pattern) */
+  function commitChanges(description: string) {
+    const commands: ModifyAttributeCommand[] = []
+    for (const el of getSelection()) {
+      const start = dragState.startPositions.get(el)
+      if (!start) continue
+      for (const [attr, origVal] of Object.entries(start.vals)) {
+        const newVal = el.getAttribute(attr)
+        if (newVal !== null && newVal !== String(origVal)) {
+          commands.push(new ModifyAttributeCommand(el, attr, newVal))
+          el.setAttribute(attr, String(origVal))
+        }
+      }
+    }
+    if (commands.length > 0) {
+      getHistory().execute(new CompoundCommand(commands, description))
+    }
+    dragState.startPositions.clear()
+  }
+
   return {
     name: 'select',
     icon: 'V',
     shortcut: 'v',
+    cursor: 'default',
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()
         if (!svg || e.button !== 0) return
+
+        // Check if clicking on a scale handle
+        const target = e.target as Element
+        if (target?.getAttribute?.('data-role') === 'scale-handle') {
+          const handle = target.getAttribute('data-handle-pos') as HandlePosition
+          if (handle) {
+            const sel = getSelection()
+            const bbox = unionBBox(sel)
+            if (!bbox) return
+
+            const pt = screenToDoc(svg, e.clientX, e.clientY)
+            dragState.mode = 'scale'
+            dragState.startX = pt.x
+            dragState.startY = pt.y
+            dragState.startPositions.clear()
+            for (const el of sel) {
+              dragState.startPositions.set(el, { attr: el.tagName, vals: getAllGeomAttrs(el) })
+            }
+            dragState.scale = {
+              handle,
+              anchorX: computeAnchor(handle, bbox).x,
+              anchorY: computeAnchor(handle, bbox).y,
+              origBBox: bbox,
+            }
+            return
+          }
+        }
 
         const hit = hitTest(svg, e.clientX, e.clientY)
         const pt = screenToDoc(svg, e.clientX, e.clientY)
@@ -147,8 +299,7 @@ export function createSelectTool(
           if (!sel.includes(hit)) {
             setSelection([hit])
           }
-          // Start drag
-          dragState.dragging = true
+          dragState.mode = 'move'
           dragState.startX = pt.x
           dragState.startY = pt.y
           dragState.startPositions.clear()
@@ -161,23 +312,57 @@ export function createSelectTool(
       },
 
       onMouseMove(e: MouseEvent) {
-        if (!dragState.dragging) return
+        if (dragState.mode === 'none') return
         const svg = getSvg()
         if (!svg) return
         const pt = screenToDoc(svg, e.clientX, e.clientY)
-        const dx = pt.x - dragState.startX
-        const dy = pt.y - dragState.startY
 
-        for (const el of getSelection()) {
-          moveElement(el, dx, dy)
+        if (dragState.mode === 'move') {
+          const dx = pt.x - dragState.startX
+          const dy = pt.y - dragState.startY
+          for (const el of getSelection()) {
+            moveElement(el, dx, dy)
+          }
+        } else if (dragState.mode === 'scale' && dragState.scale) {
+          const { handle, anchorX, anchorY, origBBox } = dragState.scale
+          const axes = handleAxes(handle)
+
+          // Compute new bbox extent based on mouse position
+          let newWidth = origBBox.width
+          let newHeight = origBBox.height
+
+          if (axes.scaleX) {
+            // Width from anchor to mouse
+            newWidth = Math.abs(pt.x - anchorX)
+            if (newWidth < 0.1) newWidth = 0.1
+          }
+          if (axes.scaleY) {
+            newHeight = Math.abs(pt.y - anchorY)
+            if (newHeight < 0.1) newHeight = 0.1
+          }
+
+          let sx = axes.scaleX ? newWidth / origBBox.width : 1
+          let sy = axes.scaleY ? newHeight / origBBox.height : 1
+
+          // Shift constrains proportions for corner handles
+          if (e.shiftKey && axes.scaleX && axes.scaleY) {
+            const s = Math.max(sx, sy)
+            sx = s
+            sy = s
+          }
+
+          for (const el of getSelection()) {
+            scaleElement(el, sx, sy, anchorX, anchorY)
+          }
         }
 
         refreshOverlay()
       },
 
       onMouseUp(e: MouseEvent) {
-        if (!dragState.dragging) return
-        dragState.dragging = false
+        if (dragState.mode === 'none') return
+        const mode = dragState.mode
+        dragState.mode = 'none'
 
         const svg = getSvg()
         if (!svg) return
@@ -185,31 +370,14 @@ export function createSelectTool(
         const dx = pt.x - dragState.startX
         const dy = pt.y - dragState.startY
 
-        if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return // no movement
-
-        // Create undo commands
-        const commands = []
-        for (const el of getSelection()) {
-          const start = dragState.startPositions.get(el)
-          if (!start) continue
-          for (const [attr, origVal] of Object.entries(start.vals)) {
-            const newVal = el.getAttribute(attr)
-            if (newVal !== null && newVal !== String(origVal)) {
-              commands.push(new ModifyAttributeCommand(el, attr, newVal))
-              // Set old value for undo by adjusting the command's internal state
-              // Actually, the command captures oldValue on execute, so we need to
-              // reset the attribute to the original, then execute the command
-              el.setAttribute(attr, String(origVal))
-            }
-          }
+        if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
+          dragState.startPositions.clear()
+          dragState.scale = null
+          return
         }
 
-        if (commands.length > 0) {
-          const compound = new CompoundCommand(commands, 'Move')
-          getHistory().execute(compound)
-        }
-
-        dragState.startPositions.clear()
+        commitChanges(mode === 'scale' ? 'Scale' : 'Move')
+        dragState.scale = null
       },
     },
   }

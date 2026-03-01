@@ -38,6 +38,7 @@ export function createEraserTool(
     name: 'eraser',
     icon: 'X',
     shortcut: 'x',
+    cursor: 'not-allowed',
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()
