@@ -42,43 +42,21 @@ export function createLineTool(
         if (!svg || e.button !== 0) return
         const pt = screenToDoc(svg, e.clientX, e.clientY)
 
-        if (!state.drawing) {
-          state.drawing = true
-          state.startX = pt.x
-          state.startY = pt.y
+        state.drawing = true
+        state.startX = pt.x
+        state.startY = pt.y
 
-          // Create preview line
-          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
-          line.setAttribute('x1', String(pt.x))
-          line.setAttribute('y1', String(pt.y))
-          line.setAttribute('x2', String(pt.x))
-          line.setAttribute('y2', String(pt.y))
-          line.setAttribute('stroke', '#000000')
-          line.setAttribute('stroke-width', '1')
-          line.setAttribute('data-role', 'preview')
-          svg.appendChild(line)
-          state.preview = line
-        } else {
-          // Commit line
-          state.drawing = false
-          removePreview()
-
-          const doc = getDoc()
-          if (!doc) return
-          const layer = doc.getActiveLayer()
-          if (!layer) return
-
-          const history = getHistory()
-          const cmd = new AddElementCommand(doc, layer, 'line', {
-            x1: String(state.startX),
-            y1: String(state.startY),
-            x2: String(pt.x),
-            y2: String(pt.y),
-            stroke: '#000000',
-            'stroke-width': '1',
-          })
-          history.execute(cmd)
-        }
+        // Create preview line
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+        line.setAttribute('x1', String(pt.x))
+        line.setAttribute('y1', String(pt.y))
+        line.setAttribute('x2', String(pt.x))
+        line.setAttribute('y2', String(pt.y))
+        line.setAttribute('stroke', '#000000')
+        line.setAttribute('stroke-width', '1')
+        line.setAttribute('data-role', 'preview')
+        svg.appendChild(line)
+        state.preview = line
       },
 
       onMouseMove(e: MouseEvent) {
@@ -88,6 +66,37 @@ export function createLineTool(
         const pt = screenToDoc(svg, e.clientX, e.clientY)
         state.preview.setAttribute('x2', String(pt.x))
         state.preview.setAttribute('y2', String(pt.y))
+      },
+
+      onMouseUp(e: MouseEvent) {
+        if (!state.drawing) return
+        const svg = getSvg()
+        if (!svg) return
+        const pt = screenToDoc(svg, e.clientX, e.clientY)
+
+        state.drawing = false
+        removePreview()
+
+        // Only commit if the line has some length
+        const dx = pt.x - state.startX
+        const dy = pt.y - state.startY
+        if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return
+
+        const doc = getDoc()
+        if (!doc) return
+        const layer = doc.getActiveLayer()
+        if (!layer) return
+
+        const history = getHistory()
+        const cmd = new AddElementCommand(doc, layer, 'line', {
+          x1: String(state.startX),
+          y1: String(state.startY),
+          x2: String(pt.x),
+          y2: String(pt.y),
+          stroke: '#000000',
+          'stroke-width': '1',
+        })
+        history.execute(cmd)
       },
     },
   }
