@@ -7,6 +7,8 @@ import { refreshOverlay } from '../model/selection'
 import { setDefaultStyle } from '../model/defaultStyle'
 import { MARKER_TYPES, getMarkerLabel, getMarkerUrl, parseMarkerType, ensureMarkerDef } from '../model/markers'
 import type { MarkerType } from '../model/markers'
+import { detectFillType, createLinearGradient, createRadialGradient, parseGradientColors } from '../model/gradients'
+import type { FillType } from '../model/gradients'
 import { computeAlign, computeDistribute, applyDelta } from '../model/align'
 import type { AlignOp, DistributeOp } from '../model/align'
 import { CompoundCommand } from '../model/commands'
@@ -356,9 +358,81 @@ export function PropertiesPanel() {
                   <ColorPicker value={getAttr(el, 'stroke') || '#000000'} onChange={(v) => applyAttr(el, 'stroke', v)} allowNone={false} />
                 </div>
                 <PropertyInput label="SW" value={getAttr(el, 'stroke-width')} onChange={(v) => applyAttr(el, 'stroke-width', v)} />
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-chrome-500 w-8">Fill</span>
-                  <ColorPicker value={getAttr(el, 'fill') || 'none'} onChange={(v) => applyAttr(el, 'fill', v)} />
+                <div className="space-y-1">
+                  <label className="flex items-center gap-1">
+                    <span className="text-xs text-chrome-500 w-8">Fill</span>
+                    <select
+                      value={detectFillType(el)}
+                      onChange={(e) => {
+                        const ft = e.target.value as FillType
+                        if (ft === 'none') {
+                          applyAttr(el, 'fill', 'none')
+                        } else if (ft === 'solid') {
+                          const colors = parseGradientColors(el)
+                          applyAttr(el, 'fill', colors?.color1 || '#000000')
+                        } else if (ft === 'linear' && doc) {
+                          const colors = parseGradientColors(el)
+                          const url = createLinearGradient(doc.getDefs(), colors?.color1 || '#000000', colors?.color2 || '#ffffff', 0)
+                          applyAttr(el, 'fill', url)
+                        } else if (ft === 'radial' && doc) {
+                          const colors = parseGradientColors(el)
+                          const url = createRadialGradient(doc.getDefs(), colors?.color1 || '#000000', colors?.color2 || '#ffffff')
+                          applyAttr(el, 'fill', url)
+                        }
+                      }}
+                      className="flex-1 border border-chrome-300 px-1 py-0.5 text-xs"
+                    >
+                      <option value="none">None</option>
+                      <option value="solid">Solid</option>
+                      <option value="linear">Linear Gradient</option>
+                      <option value="radial">Radial Gradient</option>
+                    </select>
+                  </label>
+                  {detectFillType(el) === 'solid' && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-chrome-500 w-8"></span>
+                      <ColorPicker value={getAttr(el, 'fill') || '#000000'} onChange={(v) => applyAttr(el, 'fill', v)} />
+                    </div>
+                  )}
+                  {(detectFillType(el) === 'linear' || detectFillType(el) === 'radial') && (() => {
+                    const colors = parseGradientColors(el)
+                    return (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-chrome-500 w-8">C1</span>
+                          <ColorPicker
+                            value={colors?.color1 || '#000000'}
+                            onChange={(v) => {
+                              if (!doc) return
+                              const ft = detectFillType(el)
+                              const c2 = colors?.color2 || '#ffffff'
+                              const url = ft === 'linear'
+                                ? createLinearGradient(doc.getDefs(), v, c2, 0)
+                                : createRadialGradient(doc.getDefs(), v, c2)
+                              applyAttr(el, 'fill', url)
+                            }}
+                            allowNone={false}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-chrome-500 w-8">C2</span>
+                          <ColorPicker
+                            value={colors?.color2 || '#ffffff'}
+                            onChange={(v) => {
+                              if (!doc) return
+                              const ft = detectFillType(el)
+                              const c1 = colors?.color1 || '#000000'
+                              const url = ft === 'linear'
+                                ? createLinearGradient(doc.getDefs(), c1, v, 0)
+                                : createRadialGradient(doc.getDefs(), c1, v)
+                              applyAttr(el, 'fill', url)
+                            }}
+                            allowNone={false}
+                          />
+                        </div>
+                      </>
+                    )
+                  })()}
                 </div>
                 <label className="flex items-center gap-1">
                   <span className="text-xs text-chrome-500 w-8">Dash</span>
