@@ -7,13 +7,9 @@ import type { DocumentModel } from './document'
 export function exportSvg(doc: DocumentModel, filename: string = 'document.svg'): void {
   const svg = doc.svg.cloneNode(true) as SVGSVGElement
 
-  // Remove overlay group
-  const overlay = svg.querySelector('[data-role="overlay"]')
-  overlay?.remove()
-
-  // Remove preview elements
-  for (const preview of svg.querySelectorAll('[data-role="preview"]')) {
-    preview.remove()
+  // Remove all overlay/preview elements (selection, grid, guides, previews)
+  for (const el of svg.querySelectorAll('[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"]')) {
+    el.remove()
   }
 
   // Add XML declaration and proper SVG namespace
@@ -72,6 +68,17 @@ export function importSvg(doc: DocumentModel): Promise<void> {
         const existingLayers = doc.getLayerElements()
         for (const layer of existingLayers) {
           layer.remove()
+        }
+
+        // Import <defs> content
+        const importedDefs = importedSvg.querySelector('defs')
+        if (importedDefs) {
+          const docDefs = doc.getDefs()
+          // Clear existing defs and import new ones
+          while (docDefs.firstChild) docDefs.removeChild(docDefs.firstChild)
+          for (const child of Array.from(importedDefs.children)) {
+            docDefs.appendChild(document.importNode(child, true))
+          }
         }
 
         // Import child elements — look for layer groups or create one
