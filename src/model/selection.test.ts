@@ -191,6 +191,42 @@ describe('Selection overlay with scale handles', () => {
     expect(overlay.querySelectorAll('[data-role="scale-handle"]').length).toBe(0)
   })
 
+  it('shows rotation handle for single selection', () => {
+    const rect = makeRect(svg, 10, 20, 50, 30)
+    setSelection([rect])
+
+    const rotHandle = overlay.querySelector('[data-role="rotation-handle"]')
+    expect(rotHandle).not.toBeNull()
+    expect(rotHandle!.tagName).toBe('circle')
+    expect((rotHandle as SVGElement).style.cursor).toBe('grab')
+
+    const rotLine = overlay.querySelector('[data-role="rotation-line"]')
+    expect(rotLine).not.toBeNull()
+  })
+
+  it('does not show rotation handle for multi-selection', () => {
+    const r1 = makeRect(svg, 10, 20, 30, 20)
+    const r2 = makeRect(svg, 50, 10, 40, 50)
+    setSelection([r1, r2])
+
+    const rotHandle = overlay.querySelector('[data-role="rotation-handle"]')
+    expect(rotHandle).toBeNull()
+  })
+
+  it('rotation handle is positioned above top-center', () => {
+    const rect = makeRect(svg, 10, 20, 50, 30)
+    setSelection([rect])
+
+    const rotHandle = overlay.querySelector('[data-role="rotation-handle"]')!
+    const cx = parseFloat(rotHandle.getAttribute('cx')!)
+    const cy = parseFloat(rotHandle.getAttribute('cy')!)
+
+    // Should be horizontally centered (10 + 50/2 = 35)
+    expect(cx).toBeCloseTo(35)
+    // Should be above the top of the bbox (y=20)
+    expect(cy).toBeLessThan(20)
+  })
+
   it('refreshOverlay recalculates handle positions', () => {
     const rect = makeRect(svg, 10, 20, 50, 30)
     setSelection([rect])

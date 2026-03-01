@@ -16,6 +16,9 @@ const HANDLE_POSITIONS: HandlePosition[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw
 /** Screen pixels for handle square side length */
 const HANDLE_SCREEN_PX = 6
 
+/** Screen pixels for rotation handle distance above top-center */
+const ROTATION_HANDLE_OFFSET_PX = 20
+
 let selectedElements: Element[] = []
 let listeners: Array<() => void> = []
 let overlayGroup: SVGGElement | null = null
@@ -176,6 +179,38 @@ function updateOverlay(): void {
     handle.setAttribute('pointer-events', 'auto')
     handle.style.cursor = HANDLE_CURSORS[pos]
     overlayGroup.appendChild(handle)
+  }
+
+  // Draw rotation handle above top-center (single selection only)
+  if (selectedElements.length === 1) {
+    const topCenterX = ubox.x + ubox.width / 2
+    const topCenterY = ubox.y
+    const offset = ROTATION_HANDLE_OFFSET_PX * (svg.viewBox.baseVal.width / svg.clientWidth)
+
+    // Connecting line from top-center to rotation handle
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+    line.setAttribute('x1', String(topCenterX))
+    line.setAttribute('y1', String(topCenterY))
+    line.setAttribute('x2', String(topCenterX))
+    line.setAttribute('y2', String(topCenterY - offset))
+    line.setAttribute('stroke', '#2563eb')
+    line.setAttribute('stroke-width', String(strokeW))
+    line.setAttribute('data-role', 'rotation-line')
+    line.setAttribute('pointer-events', 'none')
+    overlayGroup.appendChild(line)
+
+    // Rotation handle circle
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    circle.setAttribute('cx', String(topCenterX))
+    circle.setAttribute('cy', String(topCenterY - offset))
+    circle.setAttribute('r', String(hs * 0.6))
+    circle.setAttribute('fill', '#ffffff')
+    circle.setAttribute('stroke', '#2563eb')
+    circle.setAttribute('stroke-width', String(strokeW))
+    circle.setAttribute('data-role', 'rotation-handle')
+    circle.setAttribute('pointer-events', 'auto')
+    circle.style.cursor = 'grab'
+    overlayGroup.appendChild(circle)
   }
 }
 
