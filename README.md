@@ -59,6 +59,13 @@ npm run build       # frontend only
 npm run tauri build  # full app bundle
 ```
 
+## Documentation
+
+- **[docs/API.md](docs/API.md)** — Agent-first API reference covering every function, class, component, and keybinding
+- **[vectorfeld-prd.md](vectorfeld-prd.md)** — Product requirements document
+- **[CLAUDE.md](CLAUDE.md)** — AI agent workflow conventions
+- **[AGENTS.md](AGENTS.md)** — Agent onboarding and handoff context
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
