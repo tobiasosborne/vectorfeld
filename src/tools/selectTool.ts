@@ -36,7 +36,7 @@ function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element 
   return null
 }
 
-type DragMode = 'none' | 'move' | 'scale'
+type DragMode = 'none' | 'move' | 'scale' | 'rotate'
 
 interface ScaleState {
   handle: HandlePosition
@@ -45,12 +45,20 @@ interface ScaleState {
   origBBox: { x: number; y: number; width: number; height: number }
 }
 
+interface RotateState {
+  centerX: number
+  centerY: number
+  startAngle: number
+  origTransform: string | null
+}
+
 interface DragState {
   mode: DragMode
   startX: number
   startY: number
   startPositions: Map<Element, { attr: string; vals: Record<string, number> }>
   scale: ScaleState | null
+  rotate: RotateState | null
 }
 
 /** Get all geometry attributes for an element (position + size) */
@@ -150,6 +158,7 @@ export function createSelectTool(
     startY: 0,
     startPositions: new Map(),
     scale: null,
+    rotate: null,
   }
 
   function getPositionAttrs(el: Element): { attr: string; vals: Record<string, number> } {
@@ -259,8 +268,34 @@ export function createSelectTool(
         const svg = getSvg()
         if (!svg || e.button !== 0) return
 
-        // Check if clicking on a scale handle
+        // Check if clicking on the rotation handle
         const target = e.target as Element
+        if (target?.getAttribute?.('data-role') === 'rotation-handle') {
+          const sel = getSelection()
+          if (sel.length === 1) {
+            const bbox = unionBBox(sel)
+            if (!bbox) return
+            const pt = screenToDoc(svg, e.clientX, e.clientY)
+            const cx = bbox.x + bbox.width / 2
+            const cy = bbox.y + bbox.height / 2
+            const startAngle = Math.atan2(pt.y - cy, pt.x - cx)
+            dragState.mode = 'rotate'
+            dragState.startX = pt.x
+            dragState.startY = pt.y
+            dragState.startPositions.clear()
+            const el = sel[0]
+            dragState.startPositions.set(el, { attr: el.tagName, vals: { transform: 0 } })
+            dragState.rotate = {
+              centerX: cx,
+              centerY: cy,
+              startAngle,
+              origTransform: el.getAttribute('transform'),
+            }
+            return
+          }
+        }
+
+        // Check if clicking on a scale handle
         if (target?.getAttribute?.('data-role') === 'scale-handle') {
           const handle = target.getAttribute('data-handle-pos') as HandlePosition
           if (handle) {
@@ -354,6 +389,29 @@ export function createSelectTool(
           for (const el of getSelection()) {
             scaleElement(el, sx, sy, anchorX, anchorY)
           }
+        } else if (dragState.mode === 'rotate' && dragState.rotate) {
+          const { centerX, centerY, startAngle } = dragState.rotate
+          const currentAngle = Math.atan2(pt.y - centerY, pt.x - centerX)
+          let angleDeg = ((currentAngle - startAngle) * 180) / Math.PI
+
+          // Shift constrains to 15° increments
+          if (e.shiftKey) {
+            angleDeg = Math.round(angleDeg / 15) * 15
+          }
+
+          // Parse existing rotation from original transform
+          let baseAngle = 0
+          const orig = dragState.rotate.origTransform
+          if (orig) {
+            const match = orig.match(/rotate\(([-\d.]+)/)
+            if (match) baseAngle = parseFloat(match[1])
+          }
+
+          const totalAngle = baseAngle + angleDeg
+          const sel = getSelection()
+          if (sel.length === 1) {
+            sel[0].setAttribute('transform', `rotate(${totalAngle}, ${centerX}, ${centerY})`)
+          }
         }
 
         refreshOverlay()
@@ -373,11 +431,32 @@ export function createSelectTool(
         if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
           dragState.startPositions.clear()
           dragState.scale = null
+          dragState.rotate = null
           return
         }
 
-        commitChanges(mode === 'scale' ? 'Scale' : 'Move')
-        dragState.scale = null
+        if (mode === 'rotate' && dragState.rotate) {
+          // Commit rotation via ModifyAttributeCommand on transform
+          const sel = getSelection()
+          if (sel.length === 1) {
+            const el = sel[0]
+            const newTransform = el.getAttribute('transform') || ''
+            const origTransform = dragState.rotate.origTransform
+            // Reset to original for proper undo capture
+            if (origTransform) {
+              el.setAttribute('transform', origTransform)
+            } else {
+              el.removeAttribute('transform')
+            }
+            const cmd = new ModifyAttributeCommand(el, 'transform', newTransform)
+            getHistory().execute(cmd)
+          }
+          dragState.rotate = null
+          dragState.startPositions.clear()
+        } else {
+          commitChanges(mode === 'scale' ? 'Scale' : 'Move')
+          dragState.scale = null
+        }
       },
     },
   }
