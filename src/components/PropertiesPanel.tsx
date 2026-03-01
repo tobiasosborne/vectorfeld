@@ -40,6 +40,7 @@ function PropertyInput({ label, value, onChange }: { label: string; value: strin
 export function PropertiesPanel() {
   const { history } = useEditor()
   const [selection, setSelectionState] = useState<Element[]>([])
+  const [lockAspect, setLockAspect] = useState(false)
 
   useEffect(() => {
     const update = () => setSelectionState(getSelection())
@@ -95,18 +96,67 @@ export function PropertiesPanel() {
 
             {(tag === 'rect' || tag === 'ellipse') && (
               <div>
-                <div className="text-xs font-medium text-chrome-600 mb-1">Size</div>
+                <div className="text-xs font-medium text-chrome-600 mb-1 flex items-center justify-between">
+                  Size
+                  <button
+                    onClick={() => setLockAspect(!lockAspect)}
+                    className={`text-xs px-1 ${lockAspect ? 'text-accent' : 'text-chrome-400'}`}
+                    title={lockAspect ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+                  >
+                    {lockAspect ? '🔗' : '⛓️‍💥'}
+                  </button>
+                </div>
                 <div className="space-y-1">
                   {tag === 'rect' && (
                     <>
-                      <PropertyInput label="W" value={getAttr(el, 'width')} onChange={(v) => applyAttr(el, 'width', v)} />
-                      <PropertyInput label="H" value={getAttr(el, 'height')} onChange={(v) => applyAttr(el, 'height', v)} />
+                      <PropertyInput label="W" value={getAttr(el, 'width')} onChange={(v) => {
+                        const newW = parseFloat(v)
+                        if (lockAspect && !isNaN(newW)) {
+                          const oldW = parseFloat(getAttr(el, 'width')) || 1
+                          const oldH = parseFloat(getAttr(el, 'height')) || 1
+                          const ratio = oldH / oldW
+                          applyAttr(el, 'height', String(newW * ratio))
+                        }
+                        applyAttr(el, 'width', v)
+                        refreshOverlay()
+                      }} />
+                      <PropertyInput label="H" value={getAttr(el, 'height')} onChange={(v) => {
+                        const newH = parseFloat(v)
+                        if (lockAspect && !isNaN(newH)) {
+                          const oldW = parseFloat(getAttr(el, 'width')) || 1
+                          const oldH = parseFloat(getAttr(el, 'height')) || 1
+                          const ratio = oldW / oldH
+                          applyAttr(el, 'width', String(newH * ratio))
+                        }
+                        applyAttr(el, 'height', v)
+                        refreshOverlay()
+                      }} />
                     </>
                   )}
                   {tag === 'ellipse' && (
                     <>
-                      <PropertyInput label="RX" value={getAttr(el, 'rx')} onChange={(v) => applyAttr(el, 'rx', v)} />
-                      <PropertyInput label="RY" value={getAttr(el, 'ry')} onChange={(v) => applyAttr(el, 'ry', v)} />
+                      <PropertyInput label="RX" value={getAttr(el, 'rx')} onChange={(v) => {
+                        const newRx = parseFloat(v)
+                        if (lockAspect && !isNaN(newRx)) {
+                          const oldRx = parseFloat(getAttr(el, 'rx')) || 1
+                          const oldRy = parseFloat(getAttr(el, 'ry')) || 1
+                          const ratio = oldRy / oldRx
+                          applyAttr(el, 'ry', String(newRx * ratio))
+                        }
+                        applyAttr(el, 'rx', v)
+                        refreshOverlay()
+                      }} />
+                      <PropertyInput label="RY" value={getAttr(el, 'ry')} onChange={(v) => {
+                        const newRy = parseFloat(v)
+                        if (lockAspect && !isNaN(newRy)) {
+                          const oldRx = parseFloat(getAttr(el, 'rx')) || 1
+                          const oldRy = parseFloat(getAttr(el, 'ry')) || 1
+                          const ratio = oldRx / oldRy
+                          applyAttr(el, 'rx', String(newRy * ratio))
+                        }
+                        applyAttr(el, 'ry', v)
+                        refreshOverlay()
+                      }} />
                     </>
                   )}
                 </div>
@@ -139,6 +189,14 @@ export function PropertiesPanel() {
                     value={getAttr(el, 'font-size') || '16'}
                     onChange={(v) => {
                       applyAttr(el, 'font-size', v)
+                      refreshOverlay()
+                    }}
+                  />
+                  <PropertyInput
+                    label="Lsp"
+                    value={getAttr(el, 'letter-spacing') || '0'}
+                    onChange={(v) => {
+                      applyAttr(el, 'letter-spacing', v)
                       refreshOverlay()
                     }}
                   />
