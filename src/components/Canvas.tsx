@@ -1,4 +1,6 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
+import { zoomAtPoint } from '../model/zoom'
+import { screenToDoc, getZoomPercent } from '../model/coordinates'
 
 export interface DocumentDimensions {
   width: number  // mm
@@ -7,13 +9,23 @@ export interface DocumentDimensions {
 
 const DEFAULT_DIMENSIONS: DocumentDimensions = { width: 210, height: 297 } // A4
 
-interface CanvasProps {
-  dimensions?: DocumentDimensions
+export interface CanvasState {
+  cursorX: number
+  cursorY: number
+  zoomPercent: number
 }
 
-export function Canvas({ dimensions = DEFAULT_DIMENSIONS }: CanvasProps) {
+interface CanvasProps {
+  dimensions?: DocumentDimensions
+  onStateChange?: (state: CanvasState) => void
+}
+
+export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
+  const [isPanning, setIsPanning] = useState(false)
+  const panStart = useRef<{ x: number; y: number; vbX: number; vbY: number } | null>(null)
+  const spaceHeld = useRef(false)
 
   const initSvg = useCallback(() => {
     const container = containerRef.current
@@ -73,10 +85,116 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS }: CanvasProps) {
     }
   }, [dimensions.width, dimensions.height])
 
+  const emitState = useCallback(() => {
+    if (!onStateChange || !svgRef.current) return
+    onStateChange({
+      cursorX: 0,
+      cursorY: 0,
+      zoomPercent: getZoomPercent(svgRef.current),
+    })
+  }, [onStateChange])
+
+  // Zoom handler
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      if (!svgRef.current) return
+      zoomAtPoint(svgRef.current, e.clientX, e.clientY, e.deltaY)
+      emitState()
+    }
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => container.removeEventListener('wheel', handleWheel)
+  }, [emitState])
+
+  // Mouse move for cursor coordinates
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!svgRef.current || !onStateChange) return
+      const doc = screenToDoc(svgRef.current, e.clientX, e.clientY)
+      onStateChange({
+        cursorX: doc.x,
+        cursorY: doc.y,
+        zoomPercent: getZoomPercent(svgRef.current),
+      })
+
+      // Pan while dragging
+      if (isPanning && panStart.current) {
+        const svg = svgRef.current
+        const vb = svg.viewBox.baseVal
+        const scale = vb.width / svg.clientWidth
+        const dx = (e.clientX - panStart.current.x) * scale
+        const dy = (e.clientY - panStart.current.y) * scale
+        svg.setAttribute(
+          'viewBox',
+          `${panStart.current.vbX - dx} ${panStart.current.vbY - dy} ${vb.width} ${vb.height}`
+        )
+      }
+    }
+    container.addEventListener('mousemove', handleMouseMove)
+    return () => container.removeEventListener('mousemove', handleMouseMove)
+  }, [onStateChange, isPanning])
+
+  // Pan: middle-click drag
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const handleDown = (e: MouseEvent) => {
+      if (!svgRef.current) return
+      if (e.button === 1 || (spaceHeld.current && e.button === 0)) {
+        e.preventDefault()
+        const vb = svgRef.current.viewBox.baseVal
+        panStart.current = { x: e.clientX, y: e.clientY, vbX: vb.x, vbY: vb.y }
+        setIsPanning(true)
+      }
+    }
+    const handleUp = (e: MouseEvent) => {
+      if (e.button === 1 || e.button === 0) {
+        panStart.current = null
+        setIsPanning(false)
+      }
+    }
+    container.addEventListener('mousedown', handleDown)
+    window.addEventListener('mouseup', handleUp)
+    return () => {
+      container.removeEventListener('mousedown', handleDown)
+      window.removeEventListener('mouseup', handleUp)
+    }
+  }, [])
+
+  // Pan: space+drag
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat) {
+        const tag = (e.target as HTMLElement)?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return
+        e.preventDefault()
+        spaceHeld.current = true
+      }
+    }
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        spaceHeld.current = false
+        panStart.current = null
+        setIsPanning(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [])
+
   return (
     <div
       ref={containerRef}
       className="flex-1 bg-canvas-bg overflow-hidden"
+      style={{ cursor: isPanning ? 'grabbing' : undefined }}
       data-testid="canvas-container"
     />
   )
