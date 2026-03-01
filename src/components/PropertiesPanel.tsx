@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getSelection, subscribeSelection } from '../model/selection'
 import { useEditor } from '../model/EditorContext'
 import { ModifyAttributeCommand } from '../model/commands'
@@ -23,14 +23,41 @@ function getAttr(el: Element, attr: string): string {
   return el.getAttribute(attr) || ''
 }
 
+/** Format a numeric string to 2 decimal places for display */
+function formatNumeric(val: string): string {
+  const num = parseFloat(val)
+  if (isNaN(num)) return val
+  return num.toFixed(2)
+}
+
 function PropertyInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [localValue, setLocalValue] = useState(value)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Sync external value when not editing
+  useEffect(() => {
+    if (!editing) setLocalValue(value)
+  }, [value, editing])
+
+  const displayValue = editing ? localValue : formatNumeric(value)
+
   return (
     <label className="flex items-center gap-1">
       <span className="text-xs text-chrome-500 w-8">{label}</span>
       <input
+        ref={inputRef}
         type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={displayValue}
+        onChange={(e) => {
+          setLocalValue(e.target.value)
+          onChange(e.target.value)
+        }}
+        onFocus={() => {
+          setEditing(true)
+          setLocalValue(value)
+        }}
+        onBlur={() => setEditing(false)}
         className="flex-1 border border-chrome-300 px-1 py-0.5 text-xs font-mono w-16"
       />
     </label>
