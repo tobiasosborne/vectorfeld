@@ -7,14 +7,18 @@ import type { CommandHistory } from '../model/commands'
 import type { Point } from '../model/coordinates'
 
 const DEFAULT_FONT_FAMILY = 'sans-serif'
-const DEFAULT_FONT_SIZE = 16 // px (SVG units = mm, so this is 16mm ≈ 45pt)
+const DEFAULT_FONT_SIZE = 16
 
 interface TextToolState {
   editing: boolean
   text: string
+  cursorPos: number
+  selStart: number // selection anchor (where shift+arrow started)
+  selEnd: number   // selection cursor end
   position: Point
   previewText: SVGTextElement | null
   caret: SVGLineElement | null
+  selectionRect: SVGRectElement | null
   caretVisible: boolean
   caretInterval: ReturnType<typeof setInterval> | null
 }
@@ -27,9 +31,13 @@ export function createTextTool(
   const state: TextToolState = {
     editing: false,
     text: '',
+    cursorPos: 0,
+    selStart: 0,
+    selEnd: 0,
     position: { x: 0, y: 0 },
     previewText: null,
     caret: null,
+    selectionRect: null,
     caretVisible: true,
     caretInterval: null,
   }
@@ -40,19 +48,66 @@ export function createTextTool(
     return 1 * (vb.width / svg.clientWidth)
   }
 
-  function updateCaret(svg: SVGSVGElement) {
-    if (!state.caret || !state.previewText) return
-
-    // Position caret after the last character
-    let textWidth = 0
+  /** Approximate x-offset for a character position in the text */
+  function charOffset(pos: number): number {
+    if (pos === 0 || !state.previewText) return 0
     try {
-      textWidth = state.previewText.getComputedTextLength()
+      // Try getSubStringLength for accurate measurement
+      if (state.previewText.getSubStringLength) {
+        return state.previewText.getSubStringLength(0, pos)
+      }
     } catch {
-      // jsdom fallback: approximate width based on character count
-      textWidth = state.text.length * DEFAULT_FONT_SIZE * 0.6
+      // fallback
     }
+    // Approximate fallback
+    const totalLen = (() => {
+      try { return state.previewText!.getComputedTextLength() } catch { return 0 }
+    })()
+    if (totalLen === 0 || state.text.length === 0) {
+      return pos * DEFAULT_FONT_SIZE * 0.6
+    }
+    return totalLen * (pos / state.text.length)
+  }
 
-    const x = state.position.x + textWidth
+  function hasSelection(): boolean {
+    return state.selStart !== state.selEnd
+  }
+
+  function selectionRange(): [number, number] {
+    return [Math.min(state.selStart, state.selEnd), Math.max(state.selStart, state.selEnd)]
+  }
+
+  function clearTextSelection() {
+    state.selStart = state.cursorPos
+    state.selEnd = state.cursorPos
+    if (state.selectionRect) {
+      state.selectionRect.style.display = 'none'
+    }
+  }
+
+  function updateSelectionVisual(svg: SVGSVGElement) {
+    if (!state.selectionRect) return
+    if (!hasSelection()) {
+      state.selectionRect.style.display = 'none'
+      return
+    }
+    const [start, end] = selectionRange()
+    const x1 = state.position.x + charOffset(start)
+    const x2 = state.position.x + charOffset(end)
+    const y = state.position.y - DEFAULT_FONT_SIZE * 0.8
+    const h = DEFAULT_FONT_SIZE
+
+    state.selectionRect.setAttribute('x', String(x1))
+    state.selectionRect.setAttribute('y', String(y))
+    state.selectionRect.setAttribute('width', String(Math.max(x2 - x1, 0.1)))
+    state.selectionRect.setAttribute('height', String(h))
+    state.selectionRect.style.display = ''
+  }
+
+  function updateCaret(svg: SVGSVGElement) {
+    if (!state.caret) return
+
+    const x = state.position.x + charOffset(state.cursorPos)
     const y1 = state.position.y - DEFAULT_FONT_SIZE * 0.8
     const y2 = state.position.y + DEFAULT_FONT_SIZE * 0.2
 
@@ -60,6 +115,8 @@ export function createTextTool(
     state.caret.setAttribute('y1', String(y1))
     state.caret.setAttribute('x2', String(x))
     state.caret.setAttribute('y2', String(y2))
+
+    updateSelectionVisual(svg)
   }
 
   function startBlink(svg: SVGSVGElement) {
@@ -85,9 +142,14 @@ export function createTextTool(
     stopBlink()
     state.previewText?.remove()
     state.caret?.remove()
+    state.selectionRect?.remove()
     state.previewText = null
     state.caret = null
+    state.selectionRect = null
     state.text = ''
+    state.cursorPos = 0
+    state.selStart = 0
+    state.selEnd = 0
     state.editing = false
     setKeyboardCapture(false)
   }
@@ -117,21 +179,37 @@ export function createTextTool(
     })
     history.execute(cmd)
 
-    // Set text content on the created element (AddElementCommand only sets attributes).
-    // The DOM node is reused on redo, so textContent persists through undo/redo.
     const el = cmd.getElement()
     if (el) {
       el.textContent = textContent
     }
   }
 
+  function updatePreview() {
+    if (state.previewText) {
+      state.previewText.textContent = state.text
+    }
+  }
+
+  function deleteSelection() {
+    if (!hasSelection()) return false
+    const [start, end] = selectionRange()
+    state.text = state.text.slice(0, start) + state.text.slice(end)
+    state.cursorPos = start
+    clearTextSelection()
+    updatePreview()
+    return true
+  }
+
   function startEditing(svg: SVGSVGElement, pos: Point) {
     state.editing = true
     state.text = ''
+    state.cursorPos = 0
+    state.selStart = 0
+    state.selEnd = 0
     state.position = pos
     setKeyboardCapture(true)
 
-    // Create preview text element
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
     text.setAttribute('x', String(pos.x))
     text.setAttribute('y', String(pos.y))
@@ -144,7 +222,16 @@ export function createTextTool(
     svg.appendChild(text)
     state.previewText = text
 
-    // Create blinking caret
+    // Selection highlight rect
+    const selRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    selRect.setAttribute('fill', '#2563eb')
+    selRect.setAttribute('opacity', '0.3')
+    selRect.setAttribute('data-role', 'preview')
+    selRect.setAttribute('pointer-events', 'none')
+    selRect.style.display = 'none'
+    svg.appendChild(selRect)
+    state.selectionRect = selRect
+
     const sw = caretDocSize(svg)
     const caret = document.createElementNS('http://www.w3.org/2000/svg', 'line')
     caret.setAttribute('stroke', '#000000')
@@ -170,7 +257,6 @@ export function createTextTool(
         const pt = screenToDoc(svg, e.clientX, e.clientY)
 
         if (state.editing) {
-          // Commit current text, then start new at new position
           commit()
           startEditing(svg, pt)
         } else {
@@ -182,39 +268,134 @@ export function createTextTool(
         if (!state.editing) return
         const svg = getSvg()
 
-        if (e.key === 'Escape') {
+        if (e.key === 'Escape' || e.key === 'Enter') {
           e.preventDefault()
           commit()
           return
         }
 
-        if (e.key === 'Enter') {
+        if (e.key === 'ArrowLeft') {
           e.preventDefault()
-          commit()
+          if (e.shiftKey) {
+            if (state.selStart === state.selEnd) {
+              state.selStart = state.cursorPos
+            }
+            state.cursorPos = Math.max(0, state.cursorPos - 1)
+            state.selEnd = state.cursorPos
+          } else {
+            if (hasSelection()) {
+              state.cursorPos = selectionRange()[0]
+              clearTextSelection()
+            } else {
+              state.cursorPos = Math.max(0, state.cursorPos - 1)
+              clearTextSelection()
+            }
+          }
+          if (svg) updateCaret(svg)
+          return
+        }
+
+        if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          if (e.shiftKey) {
+            if (state.selStart === state.selEnd) {
+              state.selStart = state.cursorPos
+            }
+            state.cursorPos = Math.min(state.text.length, state.cursorPos + 1)
+            state.selEnd = state.cursorPos
+          } else {
+            if (hasSelection()) {
+              state.cursorPos = selectionRange()[1]
+              clearTextSelection()
+            } else {
+              state.cursorPos = Math.min(state.text.length, state.cursorPos + 1)
+              clearTextSelection()
+            }
+          }
+          if (svg) updateCaret(svg)
+          return
+        }
+
+        if (e.key === 'Home') {
+          e.preventDefault()
+          if (e.shiftKey) {
+            if (state.selStart === state.selEnd) state.selStart = state.cursorPos
+            state.cursorPos = 0
+            state.selEnd = 0
+          } else {
+            state.cursorPos = 0
+            clearTextSelection()
+          }
+          if (svg) updateCaret(svg)
+          return
+        }
+
+        if (e.key === 'End') {
+          e.preventDefault()
+          if (e.shiftKey) {
+            if (state.selStart === state.selEnd) state.selStart = state.cursorPos
+            state.cursorPos = state.text.length
+            state.selEnd = state.text.length
+          } else {
+            state.cursorPos = state.text.length
+            clearTextSelection()
+          }
+          if (svg) updateCaret(svg)
           return
         }
 
         if (e.key === 'Backspace') {
           e.preventDefault()
-          if (state.text.length > 0) {
-            state.text = state.text.slice(0, -1)
-            if (state.previewText) {
-              state.previewText.textContent = state.text
-            }
+          if (deleteSelection()) {
+            if (svg) updateCaret(svg)
+            return
+          }
+          if (state.cursorPos > 0) {
+            state.text = state.text.slice(0, state.cursorPos - 1) + state.text.slice(state.cursorPos)
+            state.cursorPos--
+            clearTextSelection()
+            updatePreview()
             if (svg) updateCaret(svg)
           }
           return
         }
 
-        // Skip non-printable keys and Ctrl combos
+        if (e.key === 'Delete') {
+          e.preventDefault()
+          if (deleteSelection()) {
+            if (svg) updateCaret(svg)
+            return
+          }
+          if (state.cursorPos < state.text.length) {
+            state.text = state.text.slice(0, state.cursorPos) + state.text.slice(state.cursorPos + 1)
+            clearTextSelection()
+            updatePreview()
+            if (svg) updateCaret(svg)
+          }
+          return
+        }
+
+        // Ctrl+A: select all
+        if (e.ctrlKey && e.key === 'a') {
+          e.preventDefault()
+          state.selStart = 0
+          state.selEnd = state.text.length
+          state.cursorPos = state.text.length
+          if (svg) updateCaret(svg)
+          return
+        }
+
+        // Skip non-printable keys and other Ctrl combos
         if (e.ctrlKey || e.altKey || e.metaKey) return
         if (e.key.length !== 1) return
 
         e.preventDefault()
-        state.text += e.key
-        if (state.previewText) {
-          state.previewText.textContent = state.text
-        }
+        // Delete selection if exists, then insert
+        deleteSelection()
+        state.text = state.text.slice(0, state.cursorPos) + e.key + state.text.slice(state.cursorPos)
+        state.cursorPos++
+        clearTextSelection()
+        updatePreview()
         if (svg) updateCaret(svg)
       },
     },

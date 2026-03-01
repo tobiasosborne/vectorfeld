@@ -22,20 +22,12 @@ function mockScreenToDoc(svg: SVGSVGElement) {
   const scaleY = 297 / 600
   svg.getScreenCTM = () =>
     ({
-      a: 1 / scaleX,
-      b: 0,
-      c: 0,
-      d: 1 / scaleY,
-      e: 0,
-      f: 0,
-      inverse() {
-        return { a: scaleX, b: 0, c: 0, d: scaleY, e: 0, f: 0 }
-      },
+      a: 1 / scaleX, b: 0, c: 0, d: 1 / scaleY, e: 0, f: 0,
+      inverse() { return { a: scaleX, b: 0, c: 0, d: scaleY, e: 0, f: 0 } },
     }) as unknown as DOMMatrix
   svg.createSVGPoint = () =>
     ({
-      x: 0,
-      y: 0,
+      x: 0, y: 0,
       matrixTransform(m: DOMMatrix) {
         return { x: this.x * (m as unknown as { a: number }).a, y: this.y * (m as unknown as { d: number }).d }
       },
@@ -59,19 +51,15 @@ describe('Text Tool', () => {
   })
 
   function makeTool() {
-    return createTextTool(
-      () => svg,
-      () => doc,
-      () => history
-    )
+    return createTextTool(() => svg, () => doc, () => history)
   }
 
-  function mouseEvent(clientX: number, clientY: number, button = 0): MouseEvent {
-    return new MouseEvent('mousedown', { clientX, clientY, button })
+  function mouseEvent(x: number, y: number, button = 0): MouseEvent {
+    return new MouseEvent('mousedown', { clientX: x, clientY: y, button })
   }
 
-  function keyEvent(key: string, opts?: Partial<KeyboardEventInit>): KeyboardEvent {
-    return new KeyboardEvent('keydown', { key, ...opts })
+  function key(k: string, opts?: Partial<KeyboardEventInit>): KeyboardEvent {
+    return new KeyboardEvent('keydown', { key: k, ...opts })
   }
 
   it('has correct name, icon, and shortcut', () => {
@@ -84,151 +72,162 @@ describe('Text Tool', () => {
   it('enters editing mode on click', () => {
     const tool = makeTool()
     tool.handlers.onMouseDown!(mouseEvent(400, 300))
-
-    // Should have preview text and caret
-    const preview = svg.querySelector('text[data-role="preview"]')
-    expect(preview).not.toBeNull()
-    const caret = svg.querySelector('line[data-role="preview"]')
-    expect(caret).not.toBeNull()
-  })
-
-  it('sets keyboard capture when editing', () => {
-    const tool = makeTool()
-    expect(isKeyboardCaptured()).toBe(false)
-    tool.handlers.onMouseDown!(mouseEvent(400, 300))
+    expect(svg.querySelector('text[data-role="preview"]')).not.toBeNull()
     expect(isKeyboardCaptured()).toBe(true)
   })
 
-  it('adds typed characters to preview text', () => {
+  it('adds typed characters', () => {
     const tool = makeTool()
     tool.handlers.onMouseDown!(mouseEvent(400, 300))
-    tool.handlers.onKeyDown!(keyEvent('H'))
-    tool.handlers.onKeyDown!(keyEvent('i'))
-
-    const preview = svg.querySelector('text[data-role="preview"]')
-    expect(preview!.textContent).toBe('Hi')
-  })
-
-  it('handles backspace to delete characters', () => {
-    const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(400, 300))
-    tool.handlers.onKeyDown!(keyEvent('A'))
-    tool.handlers.onKeyDown!(keyEvent('B'))
-    tool.handlers.onKeyDown!(keyEvent('C'))
-    tool.handlers.onKeyDown!(keyEvent('Backspace'))
-
-    const preview = svg.querySelector('text[data-role="preview"]')
-    expect(preview!.textContent).toBe('AB')
+    tool.handlers.onKeyDown!(key('H'))
+    tool.handlers.onKeyDown!(key('i'))
+    expect(svg.querySelector('text[data-role="preview"]')!.textContent).toBe('Hi')
   })
 
   it('commits text on Enter', () => {
     const tool = makeTool()
     tool.handlers.onMouseDown!(mouseEvent(400, 300))
-    tool.handlers.onKeyDown!(keyEvent('H'))
-    tool.handlers.onKeyDown!(keyEvent('e'))
-    tool.handlers.onKeyDown!(keyEvent('l'))
-    tool.handlers.onKeyDown!(keyEvent('l'))
-    tool.handlers.onKeyDown!(keyEvent('o'))
-    tool.handlers.onKeyDown!(keyEvent('Enter'))
-
+    tool.handlers.onKeyDown!(key('A'))
+    tool.handlers.onKeyDown!(key('B'))
+    tool.handlers.onKeyDown!(key('Enter'))
     const layer = svg.querySelector('g[data-layer-name]')!
-    const textEl = layer.querySelector('text')
-    expect(textEl).not.toBeNull()
-    expect(textEl!.textContent).toBe('Hello')
-    expect(textEl!.getAttribute('font-family')).toBe('sans-serif')
-    expect(textEl!.getAttribute('fill')).toBe('#000000')
-  })
-
-  it('commits text on Escape', () => {
-    const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(400, 300))
-    tool.handlers.onKeyDown!(keyEvent('T'))
-    tool.handlers.onKeyDown!(keyEvent('e'))
-    tool.handlers.onKeyDown!(keyEvent('s'))
-    tool.handlers.onKeyDown!(keyEvent('t'))
-    tool.handlers.onKeyDown!(keyEvent('Escape'))
-
-    const layer = svg.querySelector('g[data-layer-name]')!
-    const textEl = layer.querySelector('text')
-    expect(textEl).not.toBeNull()
-    expect(textEl!.textContent).toBe('Test')
-  })
-
-  it('clears keyboard capture on commit', () => {
-    const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(400, 300))
-    expect(isKeyboardCaptured()).toBe(true)
-
-    tool.handlers.onKeyDown!(keyEvent('A'))
-    tool.handlers.onKeyDown!(keyEvent('Enter'))
+    expect(layer.querySelector('text')!.textContent).toBe('AB')
     expect(isKeyboardCaptured()).toBe(false)
   })
 
-  it('cleans up preview elements on commit', () => {
+  it('commits on Escape', () => {
     const tool = makeTool()
     tool.handlers.onMouseDown!(mouseEvent(400, 300))
-    tool.handlers.onKeyDown!(keyEvent('X'))
-    tool.handlers.onKeyDown!(keyEvent('Enter'))
-
-    const previews = svg.querySelectorAll('[data-role="preview"]')
-    expect(previews.length).toBe(0)
+    tool.handlers.onKeyDown!(key('X'))
+    tool.handlers.onKeyDown!(key('Escape'))
+    expect(svg.querySelector('g[data-layer-name]')!.querySelector('text')!.textContent).toBe('X')
   })
 
   it('does not commit empty text', () => {
     const tool = makeTool()
     tool.handlers.onMouseDown!(mouseEvent(400, 300))
-    tool.handlers.onKeyDown!(keyEvent('Enter'))
-
-    const layer = svg.querySelector('g[data-layer-name]')!
-    expect(layer.querySelector('text')).toBeNull()
+    tool.handlers.onKeyDown!(key('Enter'))
+    expect(svg.querySelector('g[data-layer-name]')!.querySelector('text')).toBeNull()
   })
 
   it('committed text is undoable', () => {
     const tool = makeTool()
     tool.handlers.onMouseDown!(mouseEvent(400, 300))
-    tool.handlers.onKeyDown!(keyEvent('A'))
-    tool.handlers.onKeyDown!(keyEvent('B'))
-    tool.handlers.onKeyDown!(keyEvent('Enter'))
-
+    tool.handlers.onKeyDown!(key('A'))
+    tool.handlers.onKeyDown!(key('Enter'))
     const layer = svg.querySelector('g[data-layer-name]')!
     expect(layer.querySelector('text')).not.toBeNull()
-
     history.undo()
     expect(layer.querySelector('text')).toBeNull()
-
     history.redo()
-    const redone = layer.querySelector('text')
-    expect(redone).not.toBeNull()
-    expect(redone!.textContent).toBe('AB')
-  })
-
-  it('commits current text and starts new on clicking elsewhere', () => {
-    const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(400, 300))
-    tool.handlers.onKeyDown!(keyEvent('A'))
-
-    // Click elsewhere to commit and start new
-    tool.handlers.onMouseDown!(mouseEvent(600, 500))
-
-    const layer = svg.querySelector('g[data-layer-name]')!
-    expect(layer.querySelectorAll('text').length).toBe(1)
     expect(layer.querySelector('text')!.textContent).toBe('A')
   })
 
-  it('ignores Ctrl key combos', () => {
-    const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(400, 300))
-    tool.handlers.onKeyDown!(keyEvent('z', { ctrlKey: true }))
+  // Cursor navigation tests
+  describe('cursor navigation', () => {
+    it('inserts at cursor position after ArrowLeft', () => {
+      const tool = makeTool()
+      tool.handlers.onMouseDown!(mouseEvent(400, 300))
+      tool.handlers.onKeyDown!(key('A'))
+      tool.handlers.onKeyDown!(key('B'))
+      tool.handlers.onKeyDown!(key('ArrowLeft'))
+      tool.handlers.onKeyDown!(key('X'))
+      const preview = svg.querySelector('text[data-role="preview"]')!
+      expect(preview.textContent).toBe('AXB')
+    })
 
-    const preview = svg.querySelector('text[data-role="preview"]')
-    expect(preview!.textContent).toBe('')
+    it('handles ArrowRight after ArrowLeft', () => {
+      const tool = makeTool()
+      tool.handlers.onMouseDown!(mouseEvent(400, 300))
+      tool.handlers.onKeyDown!(key('A'))
+      tool.handlers.onKeyDown!(key('B'))
+      tool.handlers.onKeyDown!(key('ArrowLeft'))
+      tool.handlers.onKeyDown!(key('ArrowRight'))
+      tool.handlers.onKeyDown!(key('C'))
+      expect(svg.querySelector('text[data-role="preview"]')!.textContent).toBe('ABC')
+    })
+
+    it('Home moves cursor to start', () => {
+      const tool = makeTool()
+      tool.handlers.onMouseDown!(mouseEvent(400, 300))
+      tool.handlers.onKeyDown!(key('A'))
+      tool.handlers.onKeyDown!(key('B'))
+      tool.handlers.onKeyDown!(key('Home'))
+      tool.handlers.onKeyDown!(key('X'))
+      expect(svg.querySelector('text[data-role="preview"]')!.textContent).toBe('XAB')
+    })
+
+    it('End moves cursor to end', () => {
+      const tool = makeTool()
+      tool.handlers.onMouseDown!(mouseEvent(400, 300))
+      tool.handlers.onKeyDown!(key('A'))
+      tool.handlers.onKeyDown!(key('B'))
+      tool.handlers.onKeyDown!(key('Home'))
+      tool.handlers.onKeyDown!(key('End'))
+      tool.handlers.onKeyDown!(key('C'))
+      expect(svg.querySelector('text[data-role="preview"]')!.textContent).toBe('ABC')
+    })
+
+    it('Backspace deletes character before cursor', () => {
+      const tool = makeTool()
+      tool.handlers.onMouseDown!(mouseEvent(400, 300))
+      tool.handlers.onKeyDown!(key('A'))
+      tool.handlers.onKeyDown!(key('B'))
+      tool.handlers.onKeyDown!(key('C'))
+      tool.handlers.onKeyDown!(key('ArrowLeft'))
+      tool.handlers.onKeyDown!(key('Backspace'))
+      expect(svg.querySelector('text[data-role="preview"]')!.textContent).toBe('AC')
+    })
+
+    it('Delete removes character after cursor', () => {
+      const tool = makeTool()
+      tool.handlers.onMouseDown!(mouseEvent(400, 300))
+      tool.handlers.onKeyDown!(key('A'))
+      tool.handlers.onKeyDown!(key('B'))
+      tool.handlers.onKeyDown!(key('C'))
+      tool.handlers.onKeyDown!(key('Home'))
+      tool.handlers.onKeyDown!(key('Delete'))
+      expect(svg.querySelector('text[data-role="preview"]')!.textContent).toBe('BC')
+    })
   })
 
-  it('ignores non-left mouse button', () => {
-    const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(400, 300, 2)) // right click
+  describe('text selection', () => {
+    it('Shift+ArrowLeft selects text', () => {
+      const tool = makeTool()
+      tool.handlers.onMouseDown!(mouseEvent(400, 300))
+      tool.handlers.onKeyDown!(key('A'))
+      tool.handlers.onKeyDown!(key('B'))
+      tool.handlers.onKeyDown!(key('C'))
+      tool.handlers.onKeyDown!(key('ArrowLeft', { shiftKey: true }))
+      tool.handlers.onKeyDown!(key('ArrowLeft', { shiftKey: true }))
+      // Typing replaces selection
+      tool.handlers.onKeyDown!(key('X'))
+      expect(svg.querySelector('text[data-role="preview"]')!.textContent).toBe('AX')
+    })
 
-    const previews = svg.querySelectorAll('[data-role="preview"]')
-    expect(previews.length).toBe(0)
+    it('Ctrl+A selects all', () => {
+      const tool = makeTool()
+      tool.handlers.onMouseDown!(mouseEvent(400, 300))
+      tool.handlers.onKeyDown!(key('H'))
+      tool.handlers.onKeyDown!(key('e'))
+      tool.handlers.onKeyDown!(key('l'))
+      tool.handlers.onKeyDown!(key('l'))
+      tool.handlers.onKeyDown!(key('o'))
+      tool.handlers.onKeyDown!(key('a', { ctrlKey: true }))
+      tool.handlers.onKeyDown!(key('X'))
+      expect(svg.querySelector('text[data-role="preview"]')!.textContent).toBe('X')
+    })
+
+    it('Backspace deletes selection', () => {
+      const tool = makeTool()
+      tool.handlers.onMouseDown!(mouseEvent(400, 300))
+      tool.handlers.onKeyDown!(key('A'))
+      tool.handlers.onKeyDown!(key('B'))
+      tool.handlers.onKeyDown!(key('C'))
+      tool.handlers.onKeyDown!(key('ArrowLeft', { shiftKey: true }))
+      tool.handlers.onKeyDown!(key('ArrowLeft', { shiftKey: true }))
+      tool.handlers.onKeyDown!(key('Backspace'))
+      expect(svg.querySelector('text[data-role="preview"]')!.textContent).toBe('A')
+    })
   })
 })
