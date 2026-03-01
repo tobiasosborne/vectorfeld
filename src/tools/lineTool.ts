@@ -4,6 +4,21 @@ import { screenToDoc } from '../model/coordinates'
 import { AddElementCommand } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
+import { getDefaultStyle } from '../model/defaultStyle'
+
+/** When shift is held, constrain line angle to nearest 45-degree increment */
+function snapLineAngle(
+  sx: number, sy: number, end: { x: number; y: number }, shift: boolean
+): { x: number; y: number } {
+  if (!shift) return end
+  const dx = end.x - sx
+  const dy = end.y - sy
+  const len = Math.sqrt(dx * dx + dy * dy)
+  if (len < 0.001) return end
+  const angle = Math.atan2(dy, dx)
+  const snapped = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4)
+  return { x: sx + len * Math.cos(snapped), y: sy + len * Math.sin(snapped) }
+}
 
 interface LineToolState {
   drawing: boolean
@@ -47,13 +62,14 @@ export function createLineTool(
         state.startY = pt.y
 
         // Create preview line
+        const defaults = getDefaultStyle()
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
         line.setAttribute('x1', String(pt.x))
         line.setAttribute('y1', String(pt.y))
         line.setAttribute('x2', String(pt.x))
         line.setAttribute('y2', String(pt.y))
-        line.setAttribute('stroke', '#000000')
-        line.setAttribute('stroke-width', '1')
+        line.setAttribute('stroke', defaults.stroke)
+        line.setAttribute('stroke-width', defaults.strokeWidth)
         line.setAttribute('data-role', 'preview')
         svg.appendChild(line)
         state.preview = line
@@ -63,7 +79,7 @@ export function createLineTool(
         if (!state.drawing || !state.preview) return
         const svg = getSvg()
         if (!svg) return
-        const pt = screenToDoc(svg, e.clientX, e.clientY)
+        const pt = snapLineAngle(state.startX, state.startY, screenToDoc(svg, e.clientX, e.clientY), e.shiftKey)
         state.preview.setAttribute('x2', String(pt.x))
         state.preview.setAttribute('y2', String(pt.y))
       },
@@ -72,7 +88,7 @@ export function createLineTool(
         if (!state.drawing) return
         const svg = getSvg()
         if (!svg) return
-        const pt = screenToDoc(svg, e.clientX, e.clientY)
+        const pt = snapLineAngle(state.startX, state.startY, screenToDoc(svg, e.clientX, e.clientY), e.shiftKey)
 
         state.drawing = false
         removePreview()
@@ -88,15 +104,17 @@ export function createLineTool(
         if (!layer) return
 
         const history = getHistory()
+        const defaults = getDefaultStyle()
         const cmd = new AddElementCommand(doc, layer, 'line', {
           x1: String(state.startX),
           y1: String(state.startY),
           x2: String(pt.x),
           y2: String(pt.y),
-          stroke: '#000000',
-          'stroke-width': '1',
+          stroke: defaults.stroke,
+          'stroke-width': defaults.strokeWidth,
         })
         history.execute(cmd)
+
       },
     },
   }

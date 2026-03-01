@@ -5,6 +5,7 @@ import { AddElementCommand } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import type { Point } from '../model/coordinates'
+import { getDefaultStyle } from '../model/defaultStyle'
 
 /** Side-length of anchor point squares in document units */
 function anchorDocSize(svg: SVGSVGElement): number {
@@ -171,11 +172,12 @@ export function createPenTool(
     if (!layer) return
 
     const history = getHistory()
+    const defaults = getDefaultStyle()
     const cmd = new AddElementCommand(doc, layer, 'path', {
       d,
-      fill: 'none',
-      stroke: '#000000',
-      'stroke-width': '1',
+      fill: defaults.fill,
+      stroke: defaults.stroke,
+      'stroke-width': defaults.strokeWidth,
     })
     history.execute(cmd)
   }
@@ -224,11 +226,12 @@ export function createPenTool(
           state.dragAnchorIdx = 0
 
           // Create preview path
+          const defaults = getDefaultStyle()
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
           path.setAttribute('d', `M ${pt.x} ${pt.y}`)
           path.setAttribute('fill', 'none')
-          path.setAttribute('stroke', '#000000')
-          path.setAttribute('stroke-width', '1')
+          path.setAttribute('stroke', defaults.stroke)
+          path.setAttribute('stroke-width', defaults.strokeWidth)
           path.setAttribute('data-role', 'preview')
           path.setAttribute('pointer-events', 'none')
           svg.appendChild(path)

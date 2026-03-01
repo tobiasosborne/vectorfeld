@@ -4,6 +4,7 @@ import { screenToDoc } from '../model/coordinates'
 import { AddElementCommand } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
+import { getDefaultStyle } from '../model/defaultStyle'
 
 interface RectToolState {
   drawing: boolean
@@ -61,14 +62,15 @@ export function createRectTool(
         state.startX = pt.x
         state.startY = pt.y
 
+        const defaults = getDefaultStyle()
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
         rect.setAttribute('x', String(pt.x))
         rect.setAttribute('y', String(pt.y))
         rect.setAttribute('width', '0')
         rect.setAttribute('height', '0')
-        rect.setAttribute('stroke', '#000000')
-        rect.setAttribute('stroke-width', '1')
-        rect.setAttribute('fill', 'none')
+        rect.setAttribute('stroke', defaults.stroke)
+        rect.setAttribute('stroke-width', defaults.strokeWidth)
+        rect.setAttribute('fill', defaults.fill)
         rect.setAttribute('data-role', 'preview')
         svg.appendChild(rect)
         state.preview = rect
@@ -104,14 +106,15 @@ export function createRectTool(
         if (!layer) return
 
         const history = getHistory()
+        const defaults = getDefaultStyle()
         const cmd = new AddElementCommand(doc, layer, 'rect', {
           x: String(x),
           y: String(y),
           width: String(w),
           height: String(h),
-          stroke: '#000000',
-          'stroke-width': '1',
-          fill: 'none',
+          stroke: defaults.stroke,
+          'stroke-width': defaults.strokeWidth,
+          fill: defaults.fill,
         })
         history.execute(cmd)
       },

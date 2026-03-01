@@ -4,6 +4,7 @@ import { useEditor } from '../model/EditorContext'
 import { ModifyAttributeCommand } from '../model/commands'
 import { ColorPicker } from './ColorPicker'
 import { refreshOverlay } from '../model/selection'
+import { setDefaultStyle } from '../model/defaultStyle'
 
 const FONT_FAMILIES = [
   'sans-serif',
@@ -78,6 +79,10 @@ export function PropertiesPanel() {
   const applyAttr = (el: Element, attr: string, value: string) => {
     const cmd = new ModifyAttributeCommand(el, attr, value)
     history.execute(cmd)
+    // Update default style when style properties change
+    if (attr === 'stroke') setDefaultStyle({ stroke: value })
+    else if (attr === 'fill') setDefaultStyle({ fill: value })
+    else if (attr === 'stroke-width') setDefaultStyle({ strokeWidth: value })
   }
 
   const el = selection.length === 1 ? selection[0] : null

@@ -48,7 +48,7 @@ function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element 
   return null
 }
 
-type DragMode = 'none' | 'move' | 'scale' | 'rotate'
+type DragMode = 'none' | 'move' | 'scale' | 'rotate' | 'marquee'
 
 interface ScaleState {
   handle: HandlePosition
@@ -72,6 +72,7 @@ interface DragState {
   origTransforms: Map<Element, string | null>
   scale: ScaleState | null
   rotate: RotateState | null
+  marqueeRect: SVGRectElement | null
 }
 
 /** Get all geometry attributes for an element (position + size) */
@@ -208,6 +209,7 @@ export function createSelectTool(
     origTransforms: new Map(),
     scale: null,
     rotate: null,
+    marqueeRect: null,
   }
 
   function getPositionAttrs(el: Element): { attr: string; vals: Record<string, number> } {
@@ -419,7 +421,24 @@ export function createSelectTool(
             dragState.origTransforms.set(el, el.getAttribute('transform'))
           }
         } else {
+          // Start marquee selection
           clearSelection()
+          dragState.mode = 'marquee'
+          dragState.startX = pt.x
+          dragState.startY = pt.y
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+          rect.setAttribute('x', String(pt.x))
+          rect.setAttribute('y', String(pt.y))
+          rect.setAttribute('width', '0')
+          rect.setAttribute('height', '0')
+          rect.setAttribute('fill', 'rgba(37, 99, 235, 0.1)')
+          rect.setAttribute('stroke', '#2563eb')
+          rect.setAttribute('stroke-width', '0.5')
+          rect.setAttribute('stroke-dasharray', '3 2')
+          rect.setAttribute('data-role', 'overlay')
+          rect.setAttribute('pointer-events', 'none')
+          svg.appendChild(rect)
+          dragState.marqueeRect = rect
         }
       },
 
@@ -428,6 +447,18 @@ export function createSelectTool(
         const svg = getSvg()
         if (!svg) return
         const pt = screenToDoc(svg, e.clientX, e.clientY)
+
+        if (dragState.mode === 'marquee' && dragState.marqueeRect) {
+          const x = Math.min(dragState.startX, pt.x)
+          const y = Math.min(dragState.startY, pt.y)
+          const w = Math.abs(pt.x - dragState.startX)
+          const h = Math.abs(pt.y - dragState.startY)
+          dragState.marqueeRect.setAttribute('x', String(x))
+          dragState.marqueeRect.setAttribute('y', String(y))
+          dragState.marqueeRect.setAttribute('width', String(w))
+          dragState.marqueeRect.setAttribute('height', String(h))
+          return
+        }
 
         if (dragState.mode === 'move') {
           const dx = pt.x - dragState.startX
@@ -502,6 +533,43 @@ export function createSelectTool(
         const svg = getSvg()
         if (!svg) return
         const pt = screenToDoc(svg, e.clientX, e.clientY)
+
+        // Handle marquee selection completion
+        if (mode === 'marquee') {
+          if (dragState.marqueeRect) {
+            dragState.marqueeRect.remove()
+            dragState.marqueeRect = null
+          }
+          const mx = Math.min(dragState.startX, pt.x)
+          const my = Math.min(dragState.startY, pt.y)
+          const mw = Math.abs(pt.x - dragState.startX)
+          const mh = Math.abs(pt.y - dragState.startY)
+          if (mw < 0.5 && mh < 0.5) return // too small, treat as click-to-deselect
+          // Find all elements intersecting the marquee rect
+          const hits: Element[] = []
+          const layers = svg.querySelectorAll('g[data-layer-name]')
+          for (const layer of layers) {
+            if (layer.getAttribute('data-locked') === 'true') continue
+            if ((layer as SVGElement).style.display === 'none') continue
+            for (const child of layer.children) {
+              try {
+                const bbox = (child as SVGGraphicsElement).getBBox()
+                const transform = child.getAttribute('transform')
+                const aabb = transformedAABB(bbox, transform)
+                // Check intersection (any overlap)
+                if (
+                  aabb.x + aabb.width > mx && aabb.x < mx + mw &&
+                  aabb.y + aabb.height > my && aabb.y < my + mh
+                ) {
+                  hits.push(child)
+                }
+              } catch { /* skip */ }
+            }
+          }
+          if (hits.length > 0) setSelection(hits)
+          return
+        }
+
         const dx = pt.x - dragState.startX
         const dy = pt.y - dragState.startY
 

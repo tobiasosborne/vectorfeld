@@ -81,6 +81,27 @@ export function LayersPanel() {
     refreshLayers()
   }
 
+  const moveLayerUp = (idx: number) => {
+    if (idx <= 0 || !editor.doc) return
+    const svg = editor.doc.svg
+    const current = layers[idx].element
+    const above = layers[idx - 1].element
+    svg.insertBefore(current, above)
+    refreshLayers()
+    setActiveLayerIdx(idx - 1)
+  }
+
+  const moveLayerDown = (idx: number) => {
+    if (idx >= layers.length - 1 || !editor.doc) return
+    const svg = editor.doc.svg
+    const current = layers[idx].element
+    const below = layers[idx + 1].element
+    // Insert below's next sibling before current (effectively swap)
+    svg.insertBefore(below, current)
+    refreshLayers()
+    setActiveLayerIdx(idx + 1)
+  }
+
   return (
     <div className="w-48 bg-chrome-50 border-r border-chrome-300 flex flex-col">
       <div className="h-8 bg-chrome-100 border-b border-chrome-200 flex items-center px-2 justify-between">
@@ -119,6 +140,22 @@ export function LayersPanel() {
               {layer.locked ? '\u{1F512}' : '\u{1F513}'}
             </button>
             <span className="flex-1 truncate select-none">{layer.name}</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); moveLayerUp(idx) }}
+              className={`w-4 text-center ${idx === 0 ? 'text-chrome-200' : 'text-chrome-400 hover:text-chrome-700'}`}
+              title="Move Up"
+              disabled={idx === 0}
+            >
+              &#x25B2;
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); moveLayerDown(idx) }}
+              className={`w-4 text-center ${idx === layers.length - 1 ? 'text-chrome-200' : 'text-chrome-400 hover:text-chrome-700'}`}
+              title="Move Down"
+              disabled={idx === layers.length - 1}
+            >
+              &#x25BC;
+            </button>
             {layers.length > 1 && (
               <button
                 onClick={(e) => { e.stopPropagation(); deleteLayer(idx) }}

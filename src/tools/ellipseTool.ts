@@ -4,6 +4,7 @@ import { screenToDoc } from '../model/coordinates'
 import { AddElementCommand } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
+import { getDefaultStyle } from '../model/defaultStyle'
 
 interface EllipseToolState {
   drawing: boolean
@@ -46,14 +47,15 @@ export function createEllipseTool(
         state.centerX = pt.x
         state.centerY = pt.y
 
+        const defaults = getDefaultStyle()
         const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse')
         ellipse.setAttribute('cx', String(pt.x))
         ellipse.setAttribute('cy', String(pt.y))
         ellipse.setAttribute('rx', '0')
         ellipse.setAttribute('ry', '0')
-        ellipse.setAttribute('stroke', '#000000')
-        ellipse.setAttribute('stroke-width', '1')
-        ellipse.setAttribute('fill', 'none')
+        ellipse.setAttribute('stroke', defaults.stroke)
+        ellipse.setAttribute('stroke-width', defaults.strokeWidth)
+        ellipse.setAttribute('fill', defaults.fill)
         ellipse.setAttribute('data-role', 'preview')
         svg.appendChild(ellipse)
         state.preview = ellipse
@@ -99,14 +101,15 @@ export function createEllipseTool(
         if (!layer) return
 
         const history = getHistory()
+        const defaults = getDefaultStyle()
         const cmd = new AddElementCommand(doc, layer, 'ellipse', {
           cx: String(state.centerX),
           cy: String(state.centerY),
           rx: String(rx),
           ry: String(ry),
-          stroke: '#000000',
-          'stroke-width': '1',
-          fill: 'none',
+          stroke: defaults.stroke,
+          'stroke-width': defaults.strokeWidth,
+          fill: defaults.fill,
         })
         history.execute(cmd)
       },

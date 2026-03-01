@@ -194,10 +194,6 @@ function updateOverlay(): void {
     }
   }
 
-  // Draw 8 scale handles around the union bounding box
-  const ubox = unionBBox(selectedElements)
-  if (!ubox) return
-
   const svg = overlayGroup.ownerSVGElement
   if (!svg) return
 
@@ -205,12 +201,37 @@ function updateOverlay(): void {
   const half = hs / 2
   const strokeW = Math.max(hs / 6, 0.1)
 
-  for (const [pos, cx, cy] of handleCenters(ubox)) {
+  // For a single rotated element, use OBB (oriented bounding box):
+  // place handles on the local bbox and apply the element's transform
+  const singleRotated = selectedElements.length === 1
+    ? selectedElements[0].getAttribute('transform')
+    : null
+
+  let handleBox: DOMRect | null
+  let handleTransform: string | null = null
+
+  if (selectedElements.length === 1 && singleRotated) {
+    // Use local (un-transformed) bbox for OBB handles
+    try {
+      const bbox = (selectedElements[0] as SVGGraphicsElement).getBBox()
+      handleBox = new DOMRect(bbox.x, bbox.y, bbox.width, bbox.height)
+      handleTransform = singleRotated
+    } catch {
+      handleBox = unionBBox(selectedElements)
+    }
+  } else {
+    handleBox = unionBBox(selectedElements)
+  }
+
+  if (!handleBox) return
+
+  for (const [pos, cx, cy] of handleCenters(handleBox)) {
     const handle = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
     handle.setAttribute('x', String(cx - half))
     handle.setAttribute('y', String(cy - half))
     handle.setAttribute('width', String(hs))
     handle.setAttribute('height', String(hs))
+    if (handleTransform) handle.setAttribute('transform', handleTransform)
     handle.setAttribute('fill', '#ffffff')
     handle.setAttribute('stroke', '#2563eb')
     handle.setAttribute('stroke-width', String(strokeW))
@@ -225,10 +246,10 @@ function updateOverlay(): void {
   if (selectedElements.length === 1) {
     const rotZoneSize = hs * 2  // invisible hit area outside each corner
     const cornerPositions: [string, number, number][] = [
-      ['nw', ubox.x, ubox.y],
-      ['ne', ubox.x + ubox.width, ubox.y],
-      ['se', ubox.x + ubox.width, ubox.y + ubox.height],
-      ['sw', ubox.x, ubox.y + ubox.height],
+      ['nw', handleBox.x, handleBox.y],
+      ['ne', handleBox.x + handleBox.width, handleBox.y],
+      ['se', handleBox.x + handleBox.width, handleBox.y + handleBox.height],
+      ['sw', handleBox.x, handleBox.y + handleBox.height],
     ]
 
     const ROTATION_CURSORS: Record<string, string> = {
@@ -248,6 +269,7 @@ function updateOverlay(): void {
       zone.setAttribute('y', String(cy + offY))
       zone.setAttribute('width', String(rotZoneSize))
       zone.setAttribute('height', String(rotZoneSize))
+      if (handleTransform) zone.setAttribute('transform', handleTransform)
       zone.setAttribute('fill', 'transparent')
       zone.setAttribute('data-role', 'rotation-handle')
       zone.setAttribute('pointer-events', 'auto')
