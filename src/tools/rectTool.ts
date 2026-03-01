@@ -5,6 +5,7 @@ import { AddElementCommand } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import { getDefaultStyle } from '../model/defaultStyle'
+import { snapToGrid } from '../model/grid'
 
 interface RectToolState {
   drawing: boolean
@@ -56,7 +57,8 @@ export function createRectTool(
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()
         if (!svg || e.button !== 0) return
-        const pt = screenToDoc(svg, e.clientX, e.clientY)
+        const raw = screenToDoc(svg, e.clientX, e.clientY)
+        const pt = snapToGrid(raw.x, raw.y)
 
         state.drawing = true
         state.startX = pt.x
@@ -80,7 +82,8 @@ export function createRectTool(
         if (!state.drawing || !state.preview) return
         const svg = getSvg()
         if (!svg) return
-        const pt = screenToDoc(svg, e.clientX, e.clientY)
+        const raw = screenToDoc(svg, e.clientX, e.clientY)
+        const pt = snapToGrid(raw.x, raw.y)
         const { x, y, w, h } = computeRect(state.startX, state.startY, pt.x, pt.y, e.shiftKey)
         state.preview.setAttribute('x', String(x))
         state.preview.setAttribute('y', String(y))
@@ -92,7 +95,8 @@ export function createRectTool(
         if (!state.drawing) return
         const svg = getSvg()
         if (!svg) return
-        const pt = screenToDoc(svg, e.clientX, e.clientY)
+        const raw = screenToDoc(svg, e.clientX, e.clientY)
+        const pt = snapToGrid(raw.x, raw.y)
         const { x, y, w, h } = computeRect(state.startX, state.startY, pt.x, pt.y, e.shiftKey)
 
         state.drawing = false

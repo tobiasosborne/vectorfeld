@@ -5,6 +5,9 @@ import { ModifyAttributeCommand } from '../model/commands'
 import { ColorPicker } from './ColorPicker'
 import { refreshOverlay } from '../model/selection'
 import { setDefaultStyle } from '../model/defaultStyle'
+import { computeAlign, computeDistribute, applyDelta } from '../model/align'
+import type { AlignOp, DistributeOp } from '../model/align'
+import { CompoundCommand } from '../model/commands'
 
 const FONT_FAMILIES = [
   'sans-serif',
@@ -98,7 +101,75 @@ export function PropertiesPanel() {
           <p className="text-xs text-chrome-400">No selection</p>
         )}
         {selection.length > 1 && (
-          <p className="text-xs text-chrome-400">{selection.length} objects selected</p>
+          <>
+            <p className="text-xs text-chrome-400">{selection.length} objects selected</p>
+            <div>
+              <div className="text-xs font-medium text-chrome-600 mb-1">Align</div>
+              <div className="flex gap-1 flex-wrap">
+                {([
+                  ['left', 'L', 'Align Left'],
+                  ['center-h', 'CH', 'Center Horizontal'],
+                  ['right', 'R', 'Align Right'],
+                  ['top', 'T', 'Align Top'],
+                  ['center-v', 'CV', 'Center Vertical'],
+                  ['bottom', 'B', 'Align Bottom'],
+                ] as [AlignOp, string, string][]).map(([op, label, title]) => (
+                  <button
+                    key={op}
+                    title={title}
+                    className="px-1.5 py-0.5 text-xs border border-chrome-300 hover:bg-chrome-200 rounded"
+                    onClick={() => {
+                      const deltas = computeAlign(selection, op)
+                      const cmds: ModifyAttributeCommand[] = []
+                      for (const [el, { dx, dy }] of deltas) {
+                        for (const [attr, val] of applyDelta(el, dx, dy)) {
+                          cmds.push(new ModifyAttributeCommand(el, attr, val))
+                        }
+                      }
+                      if (cmds.length > 0) {
+                        history.execute(new CompoundCommand(cmds, `Align ${op}`))
+                        refreshOverlay()
+                      }
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {selection.length >= 3 && (
+              <div>
+                <div className="text-xs font-medium text-chrome-600 mb-1">Distribute</div>
+                <div className="flex gap-1">
+                  {([
+                    ['horizontal', 'H', 'Distribute Horizontally'],
+                    ['vertical', 'V', 'Distribute Vertically'],
+                  ] as [DistributeOp, string, string][]).map(([op, label, title]) => (
+                    <button
+                      key={op}
+                      title={title}
+                      className="px-1.5 py-0.5 text-xs border border-chrome-300 hover:bg-chrome-200 rounded"
+                      onClick={() => {
+                        const deltas = computeDistribute(selection, op)
+                        const cmds: ModifyAttributeCommand[] = []
+                        for (const [el, { dx, dy }] of deltas) {
+                          for (const [attr, val] of applyDelta(el, dx, dy)) {
+                            cmds.push(new ModifyAttributeCommand(el, attr, val))
+                          }
+                        }
+                        if (cmds.length > 0) {
+                          history.execute(new CompoundCommand(cmds, `Distribute ${op}`))
+                          refreshOverlay()
+                        }
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
         {el && (
           <>
