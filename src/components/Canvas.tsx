@@ -3,6 +3,8 @@ import { zoomAtPoint } from '../model/zoom'
 import { screenToDoc, getZoomPercent } from '../model/coordinates'
 import { getActiveTool, isKeyboardCaptured, subscribe as subscribeTool } from '../tools/registry'
 import { setOverlayGroup, refreshOverlay } from '../model/selection'
+import { renderGrid, subscribeGrid } from '../model/grid'
+import { setGuideGroup } from '../model/smartGuides'
 
 export interface DocumentDimensions {
   width: number  // mm
@@ -26,6 +28,7 @@ interface CanvasProps {
 export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgReady }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
+  const gridGroupRef = useRef<SVGGElement | null>(null)
   const [isPanning, setIsPanning] = useState(false)
   const [, setToolTick] = useState(0) // force re-render on tool change for cursor
   const panStart = useRef<{ x: number; y: number; vbX: number; vbY: number } | null>(null)
@@ -65,6 +68,20 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
     layer.setAttribute('data-layer-name', 'Layer 1')
     svg.appendChild(layer)
+
+    // Grid overlay (rendered behind selection)
+    const gridGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    gridGroup.setAttribute('data-role', 'grid-overlay')
+    gridGroup.setAttribute('pointer-events', 'none')
+    svg.appendChild(gridGroup)
+    gridGroupRef.current = gridGroup
+
+    // Smart guides overlay
+    const guidesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    guidesGroup.setAttribute('data-role', 'guides-overlay')
+    guidesGroup.setAttribute('pointer-events', 'none')
+    svg.appendChild(guidesGroup)
+    setGuideGroup(guidesGroup)
 
     // Selection overlay group (non-document, rendered on top)
     const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'g')
@@ -109,6 +126,17 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     })
   }, [onStateChange])
 
+  // Grid rendering
+  const updateGrid = useCallback(() => {
+    if (svgRef.current && gridGroupRef.current) {
+      renderGrid(svgRef.current, gridGroupRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    return subscribeGrid(updateGrid)
+  }, [updateGrid])
+
   // Zoom handler
   useEffect(() => {
     const container = containerRef.current
@@ -118,6 +146,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
       if (!svgRef.current) return
       zoomAtPoint(svgRef.current, e.clientX, e.clientY, e.deltaY)
       refreshOverlay() // Recalculate handle sizes after zoom
+      updateGrid()
       emitState()
     }
     container.addEventListener('wheel', handleWheel, { passive: false })
@@ -150,6 +179,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
           'viewBox',
           `${panStart.current.vbX - dx} ${panStart.current.vbY - dy} ${vb.width} ${vb.height}`
         )
+        updateGrid()
       } else {
         getActiveTool()?.handlers.onMouseMove?.(e)
       }

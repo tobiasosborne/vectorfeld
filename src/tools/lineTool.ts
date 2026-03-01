@@ -5,6 +5,7 @@ import { AddElementCommand } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import { getDefaultStyle } from '../model/defaultStyle'
+import { snapToGrid } from '../model/grid'
 
 /** When shift is held, constrain line angle to nearest 45-degree increment */
 function snapLineAngle(
@@ -55,7 +56,8 @@ export function createLineTool(
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()
         if (!svg || e.button !== 0) return
-        const pt = screenToDoc(svg, e.clientX, e.clientY)
+        const raw = screenToDoc(svg, e.clientX, e.clientY)
+        const pt = snapToGrid(raw.x, raw.y)
 
         state.drawing = true
         state.startX = pt.x
@@ -79,7 +81,9 @@ export function createLineTool(
         if (!state.drawing || !state.preview) return
         const svg = getSvg()
         if (!svg) return
-        const pt = snapLineAngle(state.startX, state.startY, screenToDoc(svg, e.clientX, e.clientY), e.shiftKey)
+        const raw = screenToDoc(svg, e.clientX, e.clientY)
+        const snapped = snapToGrid(raw.x, raw.y)
+        const pt = snapLineAngle(state.startX, state.startY, snapped, e.shiftKey)
         state.preview.setAttribute('x2', String(pt.x))
         state.preview.setAttribute('y2', String(pt.y))
       },
@@ -88,7 +92,9 @@ export function createLineTool(
         if (!state.drawing) return
         const svg = getSvg()
         if (!svg) return
-        const pt = snapLineAngle(state.startX, state.startY, screenToDoc(svg, e.clientX, e.clientY), e.shiftKey)
+        const raw = screenToDoc(svg, e.clientX, e.clientY)
+        const snapped = snapToGrid(raw.x, raw.y)
+        const pt = snapLineAngle(state.startX, state.startY, snapped, e.shiftKey)
 
         state.drawing = false
         removePreview()

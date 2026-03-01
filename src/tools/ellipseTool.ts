@@ -5,6 +5,7 @@ import { AddElementCommand } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import { getDefaultStyle } from '../model/defaultStyle'
+import { snapToGrid } from '../model/grid'
 
 interface EllipseToolState {
   drawing: boolean
@@ -41,7 +42,8 @@ export function createEllipseTool(
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()
         if (!svg || e.button !== 0) return
-        const pt = screenToDoc(svg, e.clientX, e.clientY)
+        const raw = screenToDoc(svg, e.clientX, e.clientY)
+        const pt = snapToGrid(raw.x, raw.y)
 
         state.drawing = true
         state.centerX = pt.x
@@ -65,7 +67,8 @@ export function createEllipseTool(
         if (!state.drawing || !state.preview) return
         const svg = getSvg()
         if (!svg) return
-        const pt = screenToDoc(svg, e.clientX, e.clientY)
+        const raw = screenToDoc(svg, e.clientX, e.clientY)
+        const pt = snapToGrid(raw.x, raw.y)
         let rx = Math.abs(pt.x - state.centerX)
         let ry = Math.abs(pt.y - state.centerY)
         if (e.shiftKey) {
@@ -81,7 +84,8 @@ export function createEllipseTool(
         if (!state.drawing) return
         const svg = getSvg()
         if (!svg) return
-        const pt = screenToDoc(svg, e.clientX, e.clientY)
+        const raw = screenToDoc(svg, e.clientX, e.clientY)
+        const pt = snapToGrid(raw.x, raw.y)
         let rx = Math.abs(pt.x - state.centerX)
         let ry = Math.abs(pt.y - state.centerY)
         if (e.shiftKey) {

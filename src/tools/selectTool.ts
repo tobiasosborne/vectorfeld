@@ -6,6 +6,8 @@ import type { HandlePosition } from '../model/selection'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import { CompoundCommand, ModifyAttributeCommand } from '../model/commands'
+import { snapToGrid } from '../model/grid'
+import { computeSmartGuides, renderGuides, clearGuides } from '../model/smartGuides'
 
 /** Minimum hit tolerance in screen pixels for thin elements like lines */
 const HIT_TOLERANCE_PX = 5
@@ -461,11 +463,28 @@ export function createSelectTool(
         }
 
         if (dragState.mode === 'move') {
-          const dx = pt.x - dragState.startX
-          const dy = pt.y - dragState.startY
+          const snapped = snapToGrid(pt.x, pt.y)
+          let dx = snapped.x - dragState.startX
+          let dy = snapped.y - dragState.startY
+          // Apply preliminary move for smart guide calculation
           for (const el of getSelection()) {
             moveElement(el, dx, dy)
           }
+          // Smart guides: compute snap correction
+          const vb = svg.viewBox.baseVal
+          const tolerance = vb.width > 0 && svg.clientWidth > 0
+            ? 2 * (vb.width / svg.clientWidth)
+            : 2
+          const sgResult = computeSmartGuides(svg, getSelection(), tolerance)
+          if (sgResult.dx !== 0 || sgResult.dy !== 0) {
+            dx += sgResult.dx
+            dy += sgResult.dy
+            // Re-apply with corrected delta
+            for (const el of getSelection()) {
+              moveElement(el, dx, dy)
+            }
+          }
+          renderGuides(svg, sgResult.guides)
         } else if (dragState.mode === 'scale' && dragState.scale) {
           const { handle, anchorX, anchorY, origBBox } = dragState.scale
           const axes = handleAxes(handle)
@@ -529,6 +548,7 @@ export function createSelectTool(
         if (dragState.mode === 'none') return
         const mode = dragState.mode
         dragState.mode = 'none'
+        clearGuides()
 
         const svg = getSvg()
         if (!svg) return

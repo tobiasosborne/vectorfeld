@@ -6,6 +6,7 @@ import type { DocumentModel } from './document'
 import { generateId } from './document'
 import { getSelection, setSelection, clearSelection, refreshOverlay } from './selection'
 import { isKeyboardCaptured } from '../tools/registry'
+import { toggleGridVisible, toggleGridSnap } from '../model/grid'
 
 interface EditorContextValue {
   history: CommandHistory
@@ -189,6 +190,14 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           history.execute(compound)
           clearSelection()
         }
+      } else if (e.ctrlKey && e.key === "'" && !e.shiftKey) {
+        // Toggle grid
+        e.preventDefault()
+        toggleGridVisible()
+      } else if (e.ctrlKey && e.key === "'" && e.shiftKey) {
+        // Toggle snap-to-grid
+        e.preventDefault()
+        toggleGridSnap()
       } else if (e.ctrlKey && e.key === ']' && !e.shiftKey) {
         // Bring forward (one step)
         const sel = getSelection()
