@@ -5,6 +5,7 @@ import { registerEllipseTool } from './ellipseTool'
 import { registerEraserTool } from './eraserTool'
 import { registerPenTool } from './penTool'
 import { registerTextTool } from './textTool'
+import { registerDirectSelectTool } from './directSelectTool'
 import { setActiveTool } from './registry'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
@@ -21,6 +22,7 @@ export function registerAllTools(
   registerEraserTool(getSvg, getDoc, getHistory)
   registerPenTool(getSvg, getDoc, getHistory)
   registerTextTool(getSvg, getDoc, getHistory)
+  registerDirectSelectTool(getSvg, getDoc, getHistory)
 
   // Default to select tool
   setActiveTool('select')
