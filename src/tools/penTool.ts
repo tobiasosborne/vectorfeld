@@ -24,19 +24,45 @@ function dist(a: Point, b: Point): number {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
 }
 
-interface PenToolState {
-  drawing: boolean
-  points: Point[]
-  previewPath: SVGPathElement | null
-  previewLine: SVGLineElement | null
-  anchors: SVGRectElement[]
-  lastClickTime: number
-  lastClickPos: Point | null
+export interface AnchorPoint {
+  pos: Point
+  handleOut: Point | null // outgoing control handle (absolute coords)
+  handleIn: Point | null  // incoming control handle (absolute coords)
 }
 
-/** Double-click threshold in ms */
+interface PenToolState {
+  drawing: boolean
+  anchors: AnchorPoint[]
+  previewPath: SVGPathElement | null
+  previewLine: SVGLineElement | null
+  anchorElements: SVGRectElement[]
+  handleElements: SVGElement[] // circles + lines for control handles
+  lastClickTime: number
+  lastClickPos: Point | null
+  draggingHandle: boolean // true while dragging to create handle
+  dragAnchorIdx: number   // index of anchor being handle-dragged
+}
+
 const DOUBLE_CLICK_MS = 400
 const DOUBLE_CLICK_DIST = 5
+
+/** Build SVG path d attribute from anchors with optional Bezier handles */
+export function buildPathD(anchors: AnchorPoint[]): string {
+  if (anchors.length === 0) return ''
+  let d = `M ${anchors[0].pos.x} ${anchors[0].pos.y}`
+  for (let i = 1; i < anchors.length; i++) {
+    const prev = anchors[i - 1]
+    const curr = anchors[i]
+    if (prev.handleOut || curr.handleIn) {
+      const cp1 = prev.handleOut || prev.pos
+      const cp2 = curr.handleIn || curr.pos
+      d += ` C ${cp1.x} ${cp1.y} ${cp2.x} ${cp2.y} ${curr.pos.x} ${curr.pos.y}`
+    } else {
+      d += ` L ${curr.pos.x} ${curr.pos.y}`
+    }
+  }
+  return d
+}
 
 export function createPenTool(
   getSvg: () => SVGSVGElement | null,
@@ -45,24 +71,18 @@ export function createPenTool(
 ): ToolConfig {
   const state: PenToolState = {
     drawing: false,
-    points: [],
+    anchors: [],
     previewPath: null,
     previewLine: null,
-    anchors: [],
+    anchorElements: [],
+    handleElements: [],
     lastClickTime: 0,
     lastClickPos: null,
+    draggingHandle: false,
+    dragAnchorIdx: -1,
   }
 
-  function buildPathD(points: Point[]): string {
-    if (points.length === 0) return ''
-    let d = `M ${points[0].x} ${points[0].y}`
-    for (let i = 1; i < points.length; i++) {
-      d += ` L ${points[i].x} ${points[i].y}`
-    }
-    return d
-  }
-
-  function addAnchor(svg: SVGSVGElement, pt: Point) {
+  function addAnchorVisual(svg: SVGSVGElement, pt: Point) {
     const size = anchorDocSize(svg)
     const half = size / 2
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
@@ -76,26 +96,72 @@ export function createPenTool(
     rect.setAttribute('data-role', 'preview')
     rect.setAttribute('pointer-events', 'none')
     svg.appendChild(rect)
-    state.anchors.push(rect)
+    state.anchorElements.push(rect)
+  }
+
+  function clearHandleVisuals(svg: SVGSVGElement) {
+    for (const el of state.handleElements) el.remove()
+    state.handleElements = []
+  }
+
+  function drawHandleVisuals(svg: SVGSVGElement, anchor: AnchorPoint) {
+    const size = anchorDocSize(svg)
+    const r = size * 0.4
+    const sw = Math.max(size / 8, 0.1)
+
+    function drawHandle(handle: Point) {
+      // Line from anchor to handle
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+      line.setAttribute('x1', String(anchor.pos.x))
+      line.setAttribute('y1', String(anchor.pos.y))
+      line.setAttribute('x2', String(handle.x))
+      line.setAttribute('y2', String(handle.y))
+      line.setAttribute('stroke', '#999999')
+      line.setAttribute('stroke-width', String(sw))
+      line.setAttribute('data-role', 'preview')
+      line.setAttribute('pointer-events', 'none')
+      svg.appendChild(line)
+      state.handleElements.push(line)
+
+      // Circle at handle tip
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+      circle.setAttribute('cx', String(handle.x))
+      circle.setAttribute('cy', String(handle.y))
+      circle.setAttribute('r', String(r))
+      circle.setAttribute('fill', '#ffffff')
+      circle.setAttribute('stroke', '#2563eb')
+      circle.setAttribute('stroke-width', String(sw))
+      circle.setAttribute('data-role', 'preview')
+      circle.setAttribute('pointer-events', 'none')
+      svg.appendChild(circle)
+      state.handleElements.push(circle)
+    }
+
+    if (anchor.handleOut) drawHandle(anchor.handleOut)
+    if (anchor.handleIn) drawHandle(anchor.handleIn)
   }
 
   function cleanup() {
     state.previewPath?.remove()
     state.previewLine?.remove()
-    for (const a of state.anchors) a.remove()
+    for (const a of state.anchorElements) a.remove()
+    for (const h of state.handleElements) h.remove()
     state.previewPath = null
     state.previewLine = null
+    state.anchorElements = []
+    state.handleElements = []
     state.anchors = []
-    state.points = []
     state.drawing = false
+    state.draggingHandle = false
+    state.dragAnchorIdx = -1
   }
 
   function finish(closePath = false) {
     const svg = getSvg()
     if (!svg) { cleanup(); return }
-    if (state.points.length < 2) { cleanup(); return }
+    if (state.anchors.length < 2) { cleanup(); return }
 
-    let d = buildPathD(state.points)
+    let d = buildPathD(state.anchors)
     if (closePath) d += ' Z'
     cleanup()
 
@@ -107,11 +173,17 @@ export function createPenTool(
     const history = getHistory()
     const cmd = new AddElementCommand(doc, layer, 'path', {
       d,
-      fill: closePath ? 'none' : 'none',
+      fill: 'none',
       stroke: '#000000',
       'stroke-width': '1',
     })
     history.execute(cmd)
+  }
+
+  function updatePreviewPath() {
+    if (state.previewPath) {
+      state.previewPath.setAttribute('d', buildPathD(state.anchors))
+    }
   }
 
   return {
@@ -126,11 +198,10 @@ export function createPenTool(
         const pt = screenToDoc(svg, e.clientX, e.clientY)
         const now = Date.now()
 
-        // Check for double-click to finish open path (need at least 2 points)
-        if (state.drawing && state.points.length >= 2 && state.lastClickPos) {
+        // Check for double-click to finish
+        if (state.drawing && state.anchors.length >= 2 && state.lastClickPos) {
           const dt = now - state.lastClickTime
           const dd = dist(pt, state.lastClickPos)
-          // Convert DOUBLE_CLICK_DIST from screen px to doc units
           const vb = svg.viewBox.baseVal
           const distThreshold = DOUBLE_CLICK_DIST * (vb.width / svg.clientWidth)
           if (dt < DOUBLE_CLICK_MS && dd < distThreshold) {
@@ -147,11 +218,14 @@ export function createPenTool(
         if (!state.drawing) {
           // Start new path
           state.drawing = true
-          state.points = [pt]
+          const anchor: AnchorPoint = { pos: pt, handleOut: null, handleIn: null }
+          state.anchors = [anchor]
+          state.draggingHandle = true
+          state.dragAnchorIdx = 0
 
           // Create preview path
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-          path.setAttribute('d', buildPathD([pt]))
+          path.setAttribute('d', `M ${pt.x} ${pt.y}`)
           path.setAttribute('fill', 'none')
           path.setAttribute('stroke', '#000000')
           path.setAttribute('stroke-width', '1')
@@ -160,7 +234,7 @@ export function createPenTool(
           svg.appendChild(path)
           state.previewPath = path
 
-          // Create preview rubber-band line
+          // Rubber-band line
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
           line.setAttribute('x1', String(pt.x))
           line.setAttribute('y1', String(pt.y))
@@ -174,55 +248,101 @@ export function createPenTool(
           svg.appendChild(line)
           state.previewLine = line
 
-          // First anchor
-          addAnchor(svg, pt)
+          addAnchorVisual(svg, pt)
         } else {
-          // Check if clicking near first anchor to close path
+          // Check close-path
           const snap = snapRadius(svg)
-          if (state.points.length >= 2 && dist(pt, state.points[0]) < snap) {
-            finish(true) // close path with Z
+          if (state.anchors.length >= 2 && dist(pt, state.anchors[0].pos) < snap) {
+            finish(true)
             return
           }
 
-          // Add new point
-          state.points.push(pt)
+          // Add new anchor with dragging handle
+          const anchor: AnchorPoint = { pos: pt, handleOut: null, handleIn: null }
+          state.anchors.push(anchor)
+          state.draggingHandle = true
+          state.dragAnchorIdx = state.anchors.length - 1
 
-          // Update the path preview
-          if (state.previewPath) {
-            state.previewPath.setAttribute('d', buildPathD(state.points))
-          }
+          updatePreviewPath()
 
-          // Update rubber-band origin
           if (state.previewLine) {
             state.previewLine.setAttribute('x1', String(pt.x))
             state.previewLine.setAttribute('y1', String(pt.y))
           }
 
-          // Add anchor
-          addAnchor(svg, pt)
+          addAnchorVisual(svg, pt)
         }
       },
 
       onMouseMove(e: MouseEvent) {
-        if (!state.drawing || !state.previewLine) return
+        if (!state.drawing) return
         const svg = getSvg()
         if (!svg) return
         const pt = screenToDoc(svg, e.clientX, e.clientY)
-        state.previewLine.setAttribute('x2', String(pt.x))
-        state.previewLine.setAttribute('y2', String(pt.y))
 
-        // Highlight first anchor when cursor is near it (close-path hint)
-        if (state.anchors.length >= 2 && state.points.length >= 2) {
-          const snap = snapRadius(svg)
-          const firstAnchor = state.anchors[0]
-          if (dist(pt, state.points[0]) < snap) {
-            firstAnchor.setAttribute('fill', '#ff4444')
-            firstAnchor.setAttribute('stroke', '#ffffff')
-          } else {
-            firstAnchor.setAttribute('fill', '#2563eb')
-            firstAnchor.setAttribute('stroke', '#ffffff')
+        if (state.draggingHandle && state.dragAnchorIdx >= 0) {
+          const anchor = state.anchors[state.dragAnchorIdx]
+          const dragDist = dist(pt, anchor.pos)
+          const threshold = anchorDocSize(svg) * 0.5
+
+          if (dragDist > threshold) {
+            // Set outgoing handle at drag position, mirror for incoming
+            anchor.handleOut = { x: pt.x, y: pt.y }
+            anchor.handleIn = {
+              x: 2 * anchor.pos.x - pt.x,
+              y: 2 * anchor.pos.y - pt.y,
+            }
+
+            clearHandleVisuals(svg)
+            drawHandleVisuals(svg, anchor)
+            updatePreviewPath()
           }
         }
+
+        // Update rubber-band line
+        if (state.previewLine && !state.draggingHandle) {
+          state.previewLine.setAttribute('x2', String(pt.x))
+          state.previewLine.setAttribute('y2', String(pt.y))
+        }
+
+        // Highlight first anchor for close hint
+        if (state.anchorElements.length >= 2 && state.anchors.length >= 2 && !state.draggingHandle) {
+          const snap = snapRadius(svg)
+          const firstAnchor = state.anchorElements[0]
+          if (dist(pt, state.anchors[0].pos) < snap) {
+            firstAnchor.setAttribute('fill', '#ff4444')
+          } else {
+            firstAnchor.setAttribute('fill', '#2563eb')
+          }
+        }
+      },
+
+      onMouseUp(e: MouseEvent) {
+        if (!state.draggingHandle) return
+        state.draggingHandle = false
+
+        const svg = getSvg()
+        if (!svg) return
+        const pt = screenToDoc(svg, e.clientX, e.clientY)
+        const anchor = state.anchors[state.dragAnchorIdx]
+
+        // If drag distance was too small, clear handles (plain click)
+        const threshold = anchorDocSize(svg) * 0.5
+        if (dist(pt, anchor.pos) < threshold) {
+          anchor.handleOut = null
+          anchor.handleIn = null
+          clearHandleVisuals(svg)
+        }
+
+        // Update rubber-band from this anchor
+        if (state.previewLine) {
+          state.previewLine.setAttribute('x1', String(anchor.pos.x))
+          state.previewLine.setAttribute('y1', String(anchor.pos.y))
+          state.previewLine.setAttribute('x2', String(pt.x))
+          state.previewLine.setAttribute('y2', String(pt.y))
+        }
+
+        state.dragAnchorIdx = -1
       },
 
       onKeyDown(e: KeyboardEvent) {

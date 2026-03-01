@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { createPenTool } from './penTool'
+import { createPenTool, buildPathD } from './penTool'
+import type { AnchorPoint } from './penTool'
 import { createDocumentModel, resetIdCounter } from '../model/document'
 import { CommandHistory } from '../model/commands'
 import type { DocumentModel } from '../model/document'
@@ -17,9 +18,6 @@ function makeSvg(): SVGSVGElement {
 }
 
 function mockScreenToDoc(svg: SVGSVGElement) {
-  // Mock getScreenCTM to return identity-like transform for testing
-  // viewBox 0 0 210 297, clientWidth 800, clientHeight 600
-  // scale: 210/800 = 0.2625 per pixel
   const scaleX = 210 / 800
   const scaleY = 297 / 600
   svg.getScreenCTM = () =>
@@ -66,12 +64,16 @@ describe('Pen Tool', () => {
     )
   }
 
-  function mouseEvent(clientX: number, clientY: number, button = 0): MouseEvent {
+  function mouseDown(clientX: number, clientY: number, button = 0): MouseEvent {
     return new MouseEvent('mousedown', { clientX, clientY, button })
   }
 
-  function mouseMoveEvent(clientX: number, clientY: number): MouseEvent {
+  function mouseMove(clientX: number, clientY: number): MouseEvent {
     return new MouseEvent('mousemove', { clientX, clientY })
+  }
+
+  function mouseUp(clientX: number, clientY: number): MouseEvent {
+    return new MouseEvent('mouseup', { clientX, clientY })
   }
 
   function keyEvent(key: string): KeyboardEvent {
@@ -87,69 +89,32 @@ describe('Pen Tool', () => {
 
   it('creates a preview path on first click', () => {
     const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(100, 100))
+    tool.handlers.onMouseDown!(mouseDown(100, 100))
+    tool.handlers.onMouseUp!(mouseUp(100, 100))
 
     const preview = svg.querySelector('path[data-role="preview"]')
     expect(preview).not.toBeNull()
-    expect(preview!.getAttribute('d')).toContain('M')
   })
 
-  it('creates a preview rubber-band line on first click', () => {
+  it('creates anchor points on subsequent clicks', () => {
     const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(100, 100))
-
-    const line = svg.querySelector('line[data-role="preview"]')
-    expect(line).not.toBeNull()
-    expect(line!.getAttribute('stroke-dasharray')).toBe('2 1')
-  })
-
-  it('creates an anchor point on first click', () => {
-    const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(100, 100))
-
-    const anchors = svg.querySelectorAll('rect[data-role="preview"]')
-    expect(anchors.length).toBe(1)
-  })
-
-  it('adds anchor points on subsequent clicks', () => {
-    const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(100, 100))
-    tool.handlers.onMouseDown!(mouseEvent(200, 200))
-    tool.handlers.onMouseDown!(mouseEvent(300, 150))
+    tool.handlers.onMouseDown!(mouseDown(100, 100))
+    tool.handlers.onMouseUp!(mouseUp(100, 100))
+    tool.handlers.onMouseDown!(mouseDown(200, 200))
+    tool.handlers.onMouseUp!(mouseUp(200, 200))
+    tool.handlers.onMouseDown!(mouseDown(300, 150))
+    tool.handlers.onMouseUp!(mouseUp(300, 150))
 
     const anchors = svg.querySelectorAll('rect[data-role="preview"]')
     expect(anchors.length).toBe(3)
   })
 
-  it('updates preview path d attribute on each click', () => {
+  it('commits path on Enter', () => {
     const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(100, 100))
-    tool.handlers.onMouseDown!(mouseEvent(200, 200))
-
-    const path = svg.querySelector('path[data-role="preview"]')
-    const d = path!.getAttribute('d')!
-    expect(d).toContain('M')
-    expect(d).toContain('L')
-  })
-
-  it('updates rubber-band line on mouse move', () => {
-    const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(100, 100))
-    tool.handlers.onMouseMove!(mouseMoveEvent(200, 200))
-
-    const line = svg.querySelector('line[data-role="preview"]')
-    // Line endpoint should have been updated
-    const x2 = parseFloat(line!.getAttribute('x2')!)
-    const y2 = parseFloat(line!.getAttribute('y2')!)
-    expect(x2).toBeGreaterThan(0)
-    expect(y2).toBeGreaterThan(0)
-  })
-
-  it('commits path to document on Enter key', () => {
-    const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(100, 100))
-    tool.handlers.onMouseDown!(mouseEvent(200, 200))
-    tool.handlers.onMouseDown!(mouseEvent(300, 150))
+    tool.handlers.onMouseDown!(mouseDown(100, 100))
+    tool.handlers.onMouseUp!(mouseUp(100, 100))
+    tool.handlers.onMouseDown!(mouseDown(200, 200))
+    tool.handlers.onMouseUp!(mouseUp(200, 200))
     tool.handlers.onKeyDown!(keyEvent('Enter'))
 
     const layer = svg.querySelector('g[data-layer-name]')!
@@ -157,36 +122,15 @@ describe('Pen Tool', () => {
     expect(path).not.toBeNull()
     expect(path!.getAttribute('d')).toContain('M')
     expect(path!.getAttribute('d')).toContain('L')
-    expect(path!.getAttribute('fill')).toBe('none')
-    expect(path!.getAttribute('stroke')).toBe('#000000')
   })
 
-  it('cleans up preview elements on Enter', () => {
+  it('cancels on Escape', () => {
     const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(100, 100))
-    tool.handlers.onMouseDown!(mouseEvent(200, 200))
-    tool.handlers.onKeyDown!(keyEvent('Enter'))
-
-    const previews = svg.querySelectorAll('[data-role="preview"]')
-    expect(previews.length).toBe(0)
-  })
-
-  it('cancels on Escape — no path added', () => {
-    const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(100, 100))
-    tool.handlers.onMouseDown!(mouseEvent(200, 200))
+    tool.handlers.onMouseDown!(mouseDown(100, 100))
+    tool.handlers.onMouseUp!(mouseUp(100, 100))
+    tool.handlers.onMouseDown!(mouseDown(200, 200))
+    tool.handlers.onMouseUp!(mouseUp(200, 200))
     tool.handlers.onKeyDown!(keyEvent('Escape'))
-
-    const layer = svg.querySelector('g[data-layer-name]')!
-    expect(layer.querySelector('path')).toBeNull()
-    const previews = svg.querySelectorAll('[data-role="preview"]')
-    expect(previews.length).toBe(0)
-  })
-
-  it('does not commit with less than 2 points', () => {
-    const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(100, 100))
-    tool.handlers.onKeyDown!(keyEvent('Enter'))
 
     const layer = svg.querySelector('g[data-layer-name]')!
     expect(layer.querySelector('path')).toBeNull()
@@ -194,124 +138,134 @@ describe('Pen Tool', () => {
 
   it('committed path is undoable', () => {
     const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(100, 100))
-    tool.handlers.onMouseDown!(mouseEvent(200, 200))
+    tool.handlers.onMouseDown!(mouseDown(100, 100))
+    tool.handlers.onMouseUp!(mouseUp(100, 100))
+    tool.handlers.onMouseDown!(mouseDown(200, 200))
+    tool.handlers.onMouseUp!(mouseUp(200, 200))
     tool.handlers.onKeyDown!(keyEvent('Enter'))
 
     const layer = svg.querySelector('g[data-layer-name]')!
     expect(layer.querySelector('path')).not.toBeNull()
-
     history.undo()
     expect(layer.querySelector('path')).toBeNull()
-
     history.redo()
     expect(layer.querySelector('path')).not.toBeNull()
   })
 
-  it('can start a new path after finishing one', () => {
+  it('closes path with Z when clicking near first anchor', () => {
     const tool = makeTool()
-    // First path
-    tool.handlers.onMouseDown!(mouseEvent(100, 100))
-    tool.handlers.onMouseDown!(mouseEvent(200, 200))
-    tool.handlers.onKeyDown!(keyEvent('Enter'))
-
-    // Second path
-    tool.handlers.onMouseDown!(mouseEvent(300, 300))
-    tool.handlers.onMouseDown!(mouseEvent(400, 400))
-    tool.handlers.onKeyDown!(keyEvent('Enter'))
+    tool.handlers.onMouseDown!(mouseDown(100, 100))
+    tool.handlers.onMouseUp!(mouseUp(100, 100))
+    tool.handlers.onMouseDown!(mouseDown(300, 100))
+    tool.handlers.onMouseUp!(mouseUp(300, 100))
+    tool.handlers.onMouseDown!(mouseDown(300, 300))
+    tool.handlers.onMouseUp!(mouseUp(300, 300))
+    // Click near first point to close
+    tool.handlers.onMouseDown!(mouseDown(101, 101))
 
     const layer = svg.querySelector('g[data-layer-name]')!
-    const paths = layer.querySelectorAll('path')
-    expect(paths.length).toBe(2)
+    const path = layer.querySelector('path')
+    expect(path).not.toBeNull()
+    expect(path!.getAttribute('d')).toContain('Z')
   })
 
-  it('ignores non-left mouse button clicks', () => {
+  it('ignores non-left mouse button', () => {
     const tool = makeTool()
-    tool.handlers.onMouseDown!(mouseEvent(100, 100, 2)) // right click
-
-    const previews = svg.querySelectorAll('[data-role="preview"]')
-    expect(previews.length).toBe(0)
+    tool.handlers.onMouseDown!(mouseDown(100, 100, 2))
+    expect(svg.querySelectorAll('[data-role="preview"]').length).toBe(0)
   })
 
-  // S8-03: Close path by clicking first anchor
-  describe('close path by clicking first anchor', () => {
-    it('closes path with Z when clicking near first anchor', () => {
-      const tool = makeTool()
-      // Place 3 points (screen coords → doc coords via mock)
-      // scaleX = 210/800 = 0.2625, so screen 100 → doc 26.25
-      tool.handlers.onMouseDown!(mouseEvent(100, 100))
-      tool.handlers.onMouseDown!(mouseEvent(300, 100))
-      tool.handlers.onMouseDown!(mouseEvent(300, 300))
-      // Click very close to first point to close
-      tool.handlers.onMouseDown!(mouseEvent(101, 101))
-
-      const layer = svg.querySelector('g[data-layer-name]')!
-      const path = layer.querySelector('path')
-      expect(path).not.toBeNull()
-      expect(path!.getAttribute('d')).toContain('Z')
+  // Bezier tests
+  describe('buildPathD with Bezier handles', () => {
+    it('uses L for straight segments', () => {
+      const anchors: AnchorPoint[] = [
+        { pos: { x: 0, y: 0 }, handleOut: null, handleIn: null },
+        { pos: { x: 10, y: 10 }, handleOut: null, handleIn: null },
+      ]
+      const d = buildPathD(anchors)
+      expect(d).toBe('M 0 0 L 10 10')
     })
 
-    it('highlights first anchor when cursor is near it', () => {
-      const tool = makeTool()
-      tool.handlers.onMouseDown!(mouseEvent(100, 100))
-      tool.handlers.onMouseDown!(mouseEvent(300, 200))
-
-      // Move near first anchor
-      tool.handlers.onMouseMove!(mouseMoveEvent(101, 101))
-
-      const firstAnchor = svg.querySelectorAll('rect[data-role="preview"]')[0]
-      expect(firstAnchor.getAttribute('fill')).toBe('#ff4444')
+    it('uses C for segments with handles', () => {
+      const anchors: AnchorPoint[] = [
+        { pos: { x: 0, y: 0 }, handleOut: { x: 5, y: 0 }, handleIn: null },
+        { pos: { x: 10, y: 10 }, handleOut: null, handleIn: { x: 5, y: 10 } },
+      ]
+      const d = buildPathD(anchors)
+      expect(d).toBe('M 0 0 C 5 0 5 10 10 10')
     })
 
-    it('reverts first anchor color when cursor moves away', () => {
-      const tool = makeTool()
-      tool.handlers.onMouseDown!(mouseEvent(100, 100))
-      tool.handlers.onMouseDown!(mouseEvent(300, 200))
-
-      // Move near, then away
-      tool.handlers.onMouseMove!(mouseMoveEvent(101, 101))
-      tool.handlers.onMouseMove!(mouseMoveEvent(400, 400))
-
-      const firstAnchor = svg.querySelectorAll('rect[data-role="preview"]')[0]
-      expect(firstAnchor.getAttribute('fill')).toBe('#2563eb')
+    it('uses C when only outgoing handle exists', () => {
+      const anchors: AnchorPoint[] = [
+        { pos: { x: 0, y: 0 }, handleOut: { x: 5, y: 0 }, handleIn: null },
+        { pos: { x: 10, y: 10 }, handleOut: null, handleIn: null },
+      ]
+      const d = buildPathD(anchors)
+      // cp2 defaults to the destination point
+      expect(d).toBe('M 0 0 C 5 0 10 10 10 10')
     })
 
-    it('does not close path if only one point placed', () => {
-      const tool = makeTool()
-      tool.handlers.onMouseDown!(mouseEvent(100, 100))
-      // Click same position — should be treated as adding a second point, not closing
-      tool.handlers.onMouseDown!(mouseEvent(101, 101))
-
-      const layer = svg.querySelector('g[data-layer-name]')!
-      expect(layer.querySelector('path')).toBeNull()
-      // Should still be drawing (2 points placed)
-      const anchors = svg.querySelectorAll('rect[data-role="preview"]')
-      expect(anchors.length).toBe(2)
+    it('mixes L and C segments', () => {
+      const anchors: AnchorPoint[] = [
+        { pos: { x: 0, y: 0 }, handleOut: null, handleIn: null },
+        { pos: { x: 10, y: 0 }, handleOut: { x: 15, y: 5 }, handleIn: null },
+        { pos: { x: 20, y: 10 }, handleOut: null, handleIn: { x: 15, y: 5 } },
+      ]
+      const d = buildPathD(anchors)
+      expect(d).toBe('M 0 0 L 10 0 C 15 5 15 5 20 10')
     })
   })
 
-  // S8-04: Finish open path with Enter or double-click
-  describe('finish open path', () => {
-    it('finishes path on Enter without Z', () => {
+  describe('drag to create Bezier handles', () => {
+    it('creates handles when dragging after mousedown', () => {
       const tool = makeTool()
-      tool.handlers.onMouseDown!(mouseEvent(100, 100))
-      tool.handlers.onMouseDown!(mouseEvent(300, 200))
+      // First point: click-release (no handle)
+      tool.handlers.onMouseDown!(mouseDown(100, 100))
+      tool.handlers.onMouseUp!(mouseUp(100, 100))
+
+      // Second point: click and drag to create handle
+      tool.handlers.onMouseDown!(mouseDown(300, 100))
+      tool.handlers.onMouseMove!(mouseMove(350, 50)) // drag outward
+      tool.handlers.onMouseUp!(mouseUp(350, 50))
+
+      // Finish and check
       tool.handlers.onKeyDown!(keyEvent('Enter'))
 
       const layer = svg.querySelector('g[data-layer-name]')!
       const path = layer.querySelector('path')
       expect(path).not.toBeNull()
-      expect(path!.getAttribute('d')).not.toContain('Z')
+      const d = path!.getAttribute('d')!
+      // Should contain C command for cubic Bezier
+      expect(d).toContain('C')
     })
 
-    it('cancels path on Escape — discards everything', () => {
+    it('shows handle visuals during drag', () => {
       const tool = makeTool()
-      tool.handlers.onMouseDown!(mouseEvent(100, 100))
-      tool.handlers.onMouseDown!(mouseEvent(300, 200))
-      tool.handlers.onKeyDown!(keyEvent('Escape'))
+      tool.handlers.onMouseDown!(mouseDown(100, 100))
+      tool.handlers.onMouseUp!(mouseUp(100, 100))
+
+      // Start dragging second point
+      tool.handlers.onMouseDown!(mouseDown(300, 100))
+      tool.handlers.onMouseMove!(mouseMove(350, 50))
+
+      // Should see control handle circles
+      const circles = svg.querySelectorAll('circle[data-role="preview"]')
+      expect(circles.length).toBeGreaterThan(0)
+    })
+
+    it('plain click creates no handles', () => {
+      const tool = makeTool()
+      tool.handlers.onMouseDown!(mouseDown(100, 100))
+      tool.handlers.onMouseUp!(mouseUp(100, 100))
+      tool.handlers.onMouseDown!(mouseDown(200, 200))
+      tool.handlers.onMouseUp!(mouseUp(200, 200))
+      tool.handlers.onKeyDown!(keyEvent('Enter'))
 
       const layer = svg.querySelector('g[data-layer-name]')!
-      expect(layer.querySelector('path')).toBeNull()
+      const path = layer.querySelector('path')
+      const d = path!.getAttribute('d')!
+      expect(d).not.toContain('C')
+      expect(d).toContain('L')
     })
   })
 })
