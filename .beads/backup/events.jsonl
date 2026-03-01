@@ -1,0 +1,254 @@
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:28:24Z","event_type":"created","id":1,"issue_id":"vectorfeld-4b8","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-0","created_at":"2026-03-01T11:28:24Z","event_type":"label_added","id":2,"issue_id":"vectorfeld-4b8","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: scaffold","created_at":"2026-03-01T11:28:24Z","event_type":"label_added","id":3,"issue_id":"vectorfeld-4b8","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:28:30Z","event_type":"created","id":4,"issue_id":"vectorfeld-qjq","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-0","created_at":"2026-03-01T11:28:30Z","event_type":"label_added","id":5,"issue_id":"vectorfeld-qjq","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: testing","created_at":"2026-03-01T11:28:30Z","event_type":"label_added","id":6,"issue_id":"vectorfeld-qjq","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:28:37Z","event_type":"created","id":7,"issue_id":"vectorfeld-3yn","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-0","created_at":"2026-03-01T11:28:37Z","event_type":"label_added","id":8,"issue_id":"vectorfeld-3yn","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: architecture","created_at":"2026-03-01T11:28:37Z","event_type":"label_added","id":9,"issue_id":"vectorfeld-3yn","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:28:44Z","event_type":"created","id":10,"issue_id":"vectorfeld-8hh","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-0","created_at":"2026-03-01T11:28:44Z","event_type":"label_added","id":11,"issue_id":"vectorfeld-8hh","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: canvas","created_at":"2026-03-01T11:28:44Z","event_type":"label_added","id":12,"issue_id":"vectorfeld-8hh","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:28:51Z","event_type":"created","id":13,"issue_id":"vectorfeld-6tx","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-1","created_at":"2026-03-01T11:28:51Z","event_type":"label_added","id":14,"issue_id":"vectorfeld-6tx","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: canvas","created_at":"2026-03-01T11:28:51Z","event_type":"label_added","id":15,"issue_id":"vectorfeld-6tx","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: coordinates","created_at":"2026-03-01T11:28:51Z","event_type":"label_added","id":16,"issue_id":"vectorfeld-6tx","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:29:01Z","event_type":"created","id":17,"issue_id":"vectorfeld-7gs","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-1","created_at":"2026-03-01T11:29:01Z","event_type":"label_added","id":18,"issue_id":"vectorfeld-7gs","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: canvas","created_at":"2026-03-01T11:29:01Z","event_type":"label_added","id":19,"issue_id":"vectorfeld-7gs","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: zoom","created_at":"2026-03-01T11:29:01Z","event_type":"label_added","id":20,"issue_id":"vectorfeld-7gs","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:29:08Z","event_type":"created","id":21,"issue_id":"vectorfeld-2o9","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-1","created_at":"2026-03-01T11:29:08Z","event_type":"label_added","id":22,"issue_id":"vectorfeld-2o9","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: canvas","created_at":"2026-03-01T11:29:08Z","event_type":"label_added","id":23,"issue_id":"vectorfeld-2o9","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: pan","created_at":"2026-03-01T11:29:08Z","event_type":"label_added","id":24,"issue_id":"vectorfeld-2o9","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:29:14Z","event_type":"created","id":25,"issue_id":"vectorfeld-el3","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-1","created_at":"2026-03-01T11:29:14Z","event_type":"label_added","id":26,"issue_id":"vectorfeld-el3","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: ui","created_at":"2026-03-01T11:29:14Z","event_type":"label_added","id":27,"issue_id":"vectorfeld-el3","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: status-bar","created_at":"2026-03-01T11:29:14Z","event_type":"label_added","id":28,"issue_id":"vectorfeld-el3","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:29:22Z","event_type":"created","id":29,"issue_id":"vectorfeld-kct","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-1","created_at":"2026-03-01T11:29:22Z","event_type":"label_added","id":30,"issue_id":"vectorfeld-kct","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: canvas","created_at":"2026-03-01T11:29:22Z","event_type":"label_added","id":31,"issue_id":"vectorfeld-kct","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: artboard","created_at":"2026-03-01T11:29:22Z","event_type":"label_added","id":32,"issue_id":"vectorfeld-kct","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:29:30Z","event_type":"created","id":33,"issue_id":"vectorfeld-n3w","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-2","created_at":"2026-03-01T11:29:30Z","event_type":"label_added","id":34,"issue_id":"vectorfeld-n3w","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: document-model","created_at":"2026-03-01T11:29:30Z","event_type":"label_added","id":35,"issue_id":"vectorfeld-n3w","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:29:41Z","event_type":"created","id":36,"issue_id":"vectorfeld-ysp","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-2","created_at":"2026-03-01T11:29:41Z","event_type":"label_added","id":37,"issue_id":"vectorfeld-ysp","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: undo","created_at":"2026-03-01T11:29:41Z","event_type":"label_added","id":38,"issue_id":"vectorfeld-ysp","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: document-model","created_at":"2026-03-01T11:29:41Z","event_type":"label_added","id":39,"issue_id":"vectorfeld-ysp","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:29:47Z","event_type":"created","id":40,"issue_id":"vectorfeld-vwl","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-2","created_at":"2026-03-01T11:29:47Z","event_type":"label_added","id":41,"issue_id":"vectorfeld-vwl","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: undo","created_at":"2026-03-01T11:29:47Z","event_type":"label_added","id":42,"issue_id":"vectorfeld-vwl","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: keybindings","created_at":"2026-03-01T11:29:47Z","event_type":"label_added","id":43,"issue_id":"vectorfeld-vwl","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:29:55Z","event_type":"created","id":44,"issue_id":"vectorfeld-3d3","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-3","created_at":"2026-03-01T11:29:55Z","event_type":"label_added","id":45,"issue_id":"vectorfeld-3d3","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:29:55Z","event_type":"label_added","id":46,"issue_id":"vectorfeld-3d3","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: architecture","created_at":"2026-03-01T11:29:55Z","event_type":"label_added","id":47,"issue_id":"vectorfeld-3d3","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:30:02Z","event_type":"created","id":48,"issue_id":"vectorfeld-amv","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-3","created_at":"2026-03-01T11:30:02Z","event_type":"label_added","id":49,"issue_id":"vectorfeld-amv","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:30:02Z","event_type":"label_added","id":50,"issue_id":"vectorfeld-amv","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: drawing","created_at":"2026-03-01T11:30:02Z","event_type":"label_added","id":51,"issue_id":"vectorfeld-amv","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:30:12Z","event_type":"created","id":52,"issue_id":"vectorfeld-i08","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-3","created_at":"2026-03-01T11:30:12Z","event_type":"label_added","id":53,"issue_id":"vectorfeld-i08","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:30:12Z","event_type":"label_added","id":54,"issue_id":"vectorfeld-i08","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: drawing","created_at":"2026-03-01T11:30:12Z","event_type":"label_added","id":55,"issue_id":"vectorfeld-i08","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:30:16Z","event_type":"created","id":56,"issue_id":"vectorfeld-gov","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-3","created_at":"2026-03-01T11:30:16Z","event_type":"label_added","id":57,"issue_id":"vectorfeld-gov","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:30:16Z","event_type":"label_added","id":58,"issue_id":"vectorfeld-gov","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: drawing","created_at":"2026-03-01T11:30:16Z","event_type":"label_added","id":59,"issue_id":"vectorfeld-gov","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:30:23Z","event_type":"created","id":60,"issue_id":"vectorfeld-ssz","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-3","created_at":"2026-03-01T11:30:23Z","event_type":"label_added","id":61,"issue_id":"vectorfeld-ssz","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: ui","created_at":"2026-03-01T11:30:23Z","event_type":"label_added","id":62,"issue_id":"vectorfeld-ssz","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: toolbar","created_at":"2026-03-01T11:30:23Z","event_type":"label_added","id":63,"issue_id":"vectorfeld-ssz","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:30:30Z","event_type":"created","id":64,"issue_id":"vectorfeld-ogq","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-4","created_at":"2026-03-01T11:30:30Z","event_type":"label_added","id":65,"issue_id":"vectorfeld-ogq","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:30:30Z","event_type":"label_added","id":66,"issue_id":"vectorfeld-ogq","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: selection","created_at":"2026-03-01T11:30:30Z","event_type":"label_added","id":67,"issue_id":"vectorfeld-ogq","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:30:37Z","event_type":"created","id":68,"issue_id":"vectorfeld-aj2","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-4","created_at":"2026-03-01T11:30:37Z","event_type":"label_added","id":69,"issue_id":"vectorfeld-aj2","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:30:37Z","event_type":"label_added","id":70,"issue_id":"vectorfeld-aj2","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: selection","created_at":"2026-03-01T11:30:37Z","event_type":"label_added","id":71,"issue_id":"vectorfeld-aj2","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:30:50Z","event_type":"created","id":72,"issue_id":"vectorfeld-6d0","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-4","created_at":"2026-03-01T11:30:50Z","event_type":"label_added","id":73,"issue_id":"vectorfeld-6d0","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:30:50Z","event_type":"label_added","id":74,"issue_id":"vectorfeld-6d0","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: selection","created_at":"2026-03-01T11:30:50Z","event_type":"label_added","id":75,"issue_id":"vectorfeld-6d0","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:30:58Z","event_type":"created","id":76,"issue_id":"vectorfeld-zpf","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-4","created_at":"2026-03-01T11:30:58Z","event_type":"label_added","id":77,"issue_id":"vectorfeld-zpf","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:30:58Z","event_type":"label_added","id":78,"issue_id":"vectorfeld-zpf","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: manipulation","created_at":"2026-03-01T11:30:58Z","event_type":"label_added","id":79,"issue_id":"vectorfeld-zpf","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:31:04Z","event_type":"created","id":80,"issue_id":"vectorfeld-9gy","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-4","created_at":"2026-03-01T11:31:04Z","event_type":"label_added","id":81,"issue_id":"vectorfeld-9gy","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:31:04Z","event_type":"label_added","id":82,"issue_id":"vectorfeld-9gy","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: manipulation","created_at":"2026-03-01T11:31:04Z","event_type":"label_added","id":83,"issue_id":"vectorfeld-9gy","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:31:09Z","event_type":"created","id":84,"issue_id":"vectorfeld-bd8","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-4","created_at":"2026-03-01T11:31:09Z","event_type":"label_added","id":85,"issue_id":"vectorfeld-bd8","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:31:09Z","event_type":"label_added","id":86,"issue_id":"vectorfeld-bd8","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: manipulation","created_at":"2026-03-01T11:31:09Z","event_type":"label_added","id":87,"issue_id":"vectorfeld-bd8","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: properties","created_at":"2026-03-01T11:31:09Z","event_type":"label_added","id":88,"issue_id":"vectorfeld-bd8","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:31:15Z","event_type":"created","id":89,"issue_id":"vectorfeld-97w","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-4","created_at":"2026-03-01T11:31:15Z","event_type":"label_added","id":90,"issue_id":"vectorfeld-97w","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:31:15Z","event_type":"label_added","id":91,"issue_id":"vectorfeld-97w","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: manipulation","created_at":"2026-03-01T11:31:15Z","event_type":"label_added","id":92,"issue_id":"vectorfeld-97w","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:31:25Z","event_type":"created","id":93,"issue_id":"vectorfeld-2z8","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-5","created_at":"2026-03-01T11:31:25Z","event_type":"label_added","id":94,"issue_id":"vectorfeld-2z8","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:31:25Z","event_type":"label_added","id":95,"issue_id":"vectorfeld-2z8","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: transforms","created_at":"2026-03-01T11:31:25Z","event_type":"label_added","id":96,"issue_id":"vectorfeld-2z8","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:31:31Z","event_type":"created","id":97,"issue_id":"vectorfeld-nqx","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-5","created_at":"2026-03-01T11:31:31Z","event_type":"label_added","id":98,"issue_id":"vectorfeld-nqx","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:31:31Z","event_type":"label_added","id":99,"issue_id":"vectorfeld-nqx","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: transforms","created_at":"2026-03-01T11:31:31Z","event_type":"label_added","id":100,"issue_id":"vectorfeld-nqx","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:31:37Z","event_type":"created","id":101,"issue_id":"vectorfeld-5b5","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-5","created_at":"2026-03-01T11:31:37Z","event_type":"label_added","id":102,"issue_id":"vectorfeld-5b5","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:31:37Z","event_type":"label_added","id":103,"issue_id":"vectorfeld-5b5","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: transforms","created_at":"2026-03-01T11:31:37Z","event_type":"label_added","id":104,"issue_id":"vectorfeld-5b5","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: properties","created_at":"2026-03-01T11:31:37Z","event_type":"label_added","id":105,"issue_id":"vectorfeld-5b5","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:31:43Z","event_type":"created","id":106,"issue_id":"vectorfeld-b84","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-5","created_at":"2026-03-01T11:31:43Z","event_type":"label_added","id":107,"issue_id":"vectorfeld-b84","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:31:43Z","event_type":"label_added","id":108,"issue_id":"vectorfeld-b84","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: transforms","created_at":"2026-03-01T11:31:43Z","event_type":"label_added","id":109,"issue_id":"vectorfeld-b84","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:31:48Z","event_type":"created","id":110,"issue_id":"vectorfeld-r84","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-5","created_at":"2026-03-01T11:31:48Z","event_type":"label_added","id":111,"issue_id":"vectorfeld-r84","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:31:48Z","event_type":"label_added","id":112,"issue_id":"vectorfeld-r84","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: transforms","created_at":"2026-03-01T11:31:48Z","event_type":"label_added","id":113,"issue_id":"vectorfeld-r84","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:31:52Z","event_type":"created","id":114,"issue_id":"vectorfeld-v90","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-5","created_at":"2026-03-01T11:31:52Z","event_type":"label_added","id":115,"issue_id":"vectorfeld-v90","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:31:52Z","event_type":"label_added","id":116,"issue_id":"vectorfeld-v90","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: transforms","created_at":"2026-03-01T11:31:52Z","event_type":"label_added","id":117,"issue_id":"vectorfeld-v90","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: properties","created_at":"2026-03-01T11:31:52Z","event_type":"label_added","id":118,"issue_id":"vectorfeld-v90","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:32:04Z","event_type":"created","id":119,"issue_id":"vectorfeld-rdv","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-6","created_at":"2026-03-01T11:32:04Z","event_type":"label_added","id":120,"issue_id":"vectorfeld-rdv","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: ui","created_at":"2026-03-01T11:32:04Z","event_type":"label_added","id":121,"issue_id":"vectorfeld-rdv","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: properties","created_at":"2026-03-01T11:32:04Z","event_type":"label_added","id":122,"issue_id":"vectorfeld-rdv","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:32:09Z","event_type":"created","id":123,"issue_id":"vectorfeld-4hz","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-6","created_at":"2026-03-01T11:32:09Z","event_type":"label_added","id":124,"issue_id":"vectorfeld-4hz","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: styling","created_at":"2026-03-01T11:32:09Z","event_type":"label_added","id":125,"issue_id":"vectorfeld-4hz","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: properties","created_at":"2026-03-01T11:32:09Z","event_type":"label_added","id":126,"issue_id":"vectorfeld-4hz","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:32:15Z","event_type":"created","id":127,"issue_id":"vectorfeld-b47","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-6","created_at":"2026-03-01T11:32:15Z","event_type":"label_added","id":128,"issue_id":"vectorfeld-b47","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: styling","created_at":"2026-03-01T11:32:15Z","event_type":"label_added","id":129,"issue_id":"vectorfeld-b47","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: ui","created_at":"2026-03-01T11:32:15Z","event_type":"label_added","id":130,"issue_id":"vectorfeld-b47","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:32:21Z","event_type":"created","id":131,"issue_id":"vectorfeld-fg1","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-6","created_at":"2026-03-01T11:32:21Z","event_type":"label_added","id":132,"issue_id":"vectorfeld-fg1","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: styling","created_at":"2026-03-01T11:32:21Z","event_type":"label_added","id":133,"issue_id":"vectorfeld-fg1","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:32:25Z","event_type":"created","id":134,"issue_id":"vectorfeld-yef","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-6","created_at":"2026-03-01T11:32:25Z","event_type":"label_added","id":135,"issue_id":"vectorfeld-yef","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: styling","created_at":"2026-03-01T11:32:25Z","event_type":"label_added","id":136,"issue_id":"vectorfeld-yef","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:32:35Z","event_type":"created","id":137,"issue_id":"vectorfeld-e6e","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-6","created_at":"2026-03-01T11:32:35Z","event_type":"label_added","id":138,"issue_id":"vectorfeld-e6e","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: styling","created_at":"2026-03-01T11:32:35Z","event_type":"label_added","id":139,"issue_id":"vectorfeld-e6e","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:32:43Z","event_type":"created","id":140,"issue_id":"vectorfeld-l8d","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-7","created_at":"2026-03-01T11:32:43Z","event_type":"label_added","id":141,"issue_id":"vectorfeld-l8d","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: ui","created_at":"2026-03-01T11:32:43Z","event_type":"label_added","id":142,"issue_id":"vectorfeld-l8d","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: layers","created_at":"2026-03-01T11:32:43Z","event_type":"label_added","id":143,"issue_id":"vectorfeld-l8d","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:32:50Z","event_type":"created","id":144,"issue_id":"vectorfeld-ohs","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-7","created_at":"2026-03-01T11:32:50Z","event_type":"label_added","id":145,"issue_id":"vectorfeld-ohs","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: ui","created_at":"2026-03-01T11:32:50Z","event_type":"label_added","id":146,"issue_id":"vectorfeld-ohs","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: layers","created_at":"2026-03-01T11:32:50Z","event_type":"label_added","id":147,"issue_id":"vectorfeld-ohs","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:32:58Z","event_type":"created","id":148,"issue_id":"vectorfeld-242","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-7","created_at":"2026-03-01T11:32:58Z","event_type":"label_added","id":149,"issue_id":"vectorfeld-242","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: ui","created_at":"2026-03-01T11:32:58Z","event_type":"label_added","id":150,"issue_id":"vectorfeld-242","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: layers","created_at":"2026-03-01T11:32:58Z","event_type":"label_added","id":151,"issue_id":"vectorfeld-242","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:33:03Z","event_type":"created","id":152,"issue_id":"vectorfeld-t93","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-7","created_at":"2026-03-01T11:33:03Z","event_type":"label_added","id":153,"issue_id":"vectorfeld-t93","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: layers","created_at":"2026-03-01T11:33:03Z","event_type":"label_added","id":154,"issue_id":"vectorfeld-t93","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:33:14Z","event_type":"created","id":155,"issue_id":"vectorfeld-cc5","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-7","created_at":"2026-03-01T11:33:14Z","event_type":"label_added","id":156,"issue_id":"vectorfeld-cc5","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:33:14Z","event_type":"label_added","id":157,"issue_id":"vectorfeld-cc5","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: organisation","created_at":"2026-03-01T11:33:14Z","event_type":"label_added","id":158,"issue_id":"vectorfeld-cc5","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:33:20Z","event_type":"created","id":159,"issue_id":"vectorfeld-7kg","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-7","created_at":"2026-03-01T11:33:20Z","event_type":"label_added","id":160,"issue_id":"vectorfeld-7kg","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:33:20Z","event_type":"label_added","id":161,"issue_id":"vectorfeld-7kg","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: organisation","created_at":"2026-03-01T11:33:20Z","event_type":"label_added","id":162,"issue_id":"vectorfeld-7kg","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:33:27Z","event_type":"created","id":163,"issue_id":"vectorfeld-3va","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-7","created_at":"2026-03-01T11:33:27Z","event_type":"label_added","id":164,"issue_id":"vectorfeld-3va","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:33:27Z","event_type":"label_added","id":165,"issue_id":"vectorfeld-3va","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: organisation","created_at":"2026-03-01T11:33:27Z","event_type":"label_added","id":166,"issue_id":"vectorfeld-3va","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:33:35Z","event_type":"created","id":167,"issue_id":"vectorfeld-asi","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-8","created_at":"2026-03-01T11:33:35Z","event_type":"label_added","id":168,"issue_id":"vectorfeld-asi","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:33:35Z","event_type":"label_added","id":169,"issue_id":"vectorfeld-asi","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: drawing","created_at":"2026-03-01T11:33:35Z","event_type":"label_added","id":170,"issue_id":"vectorfeld-asi","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: bezier","created_at":"2026-03-01T11:33:35Z","event_type":"label_added","id":171,"issue_id":"vectorfeld-asi","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:33:46Z","event_type":"created","id":172,"issue_id":"vectorfeld-70v","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-8","created_at":"2026-03-01T11:33:46Z","event_type":"label_added","id":173,"issue_id":"vectorfeld-70v","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:33:46Z","event_type":"label_added","id":174,"issue_id":"vectorfeld-70v","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: drawing","created_at":"2026-03-01T11:33:46Z","event_type":"label_added","id":175,"issue_id":"vectorfeld-70v","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: bezier","created_at":"2026-03-01T11:33:46Z","event_type":"label_added","id":176,"issue_id":"vectorfeld-70v","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:33:54Z","event_type":"created","id":177,"issue_id":"vectorfeld-b2i","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-8","created_at":"2026-03-01T11:33:54Z","event_type":"label_added","id":178,"issue_id":"vectorfeld-b2i","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:33:54Z","event_type":"label_added","id":179,"issue_id":"vectorfeld-b2i","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: drawing","created_at":"2026-03-01T11:33:54Z","event_type":"label_added","id":180,"issue_id":"vectorfeld-b2i","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: bezier","created_at":"2026-03-01T11:33:54Z","event_type":"label_added","id":181,"issue_id":"vectorfeld-b2i","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:33:59Z","event_type":"created","id":182,"issue_id":"vectorfeld-c1p","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-8","created_at":"2026-03-01T11:33:59Z","event_type":"label_added","id":183,"issue_id":"vectorfeld-c1p","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:33:59Z","event_type":"label_added","id":184,"issue_id":"vectorfeld-c1p","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: drawing","created_at":"2026-03-01T11:33:59Z","event_type":"label_added","id":185,"issue_id":"vectorfeld-c1p","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: bezier","created_at":"2026-03-01T11:33:59Z","event_type":"label_added","id":186,"issue_id":"vectorfeld-c1p","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:34:07Z","event_type":"created","id":187,"issue_id":"vectorfeld-03p","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-8","created_at":"2026-03-01T11:34:07Z","event_type":"label_added","id":188,"issue_id":"vectorfeld-03p","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:34:07Z","event_type":"label_added","id":189,"issue_id":"vectorfeld-03p","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: selection","created_at":"2026-03-01T11:34:07Z","event_type":"label_added","id":190,"issue_id":"vectorfeld-03p","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: bezier","created_at":"2026-03-01T11:34:07Z","event_type":"label_added","id":191,"issue_id":"vectorfeld-03p","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:34:13Z","event_type":"created","id":192,"issue_id":"vectorfeld-ad3","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-8","created_at":"2026-03-01T11:34:14Z","event_type":"label_added","id":193,"issue_id":"vectorfeld-ad3","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:34:14Z","event_type":"label_added","id":194,"issue_id":"vectorfeld-ad3","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: selection","created_at":"2026-03-01T11:34:14Z","event_type":"label_added","id":195,"issue_id":"vectorfeld-ad3","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: bezier","created_at":"2026-03-01T11:34:14Z","event_type":"label_added","id":196,"issue_id":"vectorfeld-ad3","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:34:24Z","event_type":"created","id":197,"issue_id":"vectorfeld-nyo","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-9","created_at":"2026-03-01T11:34:24Z","event_type":"label_added","id":198,"issue_id":"vectorfeld-nyo","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:34:24Z","event_type":"label_added","id":199,"issue_id":"vectorfeld-nyo","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: text","created_at":"2026-03-01T11:34:24Z","event_type":"label_added","id":200,"issue_id":"vectorfeld-nyo","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:34:31Z","event_type":"created","id":201,"issue_id":"vectorfeld-3rv","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-9","created_at":"2026-03-01T11:34:31Z","event_type":"label_added","id":202,"issue_id":"vectorfeld-3rv","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:34:31Z","event_type":"label_added","id":203,"issue_id":"vectorfeld-3rv","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: text","created_at":"2026-03-01T11:34:31Z","event_type":"label_added","id":204,"issue_id":"vectorfeld-3rv","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:34:39Z","event_type":"created","id":205,"issue_id":"vectorfeld-nto","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-9","created_at":"2026-03-01T11:34:39Z","event_type":"label_added","id":206,"issue_id":"vectorfeld-nto","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: text","created_at":"2026-03-01T11:34:39Z","event_type":"label_added","id":207,"issue_id":"vectorfeld-nto","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: properties","created_at":"2026-03-01T11:34:39Z","event_type":"label_added","id":208,"issue_id":"vectorfeld-nto","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:34:45Z","event_type":"created","id":209,"issue_id":"vectorfeld-l9g","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-9","created_at":"2026-03-01T11:34:45Z","event_type":"label_added","id":210,"issue_id":"vectorfeld-l9g","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: text","created_at":"2026-03-01T11:34:45Z","event_type":"label_added","id":211,"issue_id":"vectorfeld-l9g","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: properties","created_at":"2026-03-01T11:34:45Z","event_type":"label_added","id":212,"issue_id":"vectorfeld-l9g","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:34:52Z","event_type":"created","id":213,"issue_id":"vectorfeld-zw8","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-10","created_at":"2026-03-01T11:34:52Z","event_type":"label_added","id":214,"issue_id":"vectorfeld-zw8","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:34:52Z","event_type":"label_added","id":215,"issue_id":"vectorfeld-zw8","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: eraser","created_at":"2026-03-01T11:34:52Z","event_type":"label_added","id":216,"issue_id":"vectorfeld-zw8","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:35:01Z","event_type":"created","id":217,"issue_id":"vectorfeld-rve","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-10","created_at":"2026-03-01T11:35:01Z","event_type":"label_added","id":218,"issue_id":"vectorfeld-rve","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: tools","created_at":"2026-03-01T11:35:01Z","event_type":"label_added","id":219,"issue_id":"vectorfeld-rve","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: eraser","created_at":"2026-03-01T11:35:01Z","event_type":"label_added","id":220,"issue_id":"vectorfeld-rve","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:35:14Z","event_type":"created","id":221,"issue_id":"vectorfeld-acz","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-10","created_at":"2026-03-01T11:35:14Z","event_type":"label_added","id":222,"issue_id":"vectorfeld-acz","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: file-io","created_at":"2026-03-01T11:35:14Z","event_type":"label_added","id":223,"issue_id":"vectorfeld-acz","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: export","created_at":"2026-03-01T11:35:14Z","event_type":"label_added","id":224,"issue_id":"vectorfeld-acz","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:35:21Z","event_type":"created","id":225,"issue_id":"vectorfeld-deg","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-10","created_at":"2026-03-01T11:35:21Z","event_type":"label_added","id":226,"issue_id":"vectorfeld-deg","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: file-io","created_at":"2026-03-01T11:35:21Z","event_type":"label_added","id":227,"issue_id":"vectorfeld-deg","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: import","created_at":"2026-03-01T11:35:21Z","event_type":"label_added","id":228,"issue_id":"vectorfeld-deg","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:35:29Z","event_type":"created","id":229,"issue_id":"vectorfeld-d1t","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-10","created_at":"2026-03-01T11:35:29Z","event_type":"label_added","id":230,"issue_id":"vectorfeld-d1t","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: research","created_at":"2026-03-01T11:35:29Z","event_type":"label_added","id":231,"issue_id":"vectorfeld-d1t","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:35:41Z","event_type":"created","id":232,"issue_id":"vectorfeld-7wf","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-11","created_at":"2026-03-01T11:35:41Z","event_type":"label_added","id":233,"issue_id":"vectorfeld-7wf","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: polish","created_at":"2026-03-01T11:35:41Z","event_type":"label_added","id":234,"issue_id":"vectorfeld-7wf","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: keybindings","created_at":"2026-03-01T11:35:41Z","event_type":"label_added","id":235,"issue_id":"vectorfeld-7wf","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:35:48Z","event_type":"created","id":236,"issue_id":"vectorfeld-7zx","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-11","created_at":"2026-03-01T11:35:48Z","event_type":"label_added","id":237,"issue_id":"vectorfeld-7zx","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: polish","created_at":"2026-03-01T11:35:48Z","event_type":"label_added","id":238,"issue_id":"vectorfeld-7zx","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: ui","created_at":"2026-03-01T11:35:48Z","event_type":"label_added","id":239,"issue_id":"vectorfeld-7zx","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:35:56Z","event_type":"created","id":240,"issue_id":"vectorfeld-oqh","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: sprint-11","created_at":"2026-03-01T11:35:56Z","event_type":"label_added","id":241,"issue_id":"vectorfeld-oqh","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: research","created_at":"2026-03-01T11:35:56Z","event_type":"label_added","id":242,"issue_id":"vectorfeld-oqh","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: text","created_at":"2026-03-01T11:35:56Z","event_type":"label_added","id":243,"issue_id":"vectorfeld-oqh","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:36:05Z","event_type":"created","id":244,"issue_id":"vectorfeld-9du","new_value":"","old_value":""}
+{"actor":"tobiasosborne","comment":"Added label: research","created_at":"2026-03-01T11:36:05Z","event_type":"label_added","id":245,"issue_id":"vectorfeld-9du","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":"Added label: deferred","created_at":"2026-03-01T11:36:05Z","event_type":"label_added","id":246,"issue_id":"vectorfeld-9du","new_value":null,"old_value":null}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:38:53Z","event_type":"status_changed","id":247,"issue_id":"vectorfeld-4b8","new_value":"{\"status\":\"in_progress\"}","old_value":"{\"id\":\"vectorfeld-4b8\",\"title\":\"S0-01: Tauri v2 + React + TypeScript + Vite project scaffold\",\"description\":\"Create the initial project scaffold using Tauri v2 with a React + TypeScript + Vite frontend. Use 'npm create tauri-app@latest' or equivalent. The result should be a working Tauri app that opens a window with the default React starter page. Verify with 'npm run dev' (frontend only) and 'cargo tauri dev' (full app). Directory structure should follow Tauri v2 conventions: src/ for React frontend, src-tauri/ for Rust backend.\",\"status\":\"open\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"tobias.osborne@itp.uni-hannover.de\",\"created_at\":\"2026-03-01T10:28:24Z\",\"created_by\":\"tobiasosborne\",\"updated_at\":\"2026-03-01T10:28:24Z\"}"}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:45:51Z","event_type":"closed","id":248,"issue_id":"vectorfeld-4b8","new_value":"Closed","old_value":""}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:45:58Z","event_type":"status_changed","id":249,"issue_id":"vectorfeld-qjq","new_value":"{\"status\":\"in_progress\"}","old_value":"{\"id\":\"vectorfeld-qjq\",\"title\":\"S0-02: Vitest setup with basic smoke test\",\"description\":\"Install and configure Vitest as the test runner. Add vitest.config.ts with jsdom environment for DOM/SVG testing. Create a basic smoke test that verifies the app shell renders. Configure npm scripts: 'npm test' and 'npm run test:watch'. Vitest is chosen because it is Vite-native, fast, and TypeScript-first.\",\"status\":\"open\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"tobias.osborne@itp.uni-hannover.de\",\"created_at\":\"2026-03-01T10:28:30Z\",\"created_by\":\"tobiasosborne\",\"updated_at\":\"2026-03-01T10:28:30Z\"}"}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:47:08Z","event_type":"closed","id":250,"issue_id":"vectorfeld-qjq","new_value":"Closed","old_value":""}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:47:08Z","event_type":"status_changed","id":251,"issue_id":"vectorfeld-3yn","new_value":"{\"status\":\"in_progress\"}","old_value":"{\"id\":\"vectorfeld-3yn\",\"title\":\"S0-03: Project structure — module registry, canvas component, app shell layout\",\"description\":\"Establish the core project structure. Create: (1) App shell layout component with the standard layout: horizontal toolbar (top), layers panel (left, collapsible), canvas (center), properties panel (right, collapsible), status bar (bottom). (2) Module/tool registry system — a central registry where tools register themselves with a name, icon, and keyboard shortcut. (3) Placeholder components for each panel. Use Tailwind CSS for styling with a constrained palette (grays for chrome, white canvas, one accent color). No component library — all UI elements built from scratch.\",\"status\":\"open\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"tobias.osborne@itp.uni-hannover.de\",\"created_at\":\"2026-03-01T10:28:37Z\",\"created_by\":\"tobiasosborne\",\"updated_at\":\"2026-03-01T10:28:37Z\"}"}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:49:38Z","event_type":"closed","id":252,"issue_id":"vectorfeld-3yn","new_value":"Closed","old_value":""}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:49:39Z","event_type":"status_changed","id":253,"issue_id":"vectorfeld-8hh","new_value":"{\"status\":\"in_progress\"}","old_value":"{\"id\":\"vectorfeld-8hh\",\"title\":\"S0-04: SVG canvas component with viewBox, managed via ref\",\"description\":\"Create the core SVG canvas component. The canvas is an SVG element managed imperatively via React refs — it is outside React's virtual DOM reconciliation. The SVG element should have a viewBox set such that 1 SVG user unit = 1mm. For a default A4 document (210mm × 297mm), viewBox='0 0 210 297'. The component should: (1) render a full-size SVG element in the canvas area, (2) set viewBox based on document dimensions, (3) provide ref-based access for imperative DOM manipulation, (4) render a white artboard rectangle as the document background. Include tests verifying viewBox setup and coordinate mapping.\",\"status\":\"open\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"tobias.osborne@itp.uni-hannover.de\",\"created_at\":\"2026-03-01T10:28:44Z\",\"created_by\":\"tobiasosborne\",\"updated_at\":\"2026-03-01T10:28:44Z\"}"}
+{"actor":"tobiasosborne","comment":null,"created_at":"2026-03-01T11:50:23Z","event_type":"closed","id":254,"issue_id":"vectorfeld-8hh","new_value":"Closed","old_value":""}
