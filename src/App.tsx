@@ -6,8 +6,9 @@ import type { CanvasState, DocumentDimensions } from './components/Canvas'
 import { PropertiesPanel } from './components/PropertiesPanel'
 import { StatusBar } from './components/StatusBar'
 import { ArtboardDialog } from './components/ArtboardDialog'
+import { EditorProvider } from './model/EditorContext'
 
-function App() {
+function AppContent() {
   const [dimensions, setDimensions] = useState<DocumentDimensions>({ width: 210, height: 297 })
   const [showArtboard, setShowArtboard] = useState(false)
   const [canvasState, setCanvasState] = useState<CanvasState>({
@@ -41,6 +42,14 @@ function App() {
         />
       )}
     </div>
+  )
+}
+
+function App() {
+  return (
+    <EditorProvider>
+      <AppContent />
+    </EditorProvider>
   )
 }
 

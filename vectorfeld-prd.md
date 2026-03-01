@@ -31,7 +31,7 @@ Open an existing PDF (often originating from Microsoft Word), decompose it into 
 ## 3. Design Principles
 
 1. **Modularity is the law.** Every feature is an independent module. Adding a feature never requires modifying unrelated code.
-2. **TDD is the law.** Tests are written first when at all possible. Red-green-refactor.
+2. **TDD is the law.** Tests are written first when at all possible. Red-green-refactor. Unit tests use Vitest; e2e and visual verification tests use playwright-cli against the live dev server.
 3. **~200 LOC per implementation step.** Each atomic unit of work is small, testable, and tracked as a beads issue.
 4. **SVG is the internal representation.** The document model is SVG. The browser renders it natively. No conversion pipeline.
 5. **Metric units.** The coordinate system and all user-facing dimensions are in millimetres/centimetres.
@@ -52,7 +52,7 @@ Open an existing PDF (often originating from Microsoft Word), decompose it into 
 | IR | SVG DOM | Browser-native rendering. The document *is* the display. |
 | Canvas | SVG element managed imperatively via React refs | React handles UI chrome (toolbar, panels, inputs). SVG canvas is outside React's virtual DOM reconciliation. |
 | Backend (Tauri/Rust) | Thin — filesystem, dialogs, export only | Touched rarely. Plugins cover most native needs. |
-| Testing | Vitest (unit/integration), Playwright (e2e when needed) | Vitest is Vite-native, fast, TypeScript-first. |
+| Testing | Vitest (unit/integration), playwright-cli (e2e/visual verification) | Vitest is Vite-native, fast, TypeScript-first. playwright-cli is installed as a Claude Code skill for browser automation — use it to verify canvas rendering, tool interactions, and visual correctness against `localhost:5173`. |
 
 ### 4.2 Development Environment
 
@@ -61,6 +61,7 @@ Open an existing PDF (often originating from Microsoft Word), decompose it into 
 - **Daily workflow:** Develop and test frontend against `localhost:5173` in a Windows browser. 95% of work requires no Tauri involvement.
 - **Tauri testing:** Invoked only for native features (file dialogs, system export). Run from Windows side or WSL2+WSLg for spot checks.
 - **AI tooling:** Claude Code (100% of implementation)
+- **Browser testing:** playwright-cli skill installed in `.claude/skills/playwright-cli`. Use `playwright-cli open http://localhost:5173` to launch headless Chromium, `playwright-cli snapshot` to inspect the accessibility tree, `playwright-cli screenshot` to capture visuals, and `playwright-cli eval` to run JS assertions against the live DOM. All e2e and visual verification tests should be developed using playwright-cli.
 - **Issue tracking:** beads CLI
 
 ### 4.3 Module Structure
