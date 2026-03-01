@@ -53,6 +53,7 @@ export function createRectTool(
     icon: 'R',
     shortcut: 'r',
     cursor: 'crosshair',
+    onDeactivate() { state.drawing = false; removePreview() },
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()

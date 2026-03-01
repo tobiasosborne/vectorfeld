@@ -255,6 +255,9 @@ export function createTextTool(
     icon: 'T',
     shortcut: 't',
     cursor: 'text',
+    onDeactivate() {
+      if (state.editing) commit()
+    },
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()

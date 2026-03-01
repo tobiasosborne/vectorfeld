@@ -5,6 +5,39 @@ import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import { setDefaultStyle } from '../model/defaultStyle'
 
+/** Transform a local-space bbox through a rotation to get the AABB */
+function transformedAABB(
+  bbox: { x: number; y: number; width: number; height: number },
+  transform: string | null
+): { x: number; y: number; width: number; height: number } {
+  if (!transform) return bbox
+  const match = transform.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
+  if (!match) return bbox
+  const angle = (parseFloat(match[1]) * Math.PI) / 180
+  const cx = match[2] ? parseFloat(match[2]) : 0
+  const cy = match[3] ? parseFloat(match[3]) : 0
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  const corners = [
+    { x: bbox.x, y: bbox.y },
+    { x: bbox.x + bbox.width, y: bbox.y },
+    { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
+    { x: bbox.x, y: bbox.y + bbox.height },
+  ]
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const pt of corners) {
+    const rx = pt.x - cx
+    const ry = pt.y - cy
+    const tx = cx + rx * cos - ry * sin
+    const ty = cy + rx * sin + ry * cos
+    minX = Math.min(minX, tx)
+    minY = Math.min(minY, ty)
+    maxX = Math.max(maxX, tx)
+    maxY = Math.max(maxY, ty)
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+}
+
 /** Hit test for eyedropper — find topmost element under cursor */
 function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element | null {
   const pt = screenToDoc(svg, screenX, screenY)
@@ -21,11 +54,13 @@ function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element 
       const child = children[ci]
       try {
         const bbox = (child as SVGGraphicsElement).getBBox()
-        const padX = bbox.width < tolerance * 2 ? tolerance : 0
-        const padY = bbox.height < tolerance * 2 ? tolerance : 0
+        const transform = child.getAttribute('transform')
+        const aabb = transformedAABB(bbox, transform)
+        const padX = aabb.width < tolerance * 2 ? tolerance : 0
+        const padY = aabb.height < tolerance * 2 ? tolerance : 0
         if (
-          pt.x >= bbox.x - padX && pt.x <= bbox.x + bbox.width + padX &&
-          pt.y >= bbox.y - padY && pt.y <= bbox.y + bbox.height + padY
+          pt.x >= aabb.x - padX && pt.x <= aabb.x + aabb.width + padX &&
+          pt.y >= aabb.y - padY && pt.y <= aabb.y + aabb.height + padY
         ) {
           return child
         }

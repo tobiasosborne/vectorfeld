@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { CommandHistory, AddElementCommand, RemoveElementCommand, ModifyAttributeCommand, CompoundCommand, ReorderElementCommand } from './commands'
+import { CommandHistory, AddElementCommand, RemoveElementCommand, ModifyAttributeCommand, CompoundCommand, ReorderElementCommand, GroupCommand, UngroupCommand } from './commands'
 import { createDocumentModel } from './document'
 import type { DocumentModel } from './document'
 import { generateId } from './document'
@@ -57,17 +57,32 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           }
           // Offset pasted elements by 5mm
           const tag = original.tagName
+          const pasteOffset = 5
           if (tag === 'rect' || tag === 'text') {
-            attrs.x = String(parseFloat(attrs.x || '0') + 5)
-            attrs.y = String(parseFloat(attrs.y || '0') + 5)
+            attrs.x = String(parseFloat(attrs.x || '0') + pasteOffset)
+            attrs.y = String(parseFloat(attrs.y || '0') + pasteOffset)
           } else if (tag === 'ellipse' || tag === 'circle') {
-            attrs.cx = String(parseFloat(attrs.cx || '0') + 5)
-            attrs.cy = String(parseFloat(attrs.cy || '0') + 5)
+            attrs.cx = String(parseFloat(attrs.cx || '0') + pasteOffset)
+            attrs.cy = String(parseFloat(attrs.cy || '0') + pasteOffset)
           } else if (tag === 'line') {
-            attrs.x1 = String(parseFloat(attrs.x1 || '0') + 5)
-            attrs.y1 = String(parseFloat(attrs.y1 || '0') + 5)
-            attrs.x2 = String(parseFloat(attrs.x2 || '0') + 5)
-            attrs.y2 = String(parseFloat(attrs.y2 || '0') + 5)
+            attrs.x1 = String(parseFloat(attrs.x1 || '0') + pasteOffset)
+            attrs.y1 = String(parseFloat(attrs.y1 || '0') + pasteOffset)
+            attrs.x2 = String(parseFloat(attrs.x2 || '0') + pasteOffset)
+            attrs.y2 = String(parseFloat(attrs.y2 || '0') + pasteOffset)
+          } else if (tag === 'path' || tag === 'g') {
+            // For path/group: offset via translate in transform
+            const existing = attrs.transform || ''
+            attrs.transform = `translate(${pasteOffset}, ${pasteOffset}) ${existing}`.trim()
+          }
+          // Update rotation center in transform if present
+          if (attrs.transform) {
+            const rotMatch = attrs.transform.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
+            if (rotMatch && tag !== 'path' && tag !== 'g') {
+              const angle = rotMatch[1]
+              const cx = parseFloat(rotMatch[2] || '0') + pasteOffset
+              const cy = parseFloat(rotMatch[3] || '0') + pasteOffset
+              attrs.transform = `rotate(${angle}, ${cx}, ${cy})`
+            }
           }
           attrs.id = generateId()
           const cmd = new AddElementCommand(doc, layer, tag, attrs)
@@ -120,17 +135,11 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           e.preventDefault()
           const parent = sel[0].parentElement
           if (!parent) return
-          // Create group, move selected elements into it
           const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
           group.setAttribute('id', generateId())
-          // Insert group before the first selected element
-          parent.insertBefore(group, sel[0])
-          for (const el of sel) {
-            group.appendChild(el)
-          }
+          const cmd = new GroupCommand(parent, group, sel)
+          history.execute(cmd)
           setSelection([group])
-          // Note: simplified - not using command pattern here for group.
-          // A full implementation would create a custom GroupCommand.
         }
       } else if (e.ctrlKey && e.key === 'G' && e.shiftKey) {
         const sel = getSelection()
@@ -140,11 +149,8 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           const parent = group.parentElement
           if (!parent) return
           const children = Array.from(group.children)
-          // Move children out of group, before the group element
-          for (const child of children) {
-            parent.insertBefore(child, group)
-          }
-          parent.removeChild(group)
+          const cmd = new UngroupCommand(parent, group)
+          history.execute(cmd)
           setSelection(children)
         }
       } else if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
@@ -174,6 +180,27 @@ export function EditorProvider({ children }: { children: ReactNode }) {
             } else if (tag === 'ellipse' || tag === 'circle') {
               cmds.push(new ModifyAttributeCommand(el, 'cx', String(parseFloat(el.getAttribute('cx') || '0') + dx)))
               cmds.push(new ModifyAttributeCommand(el, 'cy', String(parseFloat(el.getAttribute('cy') || '0') + dy)))
+            } else if (tag === 'path' || tag === 'g') {
+              // Move via translate transform
+              const existing = el.getAttribute('transform') || ''
+              const transMatch = existing.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/)
+              const tx = (transMatch ? parseFloat(transMatch[1]) : 0) + dx
+              const ty = (transMatch ? parseFloat(transMatch[2]) : 0) + dy
+              const newTransform = transMatch
+                ? existing.replace(/translate\([-\d.]+,\s*[-\d.]+\)/, `translate(${tx}, ${ty})`)
+                : `translate(${tx}, ${ty}) ${existing}`.trim()
+              cmds.push(new ModifyAttributeCommand(el, 'transform', newTransform))
+            }
+            // Update rotation center in transform
+            const transform = el.getAttribute('transform')
+            if (transform && tag !== 'path' && tag !== 'g') {
+              const rotMatch = transform.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
+              if (rotMatch) {
+                const angle = rotMatch[1]
+                const cx = parseFloat(rotMatch[2] || '0') + dx
+                const cy = parseFloat(rotMatch[3] || '0') + dy
+                cmds.push(new ModifyAttributeCommand(el, 'transform', `rotate(${angle}, ${cx}, ${cy})`))
+              }
             }
           }
           if (cmds.length > 0) {
@@ -190,15 +217,15 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           history.execute(compound)
           clearSelection()
         }
-      } else if (e.ctrlKey && e.key === "'" && !e.shiftKey) {
+      } else if (e.ctrlKey && (e.key === "'" || e.key === '"') && !e.shiftKey) {
         // Toggle grid
         e.preventDefault()
         toggleGridVisible()
-      } else if (e.ctrlKey && e.key === "'" && e.shiftKey) {
-        // Toggle snap-to-grid
+      } else if (e.ctrlKey && (e.key === '"' || (e.key === "'" && e.shiftKey))) {
+        // Toggle snap-to-grid (Shift+' produces " on most keyboards)
         e.preventDefault()
         toggleGridSnap()
-      } else if (e.ctrlKey && e.key === ']' && !e.shiftKey) {
+      } else if (e.ctrlKey && (e.key === ']' || e.code === 'BracketRight') && !e.shiftKey) {
         // Bring forward (one step)
         const sel = getSelection()
         if (sel.length === 1) {
@@ -211,7 +238,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
             refreshOverlay()
           }
         }
-      } else if (e.ctrlKey && e.key === '[' && !e.shiftKey) {
+      } else if (e.ctrlKey && (e.key === '[' || e.code === 'BracketLeft') && !e.shiftKey) {
         // Send backward (one step)
         const sel = getSelection()
         if (sel.length === 1) {
@@ -223,7 +250,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
             refreshOverlay()
           }
         }
-      } else if (e.ctrlKey && e.key === '}' && e.shiftKey) {
+      } else if (e.ctrlKey && e.shiftKey && (e.key === '}' || e.code === 'BracketRight')) {
         // Bring to front
         const sel = getSelection()
         if (sel.length === 1) {
@@ -232,7 +259,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           history.execute(new ReorderElementCommand(el, null, 'Bring to Front'))
           refreshOverlay()
         }
-      } else if (e.ctrlKey && e.key === '{' && e.shiftKey) {
+      } else if (e.ctrlKey && e.shiftKey && (e.key === '{' || e.code === 'BracketLeft')) {
         // Send to back
         const sel = getSelection()
         if (sel.length === 1) {

@@ -193,6 +193,9 @@ export function createPenTool(
     icon: 'P',
     shortcut: 'p',
     cursor: 'crosshair',
+    onDeactivate() {
+      if (state.drawing) finish()
+    },
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()

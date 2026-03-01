@@ -227,36 +227,40 @@ export function createSelectTool(
     } else if (tag === 'text') {
       return { attr: 'text', vals: { x: parseFloat(el.getAttribute('x') || '0'), y: parseFloat(el.getAttribute('y') || '0') } }
     }
-    return { attr: 'unknown', vals: {} }
+    // For path, g, and other elements: track via transform
+    return { attr: 'transform', vals: {} }
   }
 
   function moveElement(el: Element, dx: number, dy: number) {
     const tag = el.tagName
+    const start = dragState.startPositions.get(el)
+    if (!start) return
+
     if (tag === 'line') {
-      const start = dragState.startPositions.get(el)!
       el.setAttribute('x1', String(start.vals.x1 + dx))
       el.setAttribute('y1', String(start.vals.y1 + dy))
       el.setAttribute('x2', String(start.vals.x2 + dx))
       el.setAttribute('y2', String(start.vals.y2 + dy))
     } else if (tag === 'rect' || tag === 'text') {
-      const start = dragState.startPositions.get(el)!
       el.setAttribute('x', String(start.vals.x + dx))
       el.setAttribute('y', String(start.vals.y + dy))
     } else if (tag === 'ellipse' || tag === 'circle') {
-      const start = dragState.startPositions.get(el)!
       el.setAttribute('cx', String(start.vals.cx + dx))
       el.setAttribute('cy', String(start.vals.cy + dy))
     }
 
-    // Update rotation center in transform so it moves with the element
+    // Update transform: move rotation center, or add translate for path/g elements
     const origTransform = dragState.origTransforms.get(el)
-    if (origTransform) {
-      const match = origTransform.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
-      if (match) {
-        const angle = match[1]
-        const cx = parseFloat(match[2] || '0') + dx
-        const cy = parseFloat(match[3] || '0') + dy
+    if (origTransform !== undefined) {
+      const rotMatch = (origTransform || '').match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
+      if (rotMatch) {
+        const angle = rotMatch[1]
+        const cx = parseFloat(rotMatch[2] || '0') + dx
+        const cy = parseFloat(rotMatch[3] || '0') + dy
         el.setAttribute('transform', `rotate(${angle}, ${cx}, ${cy})`)
+      } else if (start.attr === 'transform') {
+        // For path/g: move via translate transform
+        el.setAttribute('transform', `translate(${dx}, ${dy})`)
       }
     }
   }
@@ -342,6 +346,16 @@ export function createSelectTool(
     icon: 'V',
     shortcut: 'v',
     cursor: 'default',
+    onDeactivate() {
+      if (dragState.marqueeRect) {
+        dragState.marqueeRect.remove()
+        dragState.marqueeRect = null
+      }
+      dragState.mode = 'none'
+      dragState.startPositions.clear()
+      dragState.origTransforms.clear()
+      clearGuides()
+    },
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()
@@ -387,8 +401,10 @@ export function createSelectTool(
             dragState.startX = pt.x
             dragState.startY = pt.y
             dragState.startPositions.clear()
+            dragState.origTransforms.clear()
             for (const el of sel) {
               dragState.startPositions.set(el, { attr: el.tagName, vals: getAllGeomAttrs(el) })
+              dragState.origTransforms.set(el, el.getAttribute('transform'))
             }
             dragState.scale = {
               handle,
@@ -503,8 +519,8 @@ export function createSelectTool(
             if (newHeight < 0.1) newHeight = 0.1
           }
 
-          let sx = axes.scaleX ? newWidth / origBBox.width : 1
-          let sy = axes.scaleY ? newHeight / origBBox.height : 1
+          let sx = axes.scaleX && origBBox.width > 0.001 ? newWidth / origBBox.width : 1
+          let sy = axes.scaleY && origBBox.height > 0.001 ? newHeight / origBBox.height : 1
 
           // Shift constrains proportions for corner handles
           if (e.shiftKey && axes.scaleX && axes.scaleY) {
