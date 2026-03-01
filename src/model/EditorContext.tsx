@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { CommandHistory, AddElementCommand, RemoveElementCommand, ModifyAttributeCommand, CompoundCommand } from './commands'
+import { CommandHistory, AddElementCommand, RemoveElementCommand, ModifyAttributeCommand, CompoundCommand, ReorderElementCommand } from './commands'
 import { createDocumentModel } from './document'
 import type { DocumentModel } from './document'
 import { generateId } from './document'
@@ -188,6 +188,52 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           const compound = new CompoundCommand(cmds, 'Delete')
           history.execute(compound)
           clearSelection()
+        }
+      } else if (e.ctrlKey && e.key === ']' && !e.shiftKey) {
+        // Bring forward (one step)
+        const sel = getSelection()
+        if (sel.length === 1) {
+          e.preventDefault()
+          const el = sel[0]
+          const next = el.nextElementSibling
+          if (next) {
+            const target = next.nextElementSibling // insert after next
+            history.execute(new ReorderElementCommand(el, target, 'Bring Forward'))
+            refreshOverlay()
+          }
+        }
+      } else if (e.ctrlKey && e.key === '[' && !e.shiftKey) {
+        // Send backward (one step)
+        const sel = getSelection()
+        if (sel.length === 1) {
+          e.preventDefault()
+          const el = sel[0]
+          const prev = el.previousElementSibling
+          if (prev) {
+            history.execute(new ReorderElementCommand(el, prev, 'Send Backward'))
+            refreshOverlay()
+          }
+        }
+      } else if (e.ctrlKey && e.key === '}' && e.shiftKey) {
+        // Bring to front
+        const sel = getSelection()
+        if (sel.length === 1) {
+          e.preventDefault()
+          const el = sel[0]
+          history.execute(new ReorderElementCommand(el, null, 'Bring to Front'))
+          refreshOverlay()
+        }
+      } else if (e.ctrlKey && e.key === '{' && e.shiftKey) {
+        // Send to back
+        const sel = getSelection()
+        if (sel.length === 1) {
+          e.preventDefault()
+          const el = sel[0]
+          const parent = el.parentElement
+          if (parent && parent.firstElementChild !== el) {
+            history.execute(new ReorderElementCommand(el, parent.firstElementChild, 'Send to Back'))
+            refreshOverlay()
+          }
         }
       }
     }

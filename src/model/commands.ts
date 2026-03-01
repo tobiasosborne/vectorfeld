@@ -146,6 +146,38 @@ export class ModifyAttributeCommand implements Command {
   }
 }
 
+export class ReorderElementCommand implements Command {
+  readonly description: string
+  private element: Element
+  private parent: Element
+  private oldNextSibling: Element | null = null
+  private newNextSibling: Element | null
+
+  constructor(element: Element, newNextSibling: Element | null, description?: string) {
+    this.element = element
+    this.parent = element.parentElement!
+    this.newNextSibling = newNextSibling
+    this.description = description ?? 'Reorder'
+  }
+
+  execute(): void {
+    this.oldNextSibling = this.element.nextElementSibling
+    if (this.newNextSibling) {
+      this.parent.insertBefore(this.element, this.newNextSibling)
+    } else {
+      this.parent.appendChild(this.element)
+    }
+  }
+
+  undo(): void {
+    if (this.oldNextSibling) {
+      this.parent.insertBefore(this.element, this.oldNextSibling)
+    } else {
+      this.parent.appendChild(this.element)
+    }
+  }
+}
+
 export class CompoundCommand implements Command {
   readonly description: string
   private commands: Command[]

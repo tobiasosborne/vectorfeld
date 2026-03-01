@@ -5,6 +5,7 @@ import { AddElementCommand } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import type { Point } from '../model/coordinates'
+import { getDefaultStyle } from '../model/defaultStyle'
 
 const DEFAULT_FONT_FAMILY = 'sans-serif'
 const DEFAULT_FONT_SIZE = 16
@@ -170,12 +171,16 @@ export function createTextTool(
     if (!layer) return
 
     const history = getHistory()
+    const defaults = getDefaultStyle()
+    // Text uses fill for its color (not stroke). Use stroke default as text fill
+    // when the fill default is 'none' (common for shape tools).
+    const textFill = defaults.fill !== 'none' ? defaults.fill : defaults.stroke
     const cmd = new AddElementCommand(doc, layer, 'text', {
       x: String(pos.x),
       y: String(pos.y),
       'font-family': DEFAULT_FONT_FAMILY,
       'font-size': String(DEFAULT_FONT_SIZE),
-      fill: '#000000',
+      fill: textFill,
     })
     history.execute(cmd)
 
