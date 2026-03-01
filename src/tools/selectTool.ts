@@ -20,11 +20,13 @@ function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element 
       const child = children[ci]
       try {
         const bbox = (child as SVGGraphicsElement).getBBox()
+        const transform = child.getAttribute('transform')
+        const aabb = transformedAABB(bbox, transform)
         if (
-          pt.x >= bbox.x &&
-          pt.x <= bbox.x + bbox.width &&
-          pt.y >= bbox.y &&
-          pt.y <= bbox.y + bbox.height
+          pt.x >= aabb.x &&
+          pt.x <= aabb.x + aabb.width &&
+          pt.y >= aabb.y &&
+          pt.y <= aabb.y + aabb.height
         ) {
           return child
         }
@@ -57,6 +59,7 @@ interface DragState {
   startX: number
   startY: number
   startPositions: Map<Element, { attr: string; vals: Record<string, number> }>
+  origTransforms: Map<Element, string | null>
   scale: ScaleState | null
   rotate: RotateState | null
 }
@@ -129,17 +132,52 @@ function handleAxes(handle: HandlePosition): { scaleX: boolean; scaleY: boolean 
   }
 }
 
-/** Compute union bounding box of elements */
+/** Transform a local-space bbox through a rotation to get the AABB */
+function transformedAABB(
+  bbox: { x: number; y: number; width: number; height: number },
+  transform: string | null
+): { x: number; y: number; width: number; height: number } {
+  if (!transform) return bbox
+  const match = transform.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
+  if (!match) return bbox
+  const angle = (parseFloat(match[1]) * Math.PI) / 180
+  const cx = match[2] ? parseFloat(match[2]) : 0
+  const cy = match[3] ? parseFloat(match[3]) : 0
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  const corners = [
+    { x: bbox.x, y: bbox.y },
+    { x: bbox.x + bbox.width, y: bbox.y },
+    { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
+    { x: bbox.x, y: bbox.y + bbox.height },
+  ]
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const pt of corners) {
+    const rx = pt.x - cx
+    const ry = pt.y - cy
+    const tx = cx + rx * cos - ry * sin
+    const ty = cy + rx * sin + ry * cos
+    minX = Math.min(minX, tx)
+    minY = Math.min(minY, ty)
+    maxX = Math.max(maxX, tx)
+    maxY = Math.max(maxY, ty)
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+}
+
+/** Compute union bounding box of elements (transform-aware) */
 function unionBBox(elements: Element[]): { x: number; y: number; width: number; height: number } | null {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
   let hasBox = false
   for (const el of elements) {
     try {
       const bbox = (el as SVGGraphicsElement).getBBox()
-      minX = Math.min(minX, bbox.x)
-      minY = Math.min(minY, bbox.y)
-      maxX = Math.max(maxX, bbox.x + bbox.width)
-      maxY = Math.max(maxY, bbox.y + bbox.height)
+      const transform = el.getAttribute('transform')
+      const aabb = transformedAABB(bbox, transform)
+      minX = Math.min(minX, aabb.x)
+      minY = Math.min(minY, aabb.y)
+      maxX = Math.max(maxX, aabb.x + aabb.width)
+      maxY = Math.max(maxY, aabb.y + aabb.height)
       hasBox = true
     } catch { /* skip */ }
   }
@@ -157,6 +195,7 @@ export function createSelectTool(
     startX: 0,
     startY: 0,
     startPositions: new Map(),
+    origTransforms: new Map(),
     scale: null,
     rotate: null,
   }
@@ -193,6 +232,18 @@ export function createSelectTool(
       const start = dragState.startPositions.get(el)!
       el.setAttribute('cx', String(start.vals.cx + dx))
       el.setAttribute('cy', String(start.vals.cy + dy))
+    }
+
+    // Update rotation center in transform so it moves with the element
+    const origTransform = dragState.origTransforms.get(el)
+    if (origTransform) {
+      const match = origTransform.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
+      if (match) {
+        const angle = match[1]
+        const cx = parseFloat(match[2] || '0') + dx
+        const cy = parseFloat(match[3] || '0') + dy
+        el.setAttribute('transform', `rotate(${angle}, ${cx}, ${cy})`)
+      }
     }
   }
 
@@ -251,11 +302,25 @@ export function createSelectTool(
           el.setAttribute(attr, String(origVal))
         }
       }
+      // Also commit transform changes (rotation center moves with element)
+      const origTransform = dragState.origTransforms.get(el)
+      if (origTransform !== undefined) {
+        const newTransform = el.getAttribute('transform')
+        if (newTransform !== origTransform) {
+          commands.push(new ModifyAttributeCommand(el, 'transform', newTransform || ''))
+          if (origTransform) {
+            el.setAttribute('transform', origTransform)
+          } else {
+            el.removeAttribute('transform')
+          }
+        }
+      }
     }
     if (commands.length > 0) {
       getHistory().execute(new CompoundCommand(commands, description))
     }
     dragState.startPositions.clear()
+    dragState.origTransforms.clear()
   }
 
   return {
@@ -338,8 +403,10 @@ export function createSelectTool(
           dragState.startX = pt.x
           dragState.startY = pt.y
           dragState.startPositions.clear()
+          dragState.origTransforms.clear()
           for (const el of getSelection()) {
             dragState.startPositions.set(el, getPositionAttrs(el))
+            dragState.origTransforms.set(el, el.getAttribute('transform'))
           }
         } else {
           clearSelection()
