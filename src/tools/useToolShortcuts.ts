@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
-import { findToolByShortcut, setActiveTool } from './registry'
+import { findToolByShortcut, setActiveTool, isKeyboardCaptured } from './registry'
 
 export function useToolShortcuts(): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isKeyboardCaptured()) return
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
       if (e.ctrlKey || e.altKey || e.metaKey) return

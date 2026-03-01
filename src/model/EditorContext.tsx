@@ -5,6 +5,7 @@ import { createDocumentModel } from './document'
 import type { DocumentModel } from './document'
 import { generateId } from './document'
 import { getSelection, setSelection, clearSelection, refreshOverlay } from './selection'
+import { isKeyboardCaptured } from '../tools/registry'
 
 interface EditorContextValue {
   history: CommandHistory
@@ -79,6 +80,10 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           setSelection(pasted)
         }
       }
+
+      // Skip single-key bindings during keyboard capture (text editing)
+      // but still allow Ctrl combos
+      if (isKeyboardCaptured() && !e.ctrlKey) return
 
       if (e.ctrlKey && e.key === 'c' && !e.shiftKey) {
         const sel = getSelection()

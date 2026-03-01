@@ -50,6 +50,7 @@ export function createRectTool(
     name: 'rectangle',
     icon: 'R',
     shortcut: 'r',
+    cursor: 'crosshair',
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()

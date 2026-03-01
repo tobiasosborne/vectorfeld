@@ -1,8 +1,8 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
 import { zoomAtPoint } from '../model/zoom'
 import { screenToDoc, getZoomPercent } from '../model/coordinates'
-import { getActiveTool } from '../tools/registry'
-import { setOverlayGroup } from '../model/selection'
+import { getActiveTool, isKeyboardCaptured, subscribe as subscribeTool } from '../tools/registry'
+import { setOverlayGroup, refreshOverlay } from '../model/selection'
 
 export interface DocumentDimensions {
   width: number  // mm
@@ -27,8 +27,11 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [isPanning, setIsPanning] = useState(false)
+  const [, setToolTick] = useState(0) // force re-render on tool change for cursor
   const panStart = useRef<{ x: number; y: number; vbX: number; vbY: number } | null>(null)
   const spaceHeld = useRef(false)
+
+  useEffect(() => subscribeTool(() => setToolTick((n) => n + 1)), [])
 
   const dimensionsRef = useRef(dimensions)
   dimensionsRef.current = dimensions
@@ -114,6 +117,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
       e.preventDefault()
       if (!svgRef.current) return
       zoomAtPoint(svgRef.current, e.clientX, e.clientY, e.deltaY)
+      refreshOverlay() // Recalculate handle sizes after zoom
       emitState()
     }
     container.addEventListener('wheel', handleWheel, { passive: false })
@@ -187,14 +191,19 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     }
   }, [isPanning])
 
-  // Pan: space+drag
+  // Pan: space+drag + tool keydown dispatch
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.repeat) {
+      if (e.code === 'Space' && !e.repeat && !isKeyboardCaptured()) {
         const tag = (e.target as HTMLElement)?.tagName
         if (tag === 'INPUT' || tag === 'TEXTAREA') return
         e.preventDefault()
         spaceHeld.current = true
+      }
+      // Dispatch to active tool's onKeyDown handler
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+        getActiveTool()?.handlers.onKeyDown?.(e)
       }
     }
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -216,7 +225,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     <div
       ref={containerRef}
       className="flex-1 bg-canvas-bg overflow-hidden"
-      style={{ cursor: isPanning ? 'grabbing' : undefined }}
+      style={{ cursor: isPanning ? 'grabbing' : (getActiveTool()?.cursor || undefined) }}
       data-testid="canvas-container"
     />
   )

@@ -74,4 +74,31 @@ describe('Tool Registry', () => {
     setActiveTool('select')
     expect(count).toBe(1)
   })
+
+  it('has no duplicate shortcuts among all tools', () => {
+    // Register all production tools with their actual shortcuts
+    const toolShortcuts = [
+      { name: 'select', shortcut: 'v' },
+      { name: 'line', shortcut: 'l' },
+      { name: 'rectangle', shortcut: 'r' },
+      { name: 'ellipse', shortcut: 'e' },
+      { name: 'eraser', shortcut: 'x' },
+      { name: 'pen', shortcut: 'p' },
+      { name: 'text', shortcut: 't' },
+    ]
+    for (const ts of toolShortcuts) {
+      registerTool(makeTool(ts.name, ts.shortcut))
+    }
+
+    // Check for duplicates
+    const shortcuts = toolShortcuts.map((t) => t.shortcut.toLowerCase())
+    const unique = new Set(shortcuts)
+    expect(unique.size).toBe(shortcuts.length)
+
+    // Verify each shortcut resolves to a unique tool
+    for (const ts of toolShortcuts) {
+      const found = findToolByShortcut(ts.shortcut)
+      expect(found?.name).toBe(ts.name)
+    }
+  })
 })

@@ -12,12 +12,14 @@ export interface ToolConfig {
   name: string
   icon: ReactNode
   shortcut: string
+  cursor?: string  // CSS cursor value for canvas when this tool is active
   handlers: ToolEventHandlers
 }
 
 const tools = new Map<string, ToolConfig>()
 let activeTool: string | null = null
 let listeners: Array<() => void> = []
+let keyboardCaptured = false
 
 function notify() {
   listeners.forEach((fn) => fn())
@@ -59,8 +61,18 @@ export function findToolByShortcut(key: string): ToolConfig | undefined {
   )
 }
 
+/** When true, tool shortcuts and editor keybindings are suppressed (e.g., during text editing) */
+export function setKeyboardCapture(capture: boolean): void {
+  keyboardCaptured = capture
+}
+
+export function isKeyboardCaptured(): boolean {
+  return keyboardCaptured
+}
+
 export function clearRegistry(): void {
   tools.clear()
   activeTool = null
   listeners = []
+  keyboardCaptured = false
 }
