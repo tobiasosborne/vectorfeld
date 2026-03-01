@@ -171,7 +171,7 @@ export function updatePathAnchor(d: string, anchorIdx: number, newPos: Point): s
 function anchorDocSize(svg: SVGSVGElement): number {
   const vb = svg.viewBox.baseVal
   if (vb.width === 0 || svg.clientWidth === 0) return 2
-  return 6 * (vb.width / svg.clientWidth)
+  return 8 * (vb.width / svg.clientWidth)
 }
 
 function dist(a: Point, b: Point): number {

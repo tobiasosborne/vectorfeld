@@ -221,36 +221,39 @@ function updateOverlay(): void {
     overlayGroup.appendChild(handle)
   }
 
-  // Draw rotation handle above top-center (single selection only)
+  // Draw corner rotation zones (Illustrator-style: hover near corners to rotate)
   if (selectedElements.length === 1) {
-    const topCenterX = ubox.x + ubox.width / 2
-    const topCenterY = ubox.y
-    const offset = ROTATION_HANDLE_OFFSET_PX * (svg.viewBox.baseVal.width / svg.clientWidth)
+    const rotZoneSize = hs * 2  // invisible hit area outside each corner
+    const cornerPositions: [string, number, number][] = [
+      ['nw', ubox.x, ubox.y],
+      ['ne', ubox.x + ubox.width, ubox.y],
+      ['se', ubox.x + ubox.width, ubox.y + ubox.height],
+      ['sw', ubox.x, ubox.y + ubox.height],
+    ]
 
-    // Connecting line from top-center to rotation handle
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
-    line.setAttribute('x1', String(topCenterX))
-    line.setAttribute('y1', String(topCenterY))
-    line.setAttribute('x2', String(topCenterX))
-    line.setAttribute('y2', String(topCenterY - offset))
-    line.setAttribute('stroke', '#2563eb')
-    line.setAttribute('stroke-width', String(strokeW))
-    line.setAttribute('data-role', 'rotation-line')
-    line.setAttribute('pointer-events', 'none')
-    overlayGroup.appendChild(line)
+    const ROTATION_CURSORS: Record<string, string> = {
+      nw: 'nwse-resize',
+      ne: 'nesw-resize',
+      se: 'nwse-resize',
+      sw: 'nesw-resize',
+    }
 
-    // Rotation handle circle
-    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
-    circle.setAttribute('cx', String(topCenterX))
-    circle.setAttribute('cy', String(topCenterY - offset))
-    circle.setAttribute('r', String(hs * 0.6))
-    circle.setAttribute('fill', '#ffffff')
-    circle.setAttribute('stroke', '#2563eb')
-    circle.setAttribute('stroke-width', String(strokeW))
-    circle.setAttribute('data-role', 'rotation-handle')
-    circle.setAttribute('pointer-events', 'auto')
-    circle.style.cursor = 'grab'
-    overlayGroup.appendChild(circle)
+    for (const [corner, cx, cy] of cornerPositions) {
+      // Offset the rotation zone outward from the corner
+      const offX = corner.includes('w') ? -rotZoneSize : 0
+      const offY = corner.includes('n') ? -rotZoneSize : 0
+
+      const zone = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+      zone.setAttribute('x', String(cx + offX))
+      zone.setAttribute('y', String(cy + offY))
+      zone.setAttribute('width', String(rotZoneSize))
+      zone.setAttribute('height', String(rotZoneSize))
+      zone.setAttribute('fill', 'transparent')
+      zone.setAttribute('data-role', 'rotation-handle')
+      zone.setAttribute('pointer-events', 'auto')
+      zone.style.cursor = ROTATION_CURSORS[corner]
+      overlayGroup.appendChild(zone)
+    }
   }
 }
 
