@@ -181,10 +181,11 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 **Current state (updated each session):**
 
-- **Sprints completed:** 0 (scaffold), 1 (canvas), 2 (doc model/undo), 3 (drawing tools), 4 (selection/move/delete), partial 5-10
+- **Sprints completed:** 0-4 fully, 5-10 partially (styling, layers, file I/O, eraser done)
 - **Test count:** 66 tests passing (Vitest)
-- **Issues closed:** 32 of 62 (52%)
-- **Next work:** Remaining Sprint 4 (marquee, multi-select), Sprint 5 (transforms), Sprint 6 (color picker), Sprint 7 (layer reorder, arrange), Sprint 8 (pen/bezier), Sprint 9 (text)
+- **Issues closed:** 41 of 62 (66%)
+- **Next work:** Sprint 5 (scale/rotate handles), Sprint 8 (pen/bezier tool), Sprint 9 (text tool), Sprint 11 (polish)
+- **Ready issues:** S5-01 (scale handles), S8-01 (pen tool), S9-01 (text tool), 3 research issues
 - **Dev server:** `npm run dev` → `http://localhost:5173`
 - **Build:** `npm run build` (TypeScript + Vite), `cargo check` in `src-tauri/`
 - **Key commands:** `bd ready` (next work), `bd list --all` (full backlog), `npm test` (run tests)
