@@ -3,9 +3,11 @@ import { getAllTools, getActiveToolName, setActiveTool, subscribe } from '../too
 
 interface ToolbarProps {
   onArtboardSetup?: () => void
+  onExportSvg?: () => void
+  onImportSvg?: () => void
 }
 
-export function Toolbar({ onArtboardSetup }: ToolbarProps) {
+export function Toolbar({ onArtboardSetup, onExportSvg, onImportSvg }: ToolbarProps) {
   const [activeToolName, setActiveToolName] = useState<string | null>(getActiveToolName())
   const tools = getAllTools()
 
@@ -33,6 +35,24 @@ export function Toolbar({ onArtboardSetup }: ToolbarProps) {
         </button>
       ))}
       <div className="flex-1" />
+      {onImportSvg && (
+        <button
+          onClick={onImportSvg}
+          className="px-2 py-0.5 text-xs border border-chrome-300 bg-chrome-50 hover:bg-chrome-200"
+          title="Import SVG"
+        >
+          Open
+        </button>
+      )}
+      {onExportSvg && (
+        <button
+          onClick={onExportSvg}
+          className="px-2 py-0.5 text-xs border border-chrome-300 bg-chrome-50 hover:bg-chrome-200"
+          title="Export SVG"
+        >
+          Save
+        </button>
+      )}
       {onArtboardSetup && (
         <button
           onClick={onArtboardSetup}
