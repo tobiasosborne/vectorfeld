@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useEditor } from '../model/EditorContext'
 import { generateId } from '../model/document'
+import { AddElementCommand, RemoveElementCommand, ReorderElementCommand } from '../model/commands'
+import { setActiveLayerElement } from '../model/activeLayer'
 
 interface LayerInfo {
   element: Element
@@ -29,32 +31,38 @@ export function LayersPanel() {
 
   useEffect(() => {
     refreshLayers()
-    // Refresh on interval to pick up DOM changes
     const interval = setInterval(refreshLayers, 500)
     return () => clearInterval(interval)
   }, [refreshLayers])
+
+  // Sync active layer element to the model whenever activeLayerIdx or layers change
+  useEffect(() => {
+    if (layers[activeLayerIdx]) {
+      setActiveLayerElement(layers[activeLayerIdx].element)
+    }
+  }, [activeLayerIdx, layers])
 
   const addLayer = () => {
     if (!editor.doc) return
     const svg = editor.doc.svg
     const overlay = svg.querySelector('[data-role="overlay"]')
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
-    g.setAttribute('data-layer-name', `Layer ${layers.length + 1}`)
-    g.setAttribute('id', generateId())
-    // Insert before overlay
-    if (overlay) {
-      svg.insertBefore(g, overlay)
-    } else {
-      svg.appendChild(g)
+    const cmd = new AddElementCommand(editor.doc, svg, 'g', {
+      'data-layer-name': `Layer ${layers.length + 1}`,
+    })
+    editor.history.execute(cmd)
+    // Move the new layer before overlay elements
+    const newLayer = cmd.getElement()
+    if (newLayer && overlay) {
+      svg.insertBefore(newLayer, overlay)
     }
     refreshLayers()
     setActiveLayerIdx(layers.length)
   }
 
   const deleteLayer = (idx: number) => {
-    if (layers.length <= 1) return // always keep at least one layer
-    const layer = layers[idx]
-    layer.element.remove()
+    if (layers.length <= 1 || !editor.doc) return
+    const cmd = new RemoveElementCommand(editor.doc, layers[idx].element)
+    editor.history.execute(cmd)
     refreshLayers()
     if (activeLayerIdx >= layers.length - 1) {
       setActiveLayerIdx(Math.max(0, layers.length - 2))
@@ -83,21 +91,18 @@ export function LayersPanel() {
 
   const moveLayerUp = (idx: number) => {
     if (idx <= 0 || !editor.doc) return
-    const svg = editor.doc.svg
     const current = layers[idx].element
     const above = layers[idx - 1].element
-    svg.insertBefore(current, above)
+    editor.history.execute(new ReorderElementCommand(current, above, 'Move Layer Up'))
     refreshLayers()
     setActiveLayerIdx(idx - 1)
   }
 
   const moveLayerDown = (idx: number) => {
     if (idx >= layers.length - 1 || !editor.doc) return
-    const svg = editor.doc.svg
-    const current = layers[idx].element
     const below = layers[idx + 1].element
-    // Insert below's next sibling before current (effectively swap)
-    svg.insertBefore(below, current)
+    const current = layers[idx].element
+    editor.history.execute(new ReorderElementCommand(below, current, 'Move Layer Down'))
     refreshLayers()
     setActiveLayerIdx(idx + 1)
   }

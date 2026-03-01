@@ -1,3 +1,5 @@
+import { getActiveLayerElement } from './activeLayer'
+
 let nextId = 1
 
 export function generateId(): string {
@@ -6,6 +8,22 @@ export function generateId(): string {
 
 export function resetIdCounter(): void {
   nextId = 1
+}
+
+/** Advance the ID counter past all existing vf-N IDs in the given SVG */
+export function syncIdCounter(svg: SVGSVGElement): void {
+  let maxId = nextId
+  const els = svg.querySelectorAll('[id^="vf-"]')
+  for (const el of els) {
+    const id = el.getAttribute('id')
+    if (id) {
+      const match = id.match(/^vf-(\d+)$/)
+      if (match) {
+        maxId = Math.max(maxId, parseInt(match[1], 10) + 1)
+      }
+    }
+  }
+  nextId = maxId
 }
 
 export interface DocumentModel {
@@ -76,6 +94,8 @@ export function createDocumentModel(svg: SVGSVGElement): DocumentModel {
     },
 
     getActiveLayer(): Element | null {
+      const active = getActiveLayerElement()
+      if (active && active.parentElement === svg) return active
       const layers = this.getLayerElements()
       return layers.length > 0 ? layers[0] : null
     },

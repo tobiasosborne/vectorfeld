@@ -7,7 +7,7 @@ import { refreshOverlay } from '../model/selection'
 import { setDefaultStyle } from '../model/defaultStyle'
 import { MARKER_TYPES, getMarkerLabel, getMarkerUrl, parseMarkerType, ensureMarkerDef } from '../model/markers'
 import type { MarkerType } from '../model/markers'
-import { detectFillType, createLinearGradient, createRadialGradient, parseGradientColors } from '../model/gradients'
+import { detectFillType, createLinearGradient, createRadialGradient, parseGradientColors, updateGradientColors } from '../model/gradients'
 import type { FillType } from '../model/gradients'
 import { computeAlign, computeDistribute, applyDelta } from '../model/align'
 import type { AlignOp, DistributeOp } from '../model/align'
@@ -234,9 +234,14 @@ export function PropertiesPanel() {
                           const oldW = parseFloat(getAttr(el, 'width')) || 1
                           const oldH = parseFloat(getAttr(el, 'height')) || 1
                           const ratio = oldH / oldW
-                          applyAttr(el, 'height', String(newW * ratio))
+                          const cmds = [
+                            new ModifyAttributeCommand(el, 'width', v),
+                            new ModifyAttributeCommand(el, 'height', String(newW * ratio)),
+                          ]
+                          history.execute(new CompoundCommand(cmds, 'Resize'))
+                        } else {
+                          applyAttr(el, 'width', v)
                         }
-                        applyAttr(el, 'width', v)
                         refreshOverlay()
                       }} />
                       <PropertyInput label="H" value={getAttr(el, 'height')} onChange={(v) => {
@@ -245,9 +250,14 @@ export function PropertiesPanel() {
                           const oldW = parseFloat(getAttr(el, 'width')) || 1
                           const oldH = parseFloat(getAttr(el, 'height')) || 1
                           const ratio = oldW / oldH
-                          applyAttr(el, 'width', String(newH * ratio))
+                          const cmds = [
+                            new ModifyAttributeCommand(el, 'height', v),
+                            new ModifyAttributeCommand(el, 'width', String(newH * ratio)),
+                          ]
+                          history.execute(new CompoundCommand(cmds, 'Resize'))
+                        } else {
+                          applyAttr(el, 'height', v)
                         }
-                        applyAttr(el, 'height', v)
                         refreshOverlay()
                       }} />
                     </>
@@ -260,9 +270,14 @@ export function PropertiesPanel() {
                           const oldRx = parseFloat(getAttr(el, 'rx')) || 1
                           const oldRy = parseFloat(getAttr(el, 'ry')) || 1
                           const ratio = oldRy / oldRx
-                          applyAttr(el, 'ry', String(newRx * ratio))
+                          const cmds = [
+                            new ModifyAttributeCommand(el, 'rx', v),
+                            new ModifyAttributeCommand(el, 'ry', String(newRx * ratio)),
+                          ]
+                          history.execute(new CompoundCommand(cmds, 'Resize'))
+                        } else {
+                          applyAttr(el, 'rx', v)
                         }
-                        applyAttr(el, 'rx', v)
                         refreshOverlay()
                       }} />
                       <PropertyInput label="RY" value={getAttr(el, 'ry')} onChange={(v) => {
@@ -271,9 +286,14 @@ export function PropertiesPanel() {
                           const oldRx = parseFloat(getAttr(el, 'rx')) || 1
                           const oldRy = parseFloat(getAttr(el, 'ry')) || 1
                           const ratio = oldRx / oldRy
-                          applyAttr(el, 'rx', String(newRy * ratio))
+                          const cmds = [
+                            new ModifyAttributeCommand(el, 'ry', v),
+                            new ModifyAttributeCommand(el, 'rx', String(newRy * ratio)),
+                          ]
+                          history.execute(new CompoundCommand(cmds, 'Resize'))
+                        } else {
+                          applyAttr(el, 'ry', v)
                         }
-                        applyAttr(el, 'ry', v)
                         refreshOverlay()
                       }} />
                     </>
@@ -384,8 +404,8 @@ export function PropertiesPanel() {
                     >
                       <option value="none">None</option>
                       <option value="solid">Solid</option>
-                      <option value="linear">Linear Gradient</option>
-                      <option value="radial">Radial Gradient</option>
+                      {tag !== 'line' && <option value="linear">Linear Gradient</option>}
+                      {tag !== 'line' && <option value="radial">Radial Gradient</option>}
                     </select>
                   </label>
                   {detectFillType(el) === 'solid' && (
@@ -403,13 +423,8 @@ export function PropertiesPanel() {
                           <ColorPicker
                             value={colors?.color1 || '#000000'}
                             onChange={(v) => {
-                              if (!doc) return
-                              const ft = detectFillType(el)
                               const c2 = colors?.color2 || '#ffffff'
-                              const url = ft === 'linear'
-                                ? createLinearGradient(doc.getDefs(), v, c2, 0)
-                                : createRadialGradient(doc.getDefs(), v, c2)
-                              applyAttr(el, 'fill', url)
+                              updateGradientColors(el, v, c2)
                             }}
                             allowNone={false}
                           />
@@ -419,13 +434,8 @@ export function PropertiesPanel() {
                           <ColorPicker
                             value={colors?.color2 || '#ffffff'}
                             onChange={(v) => {
-                              if (!doc) return
-                              const ft = detectFillType(el)
                               const c1 = colors?.color1 || '#000000'
-                              const url = ft === 'linear'
-                                ? createLinearGradient(doc.getDefs(), c1, v, 0)
-                                : createRadialGradient(doc.getDefs(), c1, v)
-                              applyAttr(el, 'fill', url)
+                              updateGradientColors(el, c1, v)
                             }}
                             allowNone={false}
                           />

@@ -1,4 +1,6 @@
 import type { DocumentModel } from './document'
+import { syncIdCounter } from './document'
+import { clearSelection } from './selection'
 import { jsPDF } from 'jspdf'
 import { svg2pdf } from 'svg2pdf.js'
 
@@ -101,6 +103,9 @@ export function importSvg(doc: DocumentModel): Promise<void> {
         const svgDoc = parser.parseFromString(text, 'image/svg+xml')
         const importedSvg = svgDoc.documentElement
 
+        // Clear selection before modifying DOM (prevents stale references)
+        clearSelection()
+
         // Copy viewBox
         const viewBox = importedSvg.getAttribute('viewBox')
         if (viewBox) {
@@ -150,6 +155,9 @@ export function importSvg(doc: DocumentModel): Promise<void> {
             }
           }
         }
+
+        // Advance ID counter past imported IDs to prevent collisions
+        syncIdCounter(doc.svg)
 
         resolve()
       }

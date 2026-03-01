@@ -14,6 +14,7 @@ export interface ToolConfig {
   shortcut: string
   cursor?: string  // CSS cursor value for canvas when this tool is active
   handlers: ToolEventHandlers
+  onDeactivate?: () => void
 }
 
 const tools = new Map<string, ToolConfig>()
@@ -31,6 +32,11 @@ export function registerTool(config: ToolConfig): void {
 
 export function setActiveTool(name: string): void {
   if (!tools.has(name)) return
+  // Call deactivation hook on the previous tool
+  if (activeTool) {
+    const prev = tools.get(activeTool)
+    prev?.onDeactivate?.()
+  }
   activeTool = name
   notify()
 }

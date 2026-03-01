@@ -52,6 +52,7 @@ export function createLineTool(
     icon: 'L',
     shortcut: 'l',
     cursor: 'crosshair',
+    onDeactivate() { state.drawing = false; removePreview() },
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()

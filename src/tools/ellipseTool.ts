@@ -38,6 +38,7 @@ export function createEllipseTool(
     icon: 'E',
     shortcut: 'e',
     cursor: 'crosshair',
+    onDeactivate() { state.drawing = false; removePreview() },
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()

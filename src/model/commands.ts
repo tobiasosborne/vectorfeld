@@ -178,6 +178,71 @@ export class ReorderElementCommand implements Command {
   }
 }
 
+export class GroupCommand implements Command {
+  readonly description = 'Group'
+  private parent: Element
+  private group: Element
+  private children: Element[]
+  private insertBefore: Element | null
+
+  constructor(parent: Element, group: Element, children: Element[]) {
+    this.parent = parent
+    this.group = group
+    this.children = [...children]
+    this.insertBefore = children[0] // insert group where first child was
+  }
+
+  execute(): void {
+    this.parent.insertBefore(this.group, this.insertBefore)
+    for (const child of this.children) {
+      this.group.appendChild(child)
+    }
+  }
+
+  undo(): void {
+    // Move children back to parent, before the group
+    for (const child of this.children) {
+      this.parent.insertBefore(child, this.group)
+    }
+    this.group.remove()
+  }
+}
+
+export class UngroupCommand implements Command {
+  readonly description = 'Ungroup'
+  private parent: Element
+  private group: Element
+  private children: Element[]
+  private groupNextSibling: Element | null
+
+  constructor(parent: Element, group: Element) {
+    this.parent = parent
+    this.group = group
+    this.children = Array.from(group.children)
+    this.groupNextSibling = group.nextElementSibling
+  }
+
+  execute(): void {
+    // Move children out of group, before the group
+    for (const child of this.children) {
+      this.parent.insertBefore(child, this.group)
+    }
+    this.group.remove()
+  }
+
+  undo(): void {
+    // Re-insert group and move children back into it
+    if (this.groupNextSibling) {
+      this.parent.insertBefore(this.group, this.groupNextSibling)
+    } else {
+      this.parent.appendChild(this.group)
+    }
+    for (const child of this.children) {
+      this.group.appendChild(child)
+    }
+  }
+}
+
 export class CompoundCommand implements Command {
   readonly description: string
   private commands: Command[]

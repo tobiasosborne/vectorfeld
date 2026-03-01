@@ -112,6 +112,22 @@ export function createRadialGradient(
   return `url(#${id})`
 }
 
+/** Update an existing gradient's stop colors in-place. Returns true if updated. */
+export function updateGradientColors(el: Element, color1: string, color2: string): boolean {
+  const fill = el.getAttribute('fill') || ''
+  if (!fill.startsWith('url(#')) return false
+  const id = fill.slice(5, -1)
+  const svg = el.closest('svg')
+  if (!svg) return false
+  const grad = svg.querySelector(`#${CSS.escape(id)}`)
+  if (!grad) return false
+  const stops = grad.querySelectorAll('stop')
+  if (stops.length < 2) return false
+  stops[0].setAttribute('stop-color', color1)
+  stops[1].setAttribute('stop-color', color2)
+  return true
+}
+
 /** Parse gradient stop colors from a gradient element referenced by fill */
 export function parseGradientColors(el: Element): { color1: string; color2: string } | null {
   const fill = el.getAttribute('fill') || ''
