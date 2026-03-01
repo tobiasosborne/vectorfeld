@@ -123,6 +123,34 @@ For more details, see README.md and docs/QUICKSTART.md.
 
 <!-- END BEADS INTEGRATION -->
 
+## Testing with playwright-cli
+
+This project uses **playwright-cli** (installed as a Claude Code skill at `.claude/skills/playwright-cli`) for e2e and visual verification testing. Every feature that affects the canvas, tools, or UI must be verified via playwright-cli in addition to Vitest unit tests.
+
+### Workflow
+
+1. **Ensure the dev server is running**: `npm run dev` (serves at `http://localhost:5173`)
+2. **Open the browser**: `playwright-cli open http://localhost:5173`
+3. **Inspect the page**: `playwright-cli snapshot` (accessibility tree with refs)
+4. **Take screenshots**: `playwright-cli screenshot` (saves PNG)
+5. **Interact with elements**: `playwright-cli click <ref>`, `playwright-cli fill <ref> <text>`
+6. **Run JS assertions**: `playwright-cli eval "document.querySelector('svg')?.getAttribute('viewBox')"`
+7. **Mouse interactions**: `playwright-cli mousemove <x> <y>`, `playwright-cli mousewheel <dx> <dy>`
+8. **Close when done**: `playwright-cli close`
+
+### When to use playwright-cli
+
+- After implementing any drawing tool — verify elements appear on canvas
+- After implementing any UI component — verify layout and interaction
+- After implementing zoom/pan — verify coordinate transforms work visually
+- After implementing undo/redo — verify state reverts correctly in the browser
+- For any bug that involves visual rendering or user interaction
+
+### Testing strategy
+
+- **Vitest**: Pure logic (coordinate math, command history, document model, tool registry)
+- **playwright-cli**: Visual correctness, canvas interactions, tool workflows, end-to-end flows
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
@@ -148,3 +176,16 @@ For more details, see README.md and docs/QUICKSTART.md.
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+
+## Project Handoff Context
+
+**Current state (updated each session):**
+
+- **Sprints completed:** 0 (scaffold), 1 (canvas fundamentals), 2 (document model & undo) in progress
+- **Test count:** 66 tests passing (Vitest)
+- **Next work:** Sprint 2 S2-03 just closed. Sprint 3 (tool registry, drawing tools) is next.
+- **Dev server:** `npm run dev` → `http://localhost:5173`
+- **Build:** `npm run build` (TypeScript + Vite), `cargo check` in `src-tauri/`
+- **Key commands:** `bd ready` (next work), `bd list --all` (full backlog), `npm test` (run tests)
+- **playwright-cli:** installed globally, skill at `.claude/skills/playwright-cli`. Use for e2e verification.
+- **Architecture:** React app shell with imperatively managed SVG canvas, tool registry pattern, command-based undo. See `vectorfeld-prd.md` for full details.
