@@ -7,6 +7,9 @@ import { registerPenTool } from './penTool'
 import { registerTextTool } from './textTool'
 import { registerDirectSelectTool } from './directSelectTool'
 import { registerEyedropperTool } from './eyedropperTool'
+import { registerPencilTool } from './pencilTool'
+import { registerMeasureTool } from './measureTool'
+import { registerScissorsTool } from './scissorsTool'
 import { setActiveTool } from './registry'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
@@ -25,6 +28,9 @@ export function registerAllTools(
   registerTextTool(getSvg, getDoc, getHistory)
   registerDirectSelectTool(getSvg, getDoc, getHistory)
   registerEyedropperTool(getSvg, getDoc, getHistory)
+  registerPencilTool(getSvg, getDoc, getHistory)
+  registerMeasureTool(getSvg, getDoc, getHistory)
+  registerScissorsTool(getSvg, getDoc, getHistory)
 
   // Default to select tool
   setActiveTool('select')

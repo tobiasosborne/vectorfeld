@@ -64,7 +64,7 @@ export function computeTranslateAttrs(el: Element, dx: number, dy: number): Arra
     changes.push(['y1', String(parseFloat(el.getAttribute('y1') || '0') + dy)])
     changes.push(['x2', String(parseFloat(el.getAttribute('x2') || '0') + dx)])
     changes.push(['y2', String(parseFloat(el.getAttribute('y2') || '0') + dy)])
-  } else if (tag === 'rect' || tag === 'text') {
+  } else if (tag === 'rect' || tag === 'text' || tag === 'image') {
     changes.push(['x', String(parseFloat(el.getAttribute('x') || '0') + dx)])
     changes.push(['y', String(parseFloat(el.getAttribute('y') || '0') + dy)])
   } else if (tag === 'ellipse' || tag === 'circle') {

@@ -181,11 +181,39 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 ## Project Handoff Context
 
-**Current state (updated 2026-03-01, Phase 2 session):**
+**Current state (updated 2026-03-02, Phase 2 continued):**
 
 ### Summary
 
-Phase 2 implementation complete. 5 sprints (27 features) built, 7-agent code review performed, all findings fixed and verified. 137/137 total issues closed. 200 tests passing.
+Phase 2 extended with 13 new features across 4 sprints (17-20). Total: 150/150 issues closed. 277 tests passing across 24 test files. Zero type errors.
+
+### What was built this session (2026-03-02)
+
+**Sprint 17 — Transform & View (4 features):**
+- Reflect/Mirror: Flip H/V via Object menu (`src/model/reflect.ts`)
+- Outline/Wireframe View: Toggle via View menu, injects CSS style (`src/model/wireframe.ts`)
+- Placement Guides: H/V guide lines with smart guide snap integration (`src/model/guides.ts`)
+- Guide rendering in Canvas.tsx overlay group, cyan dashed lines
+
+**Sprint 18 — New Tools (3 features):**
+- Pencil Tool (N): Freehand drawing with Ramer-Douglas-Peucker simplification (`src/tools/pencilTool.ts`, `src/model/pathSimplify.ts`)
+- Measure Tool (M): Click-drag shows distance in mm as transient overlay (`src/tools/measureTool.ts`)
+- Scissors Tool (C): Click on path to split into two paths with De Casteljau subdivision (`src/tools/scissorsTool.ts`, `src/model/pathOps.ts`)
+
+**Sprint 19 — Export & Import (3 features):**
+- PNG Export: SVG-to-canvas rendering at 96 DPI (`fileio.ts:exportPng`)
+- Raster Image Embedding: Place PNG/JPG via file picker as `<image>` elements (`fileio.ts:placeImage`)
+- TikZ Export: SVG-to-TikZ conversion with y-axis inversion, color mapping, path/Bezier support (`src/model/tikzExport.ts`)
+
+**Sprint 20 — Advanced (3 features):**
+- Color Swatches: Named color palette with localStorage persistence (`src/model/swatches.ts`, `src/components/SwatchPanel.tsx`)
+- Clipping Masks: Object > Make/Release Clipping Mask with SVG `<clipPath>` (`src/model/clipping.ts`)
+- Area Text: Word wrapping via `<tspan>` elements (`src/model/areaText.ts`)
+
+**Infrastructure:**
+- `image` tag support in geometry.ts, EditorContext.tsx (nudge/paste), and selectTool
+- Export functions strip wireframe style and user-guides overlay
+- Smart guides now include user placement guides as snap candidates
 
 ### What was built this session
 
@@ -268,9 +296,9 @@ Phase 2 implementation complete. 5 sprints (27 features) built, 7-agent code rev
 
 ### Numbers
 
-- **Total issues:** 137 (100 Phase 2 features + 37 code review findings)
-- **Issues closed:** 137/137 (100%)
-- **Test count:** 200 (15 test files)
+- **Total issues:** 150 (100 Phase 2 features + 37 code review findings + 13 new Phase 2 features)
+- **Issues closed:** 150/150 (100%)
+- **Test count:** 277 (24 test files)
 - **Type errors:** 0
 
 ### Key files added/modified
@@ -285,6 +313,19 @@ Phase 2 implementation complete. 5 sprints (27 features) built, 7-agent code rev
 | `src/model/gradients.ts` | Gradient fill management |
 | `src/model/geometry.ts` | Shared transformedAABB + computeTranslateAttrs |
 | `src/model/activeLayer.ts` | Active layer pub-sub |
+| `src/model/reflect.ts` | Flip H/V pure functions |
+| `src/model/wireframe.ts` | Outline/wireframe view toggle |
+| `src/model/guides.ts` | User placement guides |
+| `src/model/pathSimplify.ts` | Ramer-Douglas-Peucker path simplification |
+| `src/model/pathOps.ts` | Path parsing, splitting, De Casteljau |
+| `src/model/tikzExport.ts` | SVG-to-TikZ conversion |
+| `src/model/swatches.ts` | Named color palette with persistence |
+| `src/model/clipping.ts` | Clipping mask make/release commands |
+| `src/model/areaText.ts` | Word wrapping for area text |
+| `src/tools/pencilTool.ts` | Freehand drawing tool |
+| `src/tools/measureTool.ts` | Distance measurement tool |
+| `src/tools/scissorsTool.ts` | Path splitting tool |
+| `src/components/SwatchPanel.tsx` | Swatch grid UI |
 | `src/tools/eyedropperTool.ts` | Eyedropper tool |
 | `src/components/ToolStrip.tsx` | Vertical tool sidebar |
 | `src/components/MenuBar.tsx` | Dropdown menu bar |
@@ -303,7 +344,7 @@ Phase 2 implementation complete. 5 sprints (27 features) built, 7-agent code rev
 
 - **Dev server:** `npm run dev` → `http://localhost:5173`
 - **Build:** `npm run build` (TypeScript + Vite)
-- **Tests:** `npx vitest run` (200 tests)
+- **Tests:** `npx vitest run` (277 tests)
 - **Type check:** `npx tsc --noEmit`
 - **Issue tracking:** `bd ready` / `bd stats` / `bd list`
 - **playwright-cli:** `.claude/skills/playwright-cli` for e2e verification

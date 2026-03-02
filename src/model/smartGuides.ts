@@ -4,6 +4,7 @@
  */
 
 import { transformedAABB } from './geometry'
+import { getGuideCandidates } from './guides'
 
 interface AlignCandidate {
   value: number
@@ -58,6 +59,10 @@ function collectCandidates(svg: SVGSVGElement, exclude: Set<Element>): AlignCand
         candidates.push({ value: aabb.y + aabb.height, axis: 'y' })
       } catch { /* skip */ }
     }
+  }
+  // Also include user placement guides as alignment candidates
+  for (const gc of getGuideCandidates()) {
+    candidates.push(gc)
   }
   return candidates
 }
