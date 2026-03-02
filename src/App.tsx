@@ -10,8 +10,14 @@ import { ArtboardDialog } from './components/ArtboardDialog'
 import { EditorProvider, useEditor } from './model/EditorContext'
 import { useToolShortcuts } from './tools/useToolShortcuts'
 import { registerAllTools } from './tools/registerAllTools'
-import { exportSvg, exportPdf, importSvg } from './model/fileio'
+import { exportSvg, exportPdf, exportPng, exportTikz, importSvg, placeImage } from './model/fileio'
 import { toggleGridVisible } from './model/grid'
+import { toggleWireframe } from './model/wireframe'
+import { addGuide, clearAllGuides } from './model/guides'
+import { computeReflectH, computeReflectV } from './model/reflect'
+import { getSelection, refreshOverlay, clearSelection } from './model/selection'
+import { ModifyAttributeCommand, CompoundCommand } from './model/commands'
+import { makeClippingMask, releaseClippingMask, hasClipPath } from './model/clipping'
 
 function AppContent() {
   useToolShortcuts()
@@ -46,13 +52,33 @@ function AppContent() {
     setCanvasState(state)
   }, [])
 
+  const applyReflect = useCallback((computeFn: (el: Element) => Array<[string, string]>) => {
+    const sel = getSelection()
+    if (sel.length === 0) return
+    const cmds: ModifyAttributeCommand[] = []
+    for (const el of sel) {
+      const changes = computeFn(el)
+      for (const [attr, val] of changes) {
+        cmds.push(new ModifyAttributeCommand(el, attr, val))
+      }
+    }
+    if (cmds.length > 0) {
+      editor.history.execute(new CompoundCommand(cmds, 'Reflect'))
+      refreshOverlay()
+    }
+  }, [editor.history])
+
   const menus = [
     {
       label: 'File',
       items: [
         { label: 'Open SVG...', shortcut: '', action: () => editor.doc && importSvg(editor.doc) },
+        { label: 'Place Image...', shortcut: '', action: () => editor.doc && placeImage(editor.doc, editor.history) },
+        { separator: true, label: '' },
         { label: 'Export SVG', shortcut: '', action: () => editor.doc && exportSvg(editor.doc) },
         { label: 'Export PDF', shortcut: '', action: () => editor.doc && exportPdf(editor.doc) },
+        { label: 'Export PNG', shortcut: '', action: () => editor.doc && exportPng(editor.doc) },
+        { label: 'Export TikZ', shortcut: '', action: () => editor.doc && exportTikz(editor.doc) },
         { separator: true, label: '' },
         { label: 'Document Setup...', shortcut: '', action: () => setShowArtboard(true) },
       ],
@@ -68,9 +94,42 @@ function AppContent() {
       label: 'View',
       items: [
         { label: 'Toggle Grid', shortcut: "Ctrl+'", action: () => toggleGridVisible() },
+        { label: 'Outline Mode', shortcut: '', action: () => toggleWireframe() },
+        { separator: true, label: '' },
+        { label: 'Add Horizontal Guide...', shortcut: '', action: () => {
+          const pos = prompt('Guide position (mm):')
+          if (pos !== null && !isNaN(Number(pos))) addGuide('h', Number(pos))
+        }},
+        { label: 'Add Vertical Guide...', shortcut: '', action: () => {
+          const pos = prompt('Guide position (mm):')
+          if (pos !== null && !isNaN(Number(pos))) addGuide('v', Number(pos))
+        }},
+        { label: 'Clear All Guides', shortcut: '', action: () => clearAllGuides() },
         { separator: true, label: '' },
         { label: 'Toggle Layers Panel', shortcut: '', action: () => setLayersCollapsed((c) => !c) },
         { label: 'Toggle Properties Panel', shortcut: '', action: () => setPropsCollapsed((c) => !c) },
+      ],
+    },
+    {
+      label: 'Object',
+      items: [
+        { label: 'Flip Horizontal', shortcut: '', action: () => applyReflect(computeReflectH) },
+        { label: 'Flip Vertical', shortcut: '', action: () => applyReflect(computeReflectV) },
+        { separator: true, label: '' },
+        { label: 'Make Clipping Mask', shortcut: '', action: () => {
+          const sel = getSelection()
+          if (sel.length === 2 && editor.doc) {
+            makeClippingMask(editor.doc, editor.history, sel)
+            clearSelection()
+          }
+        }},
+        { label: 'Release Clipping Mask', shortcut: '', action: () => {
+          const sel = getSelection()
+          if (sel.length === 1 && hasClipPath(sel[0]) && editor.doc) {
+            releaseClippingMask(editor.doc, editor.history, sel[0])
+            clearSelection()
+          }
+        }},
       ],
     },
   ]

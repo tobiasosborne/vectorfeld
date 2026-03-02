@@ -58,7 +58,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           // Offset pasted elements by 5mm
           const tag = original.tagName
           const pasteOffset = 5
-          if (tag === 'rect' || tag === 'text') {
+          if (tag === 'rect' || tag === 'text' || tag === 'image') {
             attrs.x = String(parseFloat(attrs.x || '0') + pasteOffset)
             attrs.y = String(parseFloat(attrs.y || '0') + pasteOffset)
           } else if (tag === 'ellipse' || tag === 'circle') {
@@ -169,7 +169,10 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           const cmds: ModifyAttributeCommand[] = []
           for (const el of sel) {
             const tag = el.tagName
-            if (tag === 'line') {
+            if (tag === 'image') {
+              cmds.push(new ModifyAttributeCommand(el, 'x', String(parseFloat(el.getAttribute('x') || '0') + dx)))
+              cmds.push(new ModifyAttributeCommand(el, 'y', String(parseFloat(el.getAttribute('y') || '0') + dy)))
+            } else if (tag === 'line') {
               cmds.push(new ModifyAttributeCommand(el, 'x1', String(parseFloat(el.getAttribute('x1') || '0') + dx)))
               cmds.push(new ModifyAttributeCommand(el, 'y1', String(parseFloat(el.getAttribute('y1') || '0') + dy)))
               cmds.push(new ModifyAttributeCommand(el, 'x2', String(parseFloat(el.getAttribute('x2') || '0') + dx)))

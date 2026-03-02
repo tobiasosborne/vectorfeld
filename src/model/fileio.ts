@@ -1,6 +1,9 @@
 import type { DocumentModel } from './document'
 import { syncIdCounter } from './document'
 import { clearSelection } from './selection'
+import { AddElementCommand } from './commands'
+import type { CommandHistory } from './commands'
+import { svgToTikz } from './tikzExport'
 import { jsPDF } from 'jspdf'
 import { svg2pdf } from 'svg2pdf.js'
 
@@ -11,8 +14,8 @@ import { svg2pdf } from 'svg2pdf.js'
 export function exportSvg(doc: DocumentModel, filename: string = 'document.svg'): void {
   const svg = doc.svg.cloneNode(true) as SVGSVGElement
 
-  // Remove all overlay/preview elements (selection, grid, guides, previews)
-  for (const el of svg.querySelectorAll('[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"]')) {
+  // Remove all overlay/preview/editor-only elements
+  for (const el of svg.querySelectorAll('[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"], [data-role="user-guides-overlay"], [data-role="wireframe"]')) {
     el.remove()
   }
 
@@ -47,7 +50,7 @@ export function exportSvg(doc: DocumentModel, filename: string = 'document.svg')
 export async function exportPdf(doc: DocumentModel, filename: string = 'document.pdf'): Promise<void> {
   // Clone and clean SVG
   const svgClone = doc.svg.cloneNode(true) as SVGSVGElement
-  for (const el of svgClone.querySelectorAll('[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"]')) {
+  for (const el of svgClone.querySelectorAll('[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"], [data-role="user-guides-overlay"], [data-role="wireframe"]')) {
     el.remove()
   }
 
@@ -79,6 +82,117 @@ export async function exportPdf(doc: DocumentModel, filename: string = 'document
   } finally {
     document.body.removeChild(svgClone)
   }
+}
+
+/**
+ * Export the document as a PNG file download.
+ * Renders SVG to an offscreen canvas at the specified scale.
+ */
+export function exportPng(doc: DocumentModel, scale: number = 1, filename: string = 'document.png'): void {
+  const svgClone = doc.svg.cloneNode(true) as SVGSVGElement
+  for (const el of svgClone.querySelectorAll('[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"], [data-role="user-guides-overlay"], [data-role="wireframe"]')) {
+    el.remove()
+  }
+
+  const vb = doc.svg.viewBox.baseVal
+  const width = vb.width || 210
+  const height = vb.height || 297
+
+  // mm to px at 96 DPI: 1mm = 3.7795px
+  const pxPerMm = 3.7795 * scale
+  const canvasWidth = Math.round(width * pxPerMm)
+  const canvasHeight = Math.round(height * pxPerMm)
+
+  svgClone.setAttribute('width', String(canvasWidth))
+  svgClone.setAttribute('height', String(canvasHeight))
+
+  const serializer = new XMLSerializer()
+  let svgString = serializer.serializeToString(svgClone)
+  if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
+    svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"')
+  }
+
+  const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const img = new Image()
+  img.onload = () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvasWidth
+    canvas.height = canvasHeight
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(img, 0, 0)
+    URL.revokeObjectURL(url)
+    canvas.toBlob((pngBlob) => {
+      if (!pngBlob) return
+      const pngUrl = URL.createObjectURL(pngBlob)
+      const a = document.createElement('a')
+      a.href = pngUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(pngUrl)
+    }, 'image/png')
+  }
+  img.src = url
+}
+
+/**
+ * Export the document as a TikZ file download.
+ */
+export function exportTikz(doc: DocumentModel, filename: string = 'document.tex'): void {
+  const tikz = svgToTikz(doc.svg)
+  const blob = new Blob([tikz], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * Place a raster image into the document.
+ * Opens a file picker, reads the image as data URL, creates an <image> element.
+ */
+export function placeImage(doc: DocumentModel, history: CommandHistory): Promise<void> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/png,image/jpeg,image/gif,image/webp'
+    input.addEventListener('cancel', () => resolve())
+    input.onchange = () => {
+      const file = input.files?.[0]
+      if (!file) { resolve(); return }
+      const reader = new FileReader()
+      reader.onload = () => {
+        const dataUrl = reader.result as string
+        const layer = doc.getActiveLayer()
+        if (!layer) { resolve(); return }
+
+        // Create image element centered in viewport
+        const vb = doc.svg.viewBox.baseVal
+        const imgWidth = Math.min(80, vb.width * 0.5)
+        const imgHeight = imgWidth * 0.75 // default 4:3 aspect
+        const x = vb.x + (vb.width - imgWidth) / 2
+        const y = vb.y + (vb.height - imgHeight) / 2
+
+        const cmd = new AddElementCommand(doc, layer, 'image', {
+          href: dataUrl,
+          x: String(x),
+          y: String(y),
+          width: String(imgWidth),
+          height: String(imgHeight),
+        })
+        history.execute(cmd)
+        resolve()
+      }
+      reader.readAsDataURL(file)
+    }
+    input.click()
+  })
 }
 
 /**

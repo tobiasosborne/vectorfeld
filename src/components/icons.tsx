@@ -61,6 +61,32 @@ export const EyedropperIcon: ReactNode = (
   </svg>
 )
 
+export const PencilIcon: ReactNode = (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={iconStyle}>
+    <path d="M2 14L3 10L12 2L14 4L5 13Z" />
+    <line x1="3" y1="10" x2="5" y2="13" />
+  </svg>
+)
+
+export const MeasureIcon: ReactNode = (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={iconStyle}>
+    <line x1="2" y1="13" x2="14" y2="3" />
+    <line x1="2" y1="13" x2="2" y2="10" />
+    <line x1="2" y1="13" x2="5" y2="13" />
+    <line x1="14" y1="3" x2="14" y2="6" />
+    <line x1="14" y1="3" x2="11" y2="3" />
+  </svg>
+)
+
+export const ScissorsIcon: ReactNode = (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={iconStyle}>
+    <circle cx="5" cy="4" r="2.5" />
+    <circle cx="5" cy="12" r="2.5" />
+    <line x1="7" y1="5.5" x2="14" y2="12" />
+    <line x1="7" y1="10.5" x2="14" y2="4" />
+  </svg>
+)
+
 export const TOOL_ICONS: Record<string, ReactNode> = {
   select: SelectIcon,
   line: LineIcon,
@@ -71,4 +97,7 @@ export const TOOL_ICONS: Record<string, ReactNode> = {
   eraser: EraserIcon,
   'direct-select': DirectSelectIcon,
   eyedropper: EyedropperIcon,
+  pencil: PencilIcon,
+  measure: MeasureIcon,
+  scissors: ScissorsIcon,
 }

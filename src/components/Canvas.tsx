@@ -5,6 +5,8 @@ import { getActiveTool, isKeyboardCaptured, subscribe as subscribeTool } from '.
 import { setOverlayGroup, refreshOverlay } from '../model/selection'
 import { renderGrid, subscribeGrid } from '../model/grid'
 import { setGuideGroup } from '../model/smartGuides'
+import { isWireframe, subscribeWireframe, WIREFRAME_STYLE } from '../model/wireframe'
+import { getGuides, subscribeGuides } from '../model/guides'
 
 export interface DocumentDimensions {
   width: number  // mm
@@ -29,6 +31,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
   const gridGroupRef = useRef<SVGGElement | null>(null)
+  const userGuidesGroupRef = useRef<SVGGElement | null>(null)
   const [isPanningState, setIsPanningState] = useState(false)
   const isPanningRef = useRef(false)
   const [, setToolTick] = useState(0) // force re-render on tool change for cursor
@@ -77,6 +80,13 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     gridGroup.setAttribute('pointer-events', 'none')
     svg.appendChild(gridGroup)
     gridGroupRef.current = gridGroup
+
+    // User placement guides overlay
+    const userGuidesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    userGuidesGroup.setAttribute('data-role', 'user-guides-overlay')
+    userGuidesGroup.setAttribute('pointer-events', 'none')
+    svg.appendChild(userGuidesGroup)
+    userGuidesGroupRef.current = userGuidesGroup
 
     // Smart guides overlay
     const guidesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g')
@@ -138,6 +148,61 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
   useEffect(() => {
     return subscribeGrid(updateGrid)
   }, [updateGrid])
+
+  // User placement guides rendering
+  const renderUserGuides = useCallback(() => {
+    const g = userGuidesGroupRef.current
+    const svg = svgRef.current
+    if (!g || !svg) return
+    while (g.firstChild) g.removeChild(g.firstChild)
+    const vb = svg.viewBox.baseVal
+    const sw = vb.width > 0 && svg.clientWidth > 0
+      ? (vb.width / svg.clientWidth) * 0.5
+      : 0.3
+    for (const guide of getGuides()) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+      if (guide.axis === 'h') {
+        line.setAttribute('x1', String(vb.x))
+        line.setAttribute('y1', String(guide.position))
+        line.setAttribute('x2', String(vb.x + vb.width))
+        line.setAttribute('y2', String(guide.position))
+      } else {
+        line.setAttribute('x1', String(guide.position))
+        line.setAttribute('y1', String(vb.y))
+        line.setAttribute('x2', String(guide.position))
+        line.setAttribute('y2', String(vb.y + vb.height))
+      }
+      line.setAttribute('stroke', '#00bcd4')
+      line.setAttribute('stroke-width', String(sw))
+      line.setAttribute('stroke-dasharray', `${sw * 6} ${sw * 3}`)
+      g.appendChild(line)
+    }
+  }, [])
+
+  useEffect(() => {
+    renderUserGuides()
+    return subscribeGuides(renderUserGuides)
+  }, [renderUserGuides])
+
+  // Wireframe mode: inject/remove <style> in SVG
+  useEffect(() => {
+    const update = () => {
+      if (!svgRef.current) return
+      const existing = svgRef.current.querySelector('style[data-role="wireframe"]')
+      if (isWireframe()) {
+        if (!existing) {
+          const style = document.createElementNS('http://www.w3.org/2000/svg', 'style')
+          style.setAttribute('data-role', 'wireframe')
+          style.textContent = WIREFRAME_STYLE
+          svgRef.current.insertBefore(style, svgRef.current.firstChild)
+        }
+      } else {
+        existing?.remove()
+      }
+    }
+    update()
+    return subscribeWireframe(update)
+  }, [])
 
   // Zoom handler
   useEffect(() => {
