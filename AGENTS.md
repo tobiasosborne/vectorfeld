@@ -215,7 +215,7 @@ Phase 2 extended with 13 new features across 4 sprints (17-20). Total: 150/150 i
 - Export functions strip wireframe style and user-guides overlay
 - Smart guides now include user placement guides as snap candidates
 
-### What was built this session
+### What was built previously (2026-03-01 session)
 
 **Sprint 12 — MVP Completion (6 issues):**
 - Marquee selection (rubber-band drag on empty canvas)
@@ -250,7 +250,7 @@ Phase 2 extended with 13 new features across 4 sprints (17-20). Total: 150/150 i
 - Vertical tool strip (40px left sidebar with SVG icons)
 - Menu bar (File/Edit/View dropdowns with shortcuts)
 - Collapsible panels (Layers & Properties collapse to thin strips)
-- Tool icons (SVG silhouettes for all 9 tools)
+- Tool icons (SVG silhouettes for all 12 tools)
 
 ### Code review & bug fixes
 
@@ -293,6 +293,7 @@ Phase 2 extended with 13 new features across 4 sprints (17-20). Total: 150/150 i
 - Feature tests: draw rect/line/ellipse, select, undo, marquee, delete, pan — all PASS
 - Chaos monkey (200+ random actions): 8 phases all PASS, zero errors, app survived
 - Pan rate verified at 0.0% error after fix
+- 2026-03-02: Pencil tool draws freehand path, Measure tool shows distance (160.3 mm), Wireframe mode injects style, all 12 tool icons visible, File/View/Object menus verified with all new items
 
 ### Numbers
 
