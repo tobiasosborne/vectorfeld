@@ -4,6 +4,7 @@ import { screenToDoc } from '../model/coordinates'
 import type { Command } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
+import { removeFromSelection, refreshOverlay } from '../model/selection'
 
 const HIT_TOLERANCE_PX = 5
 
@@ -76,8 +77,10 @@ export function createEraserTool(
         const hit = hitTest(svg, e.clientX, e.clientY)
         if (hit) {
           erasedInDrag.add(hit)
+          removeFromSelection(hit)
           hit.remove()
         }
+        refreshOverlay()
       },
 
       onMouseMove(e: MouseEvent) {
@@ -88,7 +91,9 @@ export function createEraserTool(
           const hit = hitTest(svg, e.clientX, e.clientY)
           if (hit && !erasedInDrag.has(hit)) {
             erasedInDrag.add(hit)
+            removeFromSelection(hit)
             hit.remove()
+            refreshOverlay()
           }
           return
         }

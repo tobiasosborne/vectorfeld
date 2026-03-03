@@ -6,6 +6,8 @@ import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import type { Point } from '../model/coordinates'
 import { getDefaultStyle } from '../model/defaultStyle'
+import { setSelection } from '../model/selection'
+import { setActiveTool } from './registry'
 
 /** Side-length of anchor point squares in document units */
 function anchorDocSize(svg: SVGSVGElement): number {
@@ -180,6 +182,8 @@ export function createPenTool(
       'stroke-width': defaults.strokeWidth,
     })
     history.execute(cmd)
+    const el = cmd.getElement()
+    if (el) { setSelection([el]); setActiveTool('select') }
   }
 
   function updatePreviewPath() {

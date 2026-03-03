@@ -16,7 +16,7 @@ const HANDLE_CURSORS: Record<HandlePosition, string> = {
 const HANDLE_POSITIONS: HandlePosition[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
 
 /** Screen pixels for handle square side length */
-const HANDLE_SCREEN_PX = 8
+const HANDLE_SCREEN_PX = 10
 
 /** Screen pixels for rotation handle distance above top-center */
 const ROTATION_HANDLE_OFFSET_PX = 20
@@ -226,11 +226,14 @@ function updateOverlay(): void {
       ['sw', handleBox.x, handleBox.y + handleBox.height],
     ]
 
+    // Custom rotation cursors — curved arrow SVGs for each corner
+    const rotArrow = (rotate: number) =>
+      `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><g transform='rotate(${rotate} 12 12)'><path d='M7 4a8 8 0 0 1 10 0' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round'/><path d='M17 4l-3-2M17 4l-2 3' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round'/></g></svg>`)}") 12 12, crosshair`
     const ROTATION_CURSORS: Record<string, string> = {
-      nw: 'nwse-resize',
-      ne: 'nesw-resize',
-      se: 'nwse-resize',
-      sw: 'nesw-resize',
+      nw: rotArrow(180),
+      ne: rotArrow(270),
+      se: rotArrow(0),
+      sw: rotArrow(90),
     }
 
     for (const [corner, cx, cy] of cornerPositions) {

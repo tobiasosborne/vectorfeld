@@ -9,6 +9,7 @@ import { CompoundCommand, ModifyAttributeCommand } from '../model/commands'
 import { snapToGrid } from '../model/grid'
 import { computeSmartGuides, renderGuides, clearGuides, cacheSmartGuideCandidates, clearCachedCandidates } from '../model/smartGuides'
 import { transformedAABB as sharedTransformedAABB } from '../model/geometry'
+import { scalePathD } from '../model/pathOps'
 
 /** Minimum hit tolerance in screen pixels for thin elements like lines */
 const HIT_TOLERANCE_PX = 5
@@ -73,6 +74,7 @@ interface DragState {
   startY: number
   startPositions: Map<Element, { attr: string; vals: Record<string, number> }>
   origTransforms: Map<Element, string | null>
+  origPathDs: Map<Element, string>
   scale: ScaleState | null
   rotate: RotateState | null
   marqueeRect: SVGRectElement | null
@@ -185,6 +187,7 @@ export function createSelectTool(
     startY: 0,
     startPositions: new Map(),
     origTransforms: new Map(),
+    origPathDs: new Map(),
     scale: null,
     rotate: null,
     marqueeRect: null,
@@ -283,6 +286,9 @@ export function createSelectTool(
       el.setAttribute('x', String(anchorX + (origX - anchorX) * sx))
       el.setAttribute('y', String(anchorY + (origY - anchorY) * sy))
       el.setAttribute('font-size', String(origFs * s))
+    } else if (tag === 'path') {
+      const origD = dragState.origPathDs.get(el) || el.getAttribute('d') || ''
+      el.setAttribute('d', scalePathD(origD, sx, sy, anchorX, anchorY))
     }
   }
 
@@ -297,6 +303,15 @@ export function createSelectTool(
         if (newVal !== null && newVal !== String(origVal)) {
           commands.push(new ModifyAttributeCommand(el, attr, newVal))
           el.setAttribute(attr, String(origVal))
+        }
+      }
+      // Commit path d attribute changes
+      const origD = dragState.origPathDs.get(el)
+      if (origD !== undefined) {
+        const newD = el.getAttribute('d')
+        if (newD !== null && newD !== origD) {
+          commands.push(new ModifyAttributeCommand(el, 'd', newD))
+          el.setAttribute('d', origD)
         }
       }
       // Also commit transform changes (rotation center moves with element)
@@ -318,6 +333,7 @@ export function createSelectTool(
     }
     dragState.startPositions.clear()
     dragState.origTransforms.clear()
+    dragState.origPathDs.clear()
   }
 
   return {
@@ -333,6 +349,9 @@ export function createSelectTool(
       dragState.mode = 'none'
       dragState.startPositions.clear()
       dragState.origTransforms.clear()
+      dragState.origPathDs.clear()
+      dragState.rotate = null
+      dragState.scale = null
       clearGuides()
     },
     handlers: {
@@ -345,20 +364,11 @@ export function createSelectTool(
         if (target?.getAttribute?.('data-role') === 'rotation-handle') {
           const sel = getSelection()
           if (sel.length === 1) {
-            const bbox = unionBBox(sel)
-            if (!bbox) return
             const pt = screenToDoc(svg, e.clientX, e.clientY)
-            // Use existing rotation center if present, else use bbox center
-            let cx = bbox.x + bbox.width / 2
-            let cy = bbox.y + bbox.height / 2
-            const existingTransform = sel[0].getAttribute('transform')
-            if (existingTransform) {
-              const rotMatch = existingTransform.match(/rotate\(([-\d.]+),\s*([-\d.]+),\s*([-\d.]+)\)/)
-              if (rotMatch) {
-                cx = parseFloat(rotMatch[2])
-                cy = parseFloat(rotMatch[3])
-              }
-            }
+            // Always use local bbox center — invariant under rotation
+            const localBBox = (sel[0] as SVGGraphicsElement).getBBox()
+            const cx = localBBox.x + localBBox.width / 2
+            const cy = localBBox.y + localBBox.height / 2
             const startAngle = Math.atan2(pt.y - cy, pt.x - cx)
             dragState.mode = 'rotate'
             dragState.startX = pt.x
@@ -381,7 +391,16 @@ export function createSelectTool(
           const handle = target.getAttribute('data-handle-pos') as HandlePosition
           if (handle) {
             const sel = getSelection()
-            const bbox = unionBBox(sel)
+
+            // For single rotated element, use local bbox so anchor is in local space
+            // (scaleElement modifies local-space attributes like x/y/width/height)
+            let bbox: { x: number; y: number; width: number; height: number } | null
+            if (sel.length === 1 && sel[0].getAttribute('transform')) {
+              const lb = (sel[0] as SVGGraphicsElement).getBBox()
+              bbox = { x: lb.x, y: lb.y, width: lb.width, height: lb.height }
+            } else {
+              bbox = unionBBox(sel)
+            }
             if (!bbox) return
 
             const pt = screenToDoc(svg, e.clientX, e.clientY)
@@ -390,9 +409,13 @@ export function createSelectTool(
             dragState.startY = pt.y
             dragState.startPositions.clear()
             dragState.origTransforms.clear()
+            dragState.origPathDs.clear()
             for (const el of sel) {
               dragState.startPositions.set(el, { attr: el.tagName, vals: getAllGeomAttrs(el) })
               dragState.origTransforms.set(el, el.getAttribute('transform'))
+              if (el.tagName === 'path') {
+                dragState.origPathDs.set(el, el.getAttribute('d') || '')
+              }
             }
             dragState.scale = {
               handle,
@@ -496,17 +519,34 @@ export function createSelectTool(
           const { handle, anchorX, anchorY, origBBox } = dragState.scale
           const axes = handleAxes(handle)
 
-          // Compute new bbox extent based on mouse position
+          // For rotated single-element, inverse-rotate mouse point into local space
+          let localPt = { x: pt.x, y: pt.y }
+          const sel = getSelection()
+          if (sel.length === 1) {
+            const transform = sel[0].getAttribute('transform')
+            const rotMatch = transform?.match(/rotate\(([-\d.]+),\s*([-\d.]+),\s*([-\d.]+)\)/)
+            if (rotMatch) {
+              const angle = -parseFloat(rotMatch[1]) * Math.PI / 180
+              const rcx = parseFloat(rotMatch[2])
+              const rcy = parseFloat(rotMatch[3])
+              const cos = Math.cos(angle)
+              const sin = Math.sin(angle)
+              const dx = pt.x - rcx
+              const dy = pt.y - rcy
+              localPt = { x: rcx + dx * cos - dy * sin, y: rcy + dx * sin + dy * cos }
+            }
+          }
+
+          // Compute new bbox extent based on mouse position (in local space)
           let newWidth = origBBox.width
           let newHeight = origBBox.height
 
           if (axes.scaleX) {
-            // Width from anchor to mouse
-            newWidth = Math.abs(pt.x - anchorX)
+            newWidth = Math.abs(localPt.x - anchorX)
             if (newWidth < 0.1) newWidth = 0.1
           }
           if (axes.scaleY) {
-            newHeight = Math.abs(pt.y - anchorY)
+            newHeight = Math.abs(localPt.y - anchorY)
             if (newHeight < 0.1) newHeight = 0.1
           }
 
@@ -624,12 +664,15 @@ export function createSelectTool(
             const cmd = new ModifyAttributeCommand(el, 'transform', newTransform)
             getHistory().execute(cmd)
           }
-          dragState.rotate = null
-          dragState.startPositions.clear()
         } else {
           commitChanges(mode === 'scale' ? 'Scale' : 'Move')
-          dragState.scale = null
         }
+        // Unconditional cleanup
+        dragState.rotate = null
+        dragState.scale = null
+        dragState.startPositions.clear()
+        dragState.origTransforms.clear()
+        dragState.origPathDs.clear()
       },
     },
   }

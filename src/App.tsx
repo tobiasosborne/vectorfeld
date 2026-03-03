@@ -6,6 +6,7 @@ import { Canvas } from './components/Canvas'
 import type { CanvasState, DocumentDimensions } from './components/Canvas'
 import { PropertiesPanel } from './components/PropertiesPanel'
 import { StatusBar } from './components/StatusBar'
+import { ControlBar } from './components/ControlBar'
 import { ArtboardDialog } from './components/ArtboardDialog'
 import { EditorProvider, useEditor } from './model/EditorContext'
 import { useToolShortcuts } from './tools/useToolShortcuts'
@@ -137,53 +138,56 @@ function AppContent() {
   return (
     <div id="app" className="h-screen w-screen flex flex-col">
       <MenuBar menus={menus} />
+      <ControlBar />
       <div className="flex flex-1 min-h-0">
         <ToolStrip />
-        {layersCollapsed ? (
-          <div
-            className="w-6 bg-chrome-100 border-r border-chrome-300 flex items-center justify-center cursor-pointer hover:bg-chrome-200"
-            onClick={() => setLayersCollapsed(false)}
-            title="Show Layers"
-          >
-            <span className="text-xs text-chrome-500 select-none" style={{ writingMode: 'vertical-rl' }}>Layers</span>
-          </div>
-        ) : (
-          <div className="relative">
-            <LayersPanel />
-            <button
-              className="absolute top-0 right-0 w-4 h-4 text-xs text-chrome-400 hover:text-chrome-700"
-              onClick={() => setLayersCollapsed(true)}
-              title="Collapse"
-            >
-              &laquo;
-            </button>
-          </div>
-        )}
         <Canvas
           dimensions={dimensions}
           onStateChange={handleCanvasState}
           onSvgReady={handleSvgReady}
         />
-        {propsCollapsed ? (
-          <div
-            className="w-6 bg-chrome-100 border-l border-chrome-300 flex items-center justify-center cursor-pointer hover:bg-chrome-200"
-            onClick={() => setPropsCollapsed(false)}
-            title="Show Properties"
-          >
-            <span className="text-xs text-chrome-500 select-none" style={{ writingMode: 'vertical-rl' }}>Properties</span>
-          </div>
-        ) : (
-          <div className="relative">
-            <PropertiesPanel />
-            <button
-              className="absolute top-0 left-0 w-4 h-4 text-xs text-chrome-400 hover:text-chrome-700"
-              onClick={() => setPropsCollapsed(true)}
-              title="Collapse"
+        <div className="flex flex-col border-l border-chrome-300">
+          {propsCollapsed ? (
+            <div
+              className="h-6 bg-chrome-100 border-b border-chrome-300 flex items-center justify-center cursor-pointer hover:bg-chrome-200"
+              onClick={() => setPropsCollapsed(false)}
+              title="Show Properties"
             >
-              &raquo;
-            </button>
-          </div>
-        )}
+              <span className="text-xs text-chrome-500 select-none">Properties &raquo;</span>
+            </div>
+          ) : (
+            <div className="relative flex-1 min-h-0">
+              <PropertiesPanel />
+              <button
+                className="absolute top-0 left-0 w-4 h-4 text-xs text-chrome-400 hover:text-chrome-700"
+                onClick={() => setPropsCollapsed(true)}
+                title="Collapse"
+              >
+                &raquo;
+              </button>
+            </div>
+          )}
+          {layersCollapsed ? (
+            <div
+              className="h-6 bg-chrome-100 border-t border-chrome-300 flex items-center justify-center cursor-pointer hover:bg-chrome-200"
+              onClick={() => setLayersCollapsed(false)}
+              title="Show Layers"
+            >
+              <span className="text-xs text-chrome-500 select-none">Layers &raquo;</span>
+            </div>
+          ) : (
+            <div className="relative border-t border-chrome-300">
+              <LayersPanel />
+              <button
+                className="absolute top-0 left-0 w-4 h-4 text-xs text-chrome-400 hover:text-chrome-700"
+                onClick={() => setLayersCollapsed(true)}
+                title="Collapse"
+              >
+                &raquo;
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       <StatusBar
         cursorX={canvasState.cursorX}
