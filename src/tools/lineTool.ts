@@ -8,6 +8,8 @@ import { getDefaultStyle } from '../model/defaultStyle'
 import { snapToGrid } from '../model/grid'
 import { setSelection } from '../model/selection'
 import { setActiveTool } from './registry'
+import { collectPointCandidates, snapToNearestPoint } from '../model/smartGuides'
+import type { PointCandidate } from '../model/smartGuides'
 
 /** When shift is held, constrain line angle to nearest 45-degree increment */
 function snapLineAngle(
@@ -28,6 +30,8 @@ interface LineToolState {
   startX: number
   startY: number
   preview: SVGLineElement | null
+  pointCandidates: PointCandidate[]
+  snapIndicator: SVGCircleElement | null
 }
 
 export function createLineTool(
@@ -40,12 +44,18 @@ export function createLineTool(
     startX: 0,
     startY: 0,
     preview: null,
+    pointCandidates: [],
+    snapIndicator: null,
   }
 
   function removePreview() {
     if (state.preview) {
       state.preview.remove()
       state.preview = null
+    }
+    if (state.snapIndicator) {
+      state.snapIndicator.remove()
+      state.snapIndicator = null
     }
   }
 
@@ -54,13 +64,21 @@ export function createLineTool(
     icon: 'L',
     shortcut: 'l',
     cursor: 'crosshair',
-    onDeactivate() { state.drawing = false; removePreview() },
+    onDeactivate() { state.drawing = false; removePreview(); state.pointCandidates = [] },
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()
         if (!svg || e.button !== 0) return
         const raw = screenToDoc(svg, e.clientX, e.clientY)
-        const pt = snapToGrid(raw.x, raw.y)
+        let pt = snapToGrid(raw.x, raw.y)
+
+        // Collect point candidates and snap start point
+        state.pointCandidates = collectPointCandidates(svg, new Set())
+        const vb = svg.viewBox.baseVal
+        const snapTolerance = vb.width > 0 && svg.clientWidth > 0
+          ? 4 * (vb.width / svg.clientWidth) : 4
+        const snapped = snapToNearestPoint(pt.x, pt.y, state.pointCandidates, snapTolerance)
+        if (snapped.snapped) { pt = { x: snapped.x, y: snapped.y } }
 
         state.drawing = true
         state.startX = pt.x
@@ -86,9 +104,41 @@ export function createLineTool(
         if (!svg) return
         const raw = screenToDoc(svg, e.clientX, e.clientY)
         const snapped = snapToGrid(raw.x, raw.y)
-        const pt = snapLineAngle(state.startX, state.startY, snapped, e.shiftKey)
+
+        // Try endpoint snap first; fall back to angle snap
+        const vb = svg.viewBox.baseVal
+        const snapTolerance = vb.width > 0 && svg.clientWidth > 0
+          ? 4 * (vb.width / svg.clientWidth) : 4
+        const snap = snapToNearestPoint(snapped.x, snapped.y, state.pointCandidates, snapTolerance)
+        let pt: { x: number; y: number }
+        if (snap.snapped) {
+          pt = { x: snap.x, y: snap.y }
+        } else {
+          pt = snapLineAngle(state.startX, state.startY, snapped, e.shiftKey)
+        }
+
         state.preview.setAttribute('x2', String(pt.x))
         state.preview.setAttribute('y2', String(pt.y))
+
+        // Show/hide snap indicator
+        if (snap.snapped) {
+          if (!state.snapIndicator) {
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+            circle.setAttribute('fill', 'none')
+            circle.setAttribute('stroke', '#ff00ff')
+            circle.setAttribute('stroke-width', String(snapTolerance * 0.15))
+            circle.setAttribute('data-role', 'preview')
+            circle.setAttribute('pointer-events', 'none')
+            svg.appendChild(circle)
+            state.snapIndicator = circle
+          }
+          state.snapIndicator.setAttribute('cx', String(snap.x))
+          state.snapIndicator.setAttribute('cy', String(snap.y))
+          state.snapIndicator.setAttribute('r', String(snapTolerance * 0.6))
+        } else if (state.snapIndicator) {
+          state.snapIndicator.remove()
+          state.snapIndicator = null
+        }
       },
 
       onMouseUp(e: MouseEvent) {
@@ -97,9 +147,21 @@ export function createLineTool(
         if (!svg) return
         const raw = screenToDoc(svg, e.clientX, e.clientY)
         const snapped = snapToGrid(raw.x, raw.y)
-        const pt = snapLineAngle(state.startX, state.startY, snapped, e.shiftKey)
+
+        // Try endpoint snap first; fall back to angle snap
+        const vb = svg.viewBox.baseVal
+        const snapTolerance = vb.width > 0 && svg.clientWidth > 0
+          ? 4 * (vb.width / svg.clientWidth) : 4
+        const snap = snapToNearestPoint(snapped.x, snapped.y, state.pointCandidates, snapTolerance)
+        let pt: { x: number; y: number }
+        if (snap.snapped) {
+          pt = { x: snap.x, y: snap.y }
+        } else {
+          pt = snapLineAngle(state.startX, state.startY, snapped, e.shiftKey)
+        }
 
         state.drawing = false
+        state.pointCandidates = []
         removePreview()
 
         // Only commit if the line has some length

@@ -3,8 +3,9 @@ import type { ToolConfig } from './registry'
 import { screenToDoc } from '../model/coordinates'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
-import { ModifyAttributeCommand } from '../model/commands'
+import { ModifyAttributeCommand, AddElementCommand, RemoveElementCommand, CompoundCommand } from '../model/commands'
 import type { Point } from '../model/coordinates'
+import { elementToPathD, extractStyleAttrs } from '../model/shapeToPath'
 
 export interface ControlPoints {
   /** cp1 (outgoing from prev anchor) and cp2 (incoming to this anchor) per C segment */
@@ -178,7 +179,9 @@ function dist(a: Point, b: Point): number {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
 }
 
-function hitTestPath(svg: SVGSVGElement, screenX: number, screenY: number): SVGPathElement | null {
+const DIRECT_SELECT_TAGS = new Set(['path', 'rect', 'ellipse', 'circle', 'line'])
+
+function hitTestElement(svg: SVGSVGElement, screenX: number, screenY: number): Element | null {
   const pt = screenToDoc(svg, screenX, screenY)
   const layers = svg.querySelectorAll('g[data-layer-name]')
   for (let li = layers.length - 1; li >= 0; li--) {
@@ -188,12 +191,12 @@ function hitTestPath(svg: SVGSVGElement, screenX: number, screenY: number): SVGP
     const children = layer.children
     for (let ci = children.length - 1; ci >= 0; ci--) {
       const child = children[ci]
-      if (child.tagName !== 'path') continue
+      if (!DIRECT_SELECT_TAGS.has(child.tagName)) continue
       try {
         const bbox = (child as SVGGraphicsElement).getBBox()
         if (pt.x >= bbox.x && pt.x <= bbox.x + bbox.width &&
             pt.y >= bbox.y && pt.y <= bbox.y + bbox.height) {
-          return child as SVGPathElement
+          return child
         }
       } catch { /* skip */ }
     }
@@ -364,12 +367,34 @@ export function createDirectSelectTool(
           }
         }
 
-        // Check if clicking on a path
-        const hitPath = hitTestPath(svg, e.clientX, e.clientY)
-        if (hitPath) {
-          state.selectedPath = hitPath
-          state.selectedAnchorIdx = -1
-          showAnchors(svg, hitPath)
+        // Check if clicking on an element
+        const hitEl = hitTestElement(svg, e.clientX, e.clientY)
+        if (hitEl) {
+          if (hitEl.tagName === 'path') {
+            state.selectedPath = hitEl as SVGPathElement
+            state.selectedAnchorIdx = -1
+            showAnchors(svg, hitEl as SVGPathElement)
+          } else {
+            // Non-path: auto-convert to path
+            const d = elementToPathD(hitEl)
+            const doc = getDoc()
+            if (d && doc) {
+              const parent = hitEl.parentElement
+              if (parent) {
+                const styleAttrs = extractStyleAttrs(hitEl)
+                const removeCmd = new RemoveElementCommand(doc, hitEl)
+                const addCmd = new AddElementCommand(doc, parent, 'path', { ...styleAttrs, d })
+                const compound = new CompoundCommand([removeCmd, addCmd], 'Convert to Path')
+                getHistory().execute(compound)
+                const newPath = addCmd.getElement() as SVGPathElement
+                if (newPath) {
+                  state.selectedPath = newPath
+                  state.selectedAnchorIdx = -1
+                  showAnchors(svg, newPath)
+                }
+              }
+            }
+          }
         } else {
           deselect()
         }
