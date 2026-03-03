@@ -462,12 +462,16 @@ export function PropertiesPanel() {
                 <label className="flex items-center gap-1">
                   <span className="text-xs text-chrome-500 w-8">Dash</span>
                   <select
-                    value={getAttr(el, 'stroke-dasharray') || ''}
+                    value={
+                      ['', '4 2', '2 2', '4 2 2 2', '8 4', '1 2', '8 4 2 4', '8 4 2 4 2 4'].includes(getAttr(el, 'stroke-dasharray'))
+                        ? getAttr(el, 'stroke-dasharray')
+                        : '__custom__'
+                    }
                     onChange={(e) => {
+                      if (e.target.value === '__custom__') return
                       if (e.target.value) {
                         applyAttr(el, 'stroke-dasharray', e.target.value)
                       } else {
-                        // Remove dasharray for solid
                         const cmd = new ModifyAttributeCommand(el, 'stroke-dasharray', '')
                         history.execute(cmd)
                       }
@@ -478,8 +482,25 @@ export function PropertiesPanel() {
                     <option value="4 2">Dashed</option>
                     <option value="2 2">Dotted</option>
                     <option value="4 2 2 2">Dash-Dot</option>
+                    <option value="8 4">Long Dash</option>
+                    <option value="1 2">Dense Dots</option>
+                    <option value="8 4 2 4">Long Dash-Dot</option>
+                    <option value="8 4 2 4 2 4">Long Dash-Dot-Dot</option>
+                    <option value="__custom__">Custom...</option>
                   </select>
                 </label>
+                {!['', '4 2', '2 2', '4 2 2 2', '8 4', '1 2', '8 4 2 4', '8 4 2 4 2 4'].includes(getAttr(el, 'stroke-dasharray')) && getAttr(el, 'stroke-dasharray') && (
+                  <PropertyInput
+                    label="Pat"
+                    value={getAttr(el, 'stroke-dasharray')}
+                    onChange={(v) => applyAttr(el, 'stroke-dasharray', v)}
+                  />
+                )}
+                {getAttr(el, 'stroke-dasharray') && (
+                  <svg width="100%" height="8" className="mt-0.5 mb-0.5">
+                    <line x1="4" y1="4" x2="200" y2="4" stroke="#333" strokeWidth="2" strokeDasharray={getAttr(el, 'stroke-dasharray')} />
+                  </svg>
+                )}
                 <label className="flex items-center gap-1">
                   <span className="text-xs text-chrome-500 w-8">Cap</span>
                   <select

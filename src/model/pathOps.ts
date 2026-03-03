@@ -199,6 +199,112 @@ export function splitPathAt(commands: PathCommand[], segIndex: number): [string,
   return [commandsToD(commands), '']
 }
 
+// --- Path joining ---
+
+function getLastPoint(cmds: PathCommand[]): { x: number; y: number } {
+  for (let i = cmds.length - 1; i >= 0; i--) {
+    if (cmds[i].points.length > 0) {
+      const pts = cmds[i].points
+      return pts[pts.length - 1]
+    }
+  }
+  return { x: 0, y: 0 }
+}
+
+function ptDist(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
+}
+
+/** Reverse the direction of parsed path commands */
+function reverseCommands(cmds: PathCommand[]): PathCommand[] {
+  // Collect anchor points and segment info
+  const points: Array<{ x: number; y: number }> = []
+  const segTypes: Array<'L' | 'C'> = []
+  const controlPoints: Array<{ cp1: { x: number; y: number }; cp2: { x: number; y: number } } | null> = []
+
+  for (const cmd of cmds) {
+    if (cmd.type === 'M') {
+      points.push(cmd.points[0])
+    } else if (cmd.type === 'L') {
+      points.push(cmd.points[0])
+      segTypes.push('L')
+      controlPoints.push(null)
+    } else if (cmd.type === 'C') {
+      points.push(cmd.points[2])
+      segTypes.push('C')
+      controlPoints.push({ cp1: cmd.points[0], cp2: cmd.points[1] })
+    }
+  }
+
+  const reversed: PathCommand[] = []
+  reversed.push({ type: 'M', points: [points[points.length - 1]] })
+
+  for (let i = segTypes.length - 1; i >= 0; i--) {
+    if (segTypes[i] === 'L') {
+      reversed.push({ type: 'L', points: [points[i]] })
+    } else if (segTypes[i] === 'C') {
+      const cp = controlPoints[i]!
+      reversed.push({ type: 'C', points: [cp.cp2, cp.cp1, points[i]] })
+    }
+  }
+  return reversed
+}
+
+/** Reverse the direction of a path d string */
+export function reversePathD(d: string): string {
+  return commandsToD(reverseCommands(parsePathD(d)))
+}
+
+/**
+ * Join two path d strings by connecting them at their closest endpoints.
+ * Auto-orients paths so the closest endpoints connect.
+ * If endpoints within tolerance, no connecting L segment is added.
+ */
+export function joinPaths(d1: string, d2: string, tolerance = 1): string {
+  const cmds1 = parsePathD(d1)
+  const cmds2 = parsePathD(d2)
+  if (cmds1.length === 0) return d2
+  if (cmds2.length === 0) return d1
+
+  const start1 = cmds1[0].points[0]
+  const end1 = getLastPoint(cmds1)
+  const start2 = cmds2[0].points[0]
+  const end2 = getLastPoint(cmds2)
+
+  // Find closest endpoint pair and orient accordingly
+  const options = [
+    { d: ptDist(end1, start2), rev1: false, rev2: false },
+    { d: ptDist(end1, end2), rev1: false, rev2: true },
+    { d: ptDist(start1, start2), rev1: true, rev2: false },
+    { d: ptDist(start1, end2), rev1: true, rev2: true },
+  ]
+  options.sort((a, b) => a.d - b.d)
+  const best = options[0]
+
+  let final1 = best.rev1 ? reverseCommands(cmds1) : cmds1
+  const final2 = best.rev2 ? reverseCommands(cmds2) : cmds2
+
+  // Remove Z from end of first path
+  if (final1.length > 0 && final1[final1.length - 1].type === 'Z') {
+    final1 = final1.slice(0, -1)
+  }
+
+  // Remove M from start of second path
+  const cmds2NoM = final2.slice(1)
+
+  // Check if connection point is within tolerance
+  const connEnd = getLastPoint(final1)
+  const connStart = final2[0].points[0]
+  const gap = ptDist(connEnd, connStart)
+
+  if (gap > tolerance) {
+    return commandsToD([...final1, { type: 'L', points: [connStart] }, ...cmds2NoM])
+  }
+  return commandsToD([...final1, ...cmds2NoM])
+}
+
+// --- Path scaling ---
+
 /** Scale all points in a path `d` string relative to an anchor point */
 export function scalePathD(
   d: string,

@@ -17,8 +17,12 @@ import { toggleWireframe } from './model/wireframe'
 import { addGuide, clearAllGuides } from './model/guides'
 import { computeReflectH, computeReflectV } from './model/reflect'
 import { getSelection, refreshOverlay, clearSelection } from './model/selection'
-import { ModifyAttributeCommand, CompoundCommand } from './model/commands'
+import { ModifyAttributeCommand, CompoundCommand, AddElementCommand, RemoveElementCommand } from './model/commands'
 import { makeClippingMask, releaseClippingMask, hasClipPath } from './model/clipping'
+import { elementToPathD, extractStyleAttrs } from './model/shapeToPath'
+import { joinPaths } from './model/pathOps'
+import { ContextMenu } from './components/ContextMenu'
+import type { ContextMenuItem } from './components/ContextMenu'
 
 function AppContent() {
   useToolShortcuts()
@@ -49,6 +53,8 @@ function AppContent() {
     zoomPercent: 100,
   })
 
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
+
   const handleCanvasState = useCallback((state: CanvasState) => {
     setCanvasState(state)
   }, [])
@@ -68,6 +74,44 @@ function AppContent() {
       refreshOverlay()
     }
   }, [editor.history])
+
+  const handleContextMenu = useCallback((e: MouseEvent) => {
+    const sel = getSelection()
+    const hasSelection = sel.length > 0
+    const items: ContextMenuItem[] = [
+      { label: 'Delete', action: () => {
+        const s = getSelection()
+        if (s.length > 0 && editor.doc) {
+          const cmds = s.map(el => new RemoveElementCommand(editor.doc!, el))
+          editor.history.execute(new CompoundCommand(cmds, 'Delete'))
+          clearSelection()
+        }
+      }, disabled: !hasSelection },
+      { label: '', action: () => {}, separator: true },
+      { label: 'Bring to Front', action: () => {
+        const s = getSelection()
+        if (s.length === 1) {
+          const el = s[0]
+          const parent = el.parentElement
+          if (parent) parent.appendChild(el)
+          refreshOverlay()
+        }
+      }, disabled: sel.length !== 1 },
+      { label: 'Send to Back', action: () => {
+        const s = getSelection()
+        if (s.length === 1) {
+          const el = s[0]
+          const parent = el.parentElement
+          if (parent && parent.firstChild) parent.insertBefore(el, parent.firstChild)
+          refreshOverlay()
+        }
+      }, disabled: sel.length !== 1 },
+      { label: '', action: () => {}, separator: true },
+      { label: 'Flip Horizontal', action: () => applyReflect(computeReflectH), disabled: !hasSelection },
+      { label: 'Flip Vertical', action: () => applyReflect(computeReflectV), disabled: !hasSelection },
+    ]
+    setContextMenu({ x: e.clientX, y: e.clientY, items })
+  }, [editor, applyReflect])
 
   const menus = [
     {
@@ -131,6 +175,44 @@ function AppContent() {
             clearSelection()
           }
         }},
+        { separator: true, label: '' },
+        { label: 'Convert to Path', shortcut: '', action: () => {
+          const sel = getSelection()
+          if (sel.length === 0 || !editor.doc) return
+          const cmds: Array<{ execute(): void; undo(): void; description: string }> = []
+          for (const el of sel) {
+            if (el.tagName === 'path') continue
+            const d = elementToPathD(el)
+            if (!d) continue
+            const parent = el.parentElement
+            if (!parent) continue
+            const styleAttrs = extractStyleAttrs(el)
+            cmds.push(new RemoveElementCommand(editor.doc, el))
+            cmds.push(new AddElementCommand(editor.doc, parent, 'path', { ...styleAttrs, d }))
+          }
+          if (cmds.length > 0) {
+            editor.history.execute(new CompoundCommand(cmds, 'Convert to Path'))
+            clearSelection()
+          }
+        }},
+        { label: 'Join Paths', shortcut: '', action: () => {
+          const sel = getSelection()
+          if (sel.length !== 2 || !editor.doc) return
+          if (sel[0].tagName !== 'path' || sel[1].tagName !== 'path') return
+          const d1 = sel[0].getAttribute('d') || ''
+          const d2 = sel[1].getAttribute('d') || ''
+          const joinedD = joinPaths(d1, d2)
+          const parent = sel[0].parentElement
+          if (!parent) return
+          const styleAttrs = extractStyleAttrs(sel[0])
+          const cmds = [
+            new RemoveElementCommand(editor.doc, sel[0]),
+            new RemoveElementCommand(editor.doc, sel[1]),
+            new AddElementCommand(editor.doc, parent, 'path', { ...styleAttrs, d: joinedD }),
+          ]
+          editor.history.execute(new CompoundCommand(cmds, 'Join Paths'))
+          clearSelection()
+        }},
       ],
     },
   ]
@@ -145,6 +227,7 @@ function AppContent() {
           dimensions={dimensions}
           onStateChange={handleCanvasState}
           onSvgReady={handleSvgReady}
+          onContextMenu={handleContextMenu}
         />
         <div className="flex flex-col border-l border-chrome-300">
           {propsCollapsed ? (
@@ -199,6 +282,14 @@ function AppContent() {
           dimensions={dimensions}
           onApply={setDimensions}
           onClose={() => setShowArtboard(false)}
+        />
+      )}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={contextMenu.items}
+          onClose={() => setContextMenu(null)}
         />
       )}
     </div>

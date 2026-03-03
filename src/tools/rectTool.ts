@@ -35,17 +35,32 @@ export function createRectTool(
     }
   }
 
-  function computeRect(sx: number, sy: number, ex: number, ey: number, shift: boolean) {
-    let x = Math.min(sx, ex)
-    let y = Math.min(sy, ey)
-    let w = Math.abs(ex - sx)
-    let h = Math.abs(ey - sy)
-    if (shift) {
-      const side = Math.min(w, h)
-      w = side
-      h = side
-      x = ex < sx ? sx - side : sx
-      y = ey < sy ? sy - side : sy
+  function computeRect(sx: number, sy: number, ex: number, ey: number, shift: boolean, alt: boolean) {
+    let x: number, y: number, w: number, h: number
+    if (alt) {
+      // Alt: center-draw mode — start point is center
+      w = Math.abs(ex - sx) * 2
+      h = Math.abs(ey - sy) * 2
+      if (shift) {
+        const side = Math.min(w, h)
+        w = side
+        h = side
+      }
+      x = sx - w / 2
+      y = sy - h / 2
+    } else {
+      // Default: corner-to-corner mode
+      x = Math.min(sx, ex)
+      y = Math.min(sy, ey)
+      w = Math.abs(ex - sx)
+      h = Math.abs(ey - sy)
+      if (shift) {
+        const side = Math.min(w, h)
+        w = side
+        h = side
+        x = ex < sx ? sx - side : sx
+        y = ey < sy ? sy - side : sy
+      }
     }
     return { x, y, w, h }
   }
@@ -87,7 +102,7 @@ export function createRectTool(
         if (!svg) return
         const raw = screenToDoc(svg, e.clientX, e.clientY)
         const pt = snapToGrid(raw.x, raw.y)
-        const { x, y, w, h } = computeRect(state.startX, state.startY, pt.x, pt.y, e.shiftKey)
+        const { x, y, w, h } = computeRect(state.startX, state.startY, pt.x, pt.y, e.shiftKey, e.altKey)
         state.preview.setAttribute('x', String(x))
         state.preview.setAttribute('y', String(y))
         state.preview.setAttribute('width', String(w))
@@ -100,7 +115,7 @@ export function createRectTool(
         if (!svg) return
         const raw = screenToDoc(svg, e.clientX, e.clientY)
         const pt = snapToGrid(raw.x, raw.y)
-        const { x, y, w, h } = computeRect(state.startX, state.startY, pt.x, pt.y, e.shiftKey)
+        const { x, y, w, h } = computeRect(state.startX, state.startY, pt.x, pt.y, e.shiftKey, e.altKey)
 
         state.drawing = false
         removePreview()

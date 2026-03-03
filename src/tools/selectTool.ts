@@ -52,6 +52,41 @@ function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element 
   return null
 }
 
+function hitTestAll(svg: SVGSVGElement, screenX: number, screenY: number): Element[] {
+  const pt = screenToDoc(svg, screenX, screenY)
+  const vb = svg.viewBox.baseVal
+  const tolerance = vb.width > 0 && svg.clientWidth > 0
+    ? HIT_TOLERANCE_PX * (vb.width / svg.clientWidth)
+    : 2
+  const hits: Element[] = []
+  const layers = svg.querySelectorAll('g[data-layer-name]')
+  for (let li = layers.length - 1; li >= 0; li--) {
+    const layer = layers[li]
+    if (layer.getAttribute('data-locked') === 'true') continue
+    if ((layer as SVGElement).style.display === 'none') continue
+    const children = layer.children
+    for (let ci = children.length - 1; ci >= 0; ci--) {
+      const child = children[ci]
+      try {
+        const bbox = (child as SVGGraphicsElement).getBBox()
+        const transform = child.getAttribute('transform')
+        const aabb = transformedAABB(bbox, transform)
+        const padX = aabb.width < tolerance * 2 ? tolerance : 0
+        const padY = aabb.height < tolerance * 2 ? tolerance : 0
+        if (
+          pt.x >= aabb.x - padX &&
+          pt.x <= aabb.x + aabb.width + padX &&
+          pt.y >= aabb.y - padY &&
+          pt.y <= aabb.y + aabb.height + padY
+        ) {
+          hits.push(child)
+        }
+      } catch { /* skip */ }
+    }
+  }
+  return hits
+}
+
 type DragMode = 'none' | 'move' | 'scale' | 'rotate' | 'marquee'
 
 interface ScaleState {
@@ -429,6 +464,20 @@ export function createSelectTool(
 
         const hit = hitTest(svg, e.clientX, e.clientY)
         const pt = screenToDoc(svg, e.clientX, e.clientY)
+
+        // Alt+click: cycle through stacked elements
+        if (e.altKey && hit && !e.shiftKey) {
+          const allHits = hitTestAll(svg, e.clientX, e.clientY)
+          if (allHits.length > 1) {
+            const sel = getSelection()
+            const currentEl = sel.length === 1 ? sel[0] : null
+            const currentIdx = currentEl ? allHits.indexOf(currentEl) : -1
+            const nextIdx = (currentIdx + 1) % allHits.length
+            setSelection([allHits[nextIdx]])
+            refreshOverlay()
+          }
+          return
+        }
 
         if (e.shiftKey && hit) {
           toggleSelection(hit)

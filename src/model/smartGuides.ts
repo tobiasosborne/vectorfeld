@@ -200,3 +200,88 @@ export function clearGuides(): void {
   if (!guideGroup) return
   while (guideGroup.firstChild) guideGroup.removeChild(guideGroup.firstChild)
 }
+
+// ---------------------------------------------------------------------------
+// Point-based snapping (for line endpoint snapping, etc.)
+// ---------------------------------------------------------------------------
+
+export interface PointCandidate {
+  x: number
+  y: number
+}
+
+/** Collect snap point candidates (endpoints of lines and paths, corners/centers of all elements) */
+export function collectPointCandidates(svg: SVGSVGElement, exclude: Set<Element>): PointCandidate[] {
+  const points: PointCandidate[] = []
+  const layers = svg.querySelectorAll('g[data-layer-name]')
+  for (const layer of layers) {
+    if (layer.getAttribute('data-locked') === 'true') continue
+    if ((layer as SVGElement).style.display === 'none') continue
+    for (const child of layer.children) {
+      if (exclude.has(child)) continue
+      const tag = child.tagName
+      if (tag === 'line') {
+        points.push({
+          x: parseFloat(child.getAttribute('x1') || '0'),
+          y: parseFloat(child.getAttribute('y1') || '0'),
+        })
+        points.push({
+          x: parseFloat(child.getAttribute('x2') || '0'),
+          y: parseFloat(child.getAttribute('y2') || '0'),
+        })
+      } else if (tag === 'path') {
+        const d = child.getAttribute('d') || ''
+        points.push(...getPathEndpoints(d))
+      }
+      // Also add AABB corners and center for all elements
+      try {
+        const bbox = (child as SVGGraphicsElement).getBBox()
+        points.push({ x: bbox.x, y: bbox.y })
+        points.push({ x: bbox.x + bbox.width, y: bbox.y })
+        points.push({ x: bbox.x + bbox.width, y: bbox.y + bbox.height })
+        points.push({ x: bbox.x, y: bbox.y + bbox.height })
+        points.push({ x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 })
+      } catch { /* skip */ }
+    }
+  }
+  return points
+}
+
+/** Find the nearest point candidate within tolerance (Euclidean distance) */
+export function snapToNearestPoint(
+  x: number, y: number,
+  candidates: PointCandidate[],
+  tolerance: number
+): { x: number; y: number; snapped: boolean } {
+  let bestDist = tolerance + 1
+  let bestX = x, bestY = y
+  for (const c of candidates) {
+    const dist = Math.sqrt((x - c.x) ** 2 + (y - c.y) ** 2)
+    if (dist < tolerance && dist < bestDist) {
+      bestDist = dist
+      bestX = c.x
+      bestY = c.y
+    }
+  }
+  return { x: bestX, y: bestY, snapped: bestDist <= tolerance }
+}
+
+function getPathEndpoints(d: string): PointCandidate[] {
+  const points: PointCandidate[] = []
+  // Get first M point
+  const mMatch = d.match(/M\s*([-\d.]+)[\s,]+([-\d.]+)/)
+  if (mMatch) {
+    points.push({ x: parseFloat(mMatch[1]), y: parseFloat(mMatch[2]) })
+  }
+  // Get last coordinate pair (last point in the path)
+  const coordPairs = [...d.matchAll(/([-\d.]+)[\s,]+([-\d.]+)/g)]
+  if (coordPairs.length > 0) {
+    const last = coordPairs[coordPairs.length - 1]
+    const lx = parseFloat(last[1]), ly = parseFloat(last[2])
+    // Avoid duplicating the first point
+    if (points.length === 0 || points[0].x !== lx || points[0].y !== ly) {
+      points.push({ x: lx, y: ly })
+    }
+  }
+  return points
+}

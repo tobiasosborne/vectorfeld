@@ -11,9 +11,43 @@ import { setActiveTool } from './registry'
 
 interface EllipseToolState {
   drawing: boolean
-  centerX: number
-  centerY: number
+  startX: number
+  startY: number
   preview: SVGEllipseElement | null
+}
+
+function computeEllipse(
+  sx: number, sy: number, ex: number, ey: number, shift: boolean, ctrl: boolean
+): { cx: number; cy: number; rx: number; ry: number } {
+  let cx: number, cy: number, rx: number, ry: number
+  if (ctrl) {
+    // Ctrl: corner-draw mode — start point is corner like rect
+    const x = Math.min(sx, ex)
+    const y = Math.min(sy, ey)
+    const w = Math.abs(ex - sx)
+    const h = Math.abs(ey - sy)
+    rx = w / 2
+    ry = h / 2
+    if (shift) {
+      const r = Math.min(rx, ry)
+      rx = r
+      ry = r
+    }
+    cx = x + rx
+    cy = y + ry
+  } else {
+    // Default: center-draw mode
+    cx = sx
+    cy = sy
+    rx = Math.abs(ex - sx)
+    ry = Math.abs(ey - sy)
+    if (shift) {
+      const r = Math.max(rx, ry)
+      rx = r
+      ry = r
+    }
+  }
+  return { cx, cy, rx, ry }
 }
 
 export function createEllipseTool(
@@ -23,8 +57,8 @@ export function createEllipseTool(
 ): ToolConfig {
   const state: EllipseToolState = {
     drawing: false,
-    centerX: 0,
-    centerY: 0,
+    startX: 0,
+    startY: 0,
     preview: null,
   }
 
@@ -49,8 +83,8 @@ export function createEllipseTool(
         const pt = snapToGrid(raw.x, raw.y)
 
         state.drawing = true
-        state.centerX = pt.x
-        state.centerY = pt.y
+        state.startX = pt.x
+        state.startY = pt.y
 
         const defaults = getDefaultStyle()
         const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse')
@@ -72,13 +106,9 @@ export function createEllipseTool(
         if (!svg) return
         const raw = screenToDoc(svg, e.clientX, e.clientY)
         const pt = snapToGrid(raw.x, raw.y)
-        let rx = Math.abs(pt.x - state.centerX)
-        let ry = Math.abs(pt.y - state.centerY)
-        if (e.shiftKey) {
-          const r = Math.max(rx, ry)
-          rx = r
-          ry = r
-        }
+        const { cx, cy, rx, ry } = computeEllipse(state.startX, state.startY, pt.x, pt.y, e.shiftKey, e.ctrlKey)
+        state.preview.setAttribute('cx', String(cx))
+        state.preview.setAttribute('cy', String(cy))
         state.preview.setAttribute('rx', String(rx))
         state.preview.setAttribute('ry', String(ry))
       },
@@ -89,13 +119,7 @@ export function createEllipseTool(
         if (!svg) return
         const raw = screenToDoc(svg, e.clientX, e.clientY)
         const pt = snapToGrid(raw.x, raw.y)
-        let rx = Math.abs(pt.x - state.centerX)
-        let ry = Math.abs(pt.y - state.centerY)
-        if (e.shiftKey) {
-          const r = Math.max(rx, ry)
-          rx = r
-          ry = r
-        }
+        const { cx, cy, rx, ry } = computeEllipse(state.startX, state.startY, pt.x, pt.y, e.shiftKey, e.ctrlKey)
 
         state.drawing = false
         removePreview()
@@ -110,8 +134,8 @@ export function createEllipseTool(
         const history = getHistory()
         const defaults = getDefaultStyle()
         const cmd = new AddElementCommand(doc, layer, 'ellipse', {
-          cx: String(state.centerX),
-          cy: String(state.centerY),
+          cx: String(cx),
+          cy: String(cy),
           rx: String(rx),
           ry: String(ry),
           stroke: defaults.stroke,

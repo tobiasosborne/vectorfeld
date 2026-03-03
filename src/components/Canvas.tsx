@@ -25,9 +25,10 @@ interface CanvasProps {
   dimensions?: DocumentDimensions
   onStateChange?: (state: CanvasState) => void
   onSvgReady?: (svg: SVGSVGElement) => void
+  onContextMenu?: (e: MouseEvent) => void
 }
 
-export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgReady }: CanvasProps) {
+export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgReady, onContextMenu }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
   const gridGroupRef = useRef<SVGGElement | null>(null)
@@ -283,13 +284,19 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
         }
       }
     }
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault()
+      onContextMenu?.(e)
+    }
     container.addEventListener('mousedown', handleDown)
     window.addEventListener('mouseup', handleUp)
+    container.addEventListener('contextmenu', handleContextMenu)
     return () => {
       container.removeEventListener('mousedown', handleDown)
       window.removeEventListener('mouseup', handleUp)
+      container.removeEventListener('contextmenu', handleContextMenu)
     }
-  }, [])
+  }, [onContextMenu])
 
   // Pan: space+drag + tool keydown dispatch
   useEffect(() => {
