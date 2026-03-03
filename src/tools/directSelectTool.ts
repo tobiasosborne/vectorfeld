@@ -222,7 +222,7 @@ interface DirectSelectState {
 
 export function createDirectSelectTool(
   getSvg: () => SVGSVGElement | null,
-  _getDoc: () => DocumentModel | null,
+  getDoc: () => DocumentModel | null,
   getHistory: () => CommandHistory
 ): ToolConfig {
   const state: DirectSelectState = {
