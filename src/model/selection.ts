@@ -133,6 +133,9 @@ function handleCenters(
   ]
 }
 
+// Note: overlay debouncing deferred — synchronous for now.
+// If perf profiling shows updateOverlay as a bottleneck, add RAF coalescing here.
+
 function updateOverlay(): void {
   if (!overlayGroup) return
   // Clear old overlay
@@ -257,5 +260,10 @@ function updateOverlay(): void {
 }
 
 export function refreshOverlay(): void {
+  updateOverlay()
+}
+
+/** Alias for refreshOverlay — kept for API compatibility */
+export function refreshOverlaySync(): void {
   updateOverlay()
 }

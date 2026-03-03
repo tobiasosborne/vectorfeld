@@ -1,7 +1,7 @@
 import { registerTool } from './registry'
 import type { ToolConfig } from './registry'
 import { screenToDoc } from '../model/coordinates'
-import { setSelection, clearSelection, toggleSelection, getSelection, refreshOverlay } from '../model/selection'
+import { setSelection, clearSelection, toggleSelection, getSelection, refreshOverlay, refreshOverlaySync } from '../model/selection'
 import type { HandlePosition } from '../model/selection'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'

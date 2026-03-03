@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState } from 'react'
 import { zoomAtPoint } from '../model/zoom'
 import { screenToDoc, getZoomPercent } from '../model/coordinates'
 import { getActiveTool, isKeyboardCaptured, subscribe as subscribeTool } from '../tools/registry'
-import { setOverlayGroup, refreshOverlay } from '../model/selection'
+import { setOverlayGroup, refreshOverlay, refreshOverlaySync } from '../model/selection'
 import { renderGrid, subscribeGrid } from '../model/grid'
 import { setGuideGroup } from '../model/smartGuides'
 import { isWireframe, subscribeWireframe, WIREFRAME_STYLE } from '../model/wireframe'
@@ -213,7 +213,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
       e.preventDefault()
       if (!svgRef.current) return
       zoomAtPoint(svgRef.current, e.clientX, e.clientY, e.deltaY)
-      refreshOverlay() // Recalculate handle sizes after zoom
+      refreshOverlaySync() // Recalculate handle sizes after zoom (synchronous for visual consistency)
       updateGrid()
       emitState()
     }

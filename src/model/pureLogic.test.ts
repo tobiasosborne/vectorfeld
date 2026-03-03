@@ -322,9 +322,12 @@ describe('geometry — transformedAABB', () => {
     expect(result).toEqual(bbox)
   })
 
-  it('returns bbox unchanged for non-rotate transforms', () => {
+  it('correctly handles translate transform', () => {
     const result = transformedAABB(bbox, 'translate(10, 20)')
-    expect(result).toEqual(bbox)
+    expect(result.x).toBe(bbox.x + 10)
+    expect(result.y).toBe(bbox.y + 20)
+    expect(result.width).toBe(bbox.width)
+    expect(result.height).toBe(bbox.height)
   })
 
   it('correctly computes AABB for 90-degree rotation around origin', () => {

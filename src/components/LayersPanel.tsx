@@ -3,6 +3,7 @@ import { useEditor } from '../model/EditorContext'
 import { generateId } from '../model/document'
 import { AddElementCommand, RemoveElementCommand, ReorderElementCommand } from '../model/commands'
 import { setActiveLayerElement } from '../model/activeLayer'
+import { subscribeSelection } from '../model/selection'
 
 interface LayerInfo {
   element: Element
@@ -31,9 +32,10 @@ export function LayersPanel() {
 
   useEffect(() => {
     refreshLayers()
-    const interval = setInterval(refreshLayers, 500)
-    return () => clearInterval(interval)
-  }, [refreshLayers])
+    const unsubHistory = editor.history.subscribe(refreshLayers)
+    const unsubSelection = subscribeSelection(refreshLayers)
+    return () => { unsubHistory(); unsubSelection() }
+  }, [refreshLayers, editor.history])
 
   // Sync active layer element to the model whenever activeLayerIdx or layers change
   useEffect(() => {

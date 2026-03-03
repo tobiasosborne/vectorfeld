@@ -3,6 +3,8 @@
  * bounding box computation and hit testing.
  */
 
+import { parseTransform, applyMatrixToPoint } from './matrix'
+
 export interface BBox {
   x: number
   y: number
@@ -10,32 +12,24 @@ export interface BBox {
   height: number
 }
 
-/** Transform a local-space bbox through a rotation to get the axis-aligned bounding box */
+/** Transform a local-space bbox through any SVG transform to get the axis-aligned bounding box */
 export function transformedAABB(bbox: BBox, transform: string | null): BBox {
   if (!transform) return bbox
-  const match = transform.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
-  if (!match) return bbox
-  const angle = (parseFloat(match[1]) * Math.PI) / 180
-  const cx = match[2] ? parseFloat(match[2]) : 0
-  const cy = match[3] ? parseFloat(match[3]) : 0
-  const cos = Math.cos(angle)
-  const sin = Math.sin(angle)
+  const m = parseTransform(transform)
+  // Identity check (no-op transform)
+  if (m[0] === 1 && m[1] === 0 && m[2] === 0 && m[3] === 1 && m[4] === 0 && m[5] === 0) return bbox
   const corners = [
-    { x: bbox.x, y: bbox.y },
-    { x: bbox.x + bbox.width, y: bbox.y },
-    { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
-    { x: bbox.x, y: bbox.y + bbox.height },
+    applyMatrixToPoint(m, bbox.x, bbox.y),
+    applyMatrixToPoint(m, bbox.x + bbox.width, bbox.y),
+    applyMatrixToPoint(m, bbox.x + bbox.width, bbox.y + bbox.height),
+    applyMatrixToPoint(m, bbox.x, bbox.y + bbox.height),
   ]
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
   for (const pt of corners) {
-    const rx = pt.x - cx
-    const ry = pt.y - cy
-    const tx = cx + rx * cos - ry * sin
-    const ty = cy + rx * sin + ry * cos
-    minX = Math.min(minX, tx)
-    minY = Math.min(minY, ty)
-    maxX = Math.max(maxX, tx)
-    maxY = Math.max(maxY, ty)
+    minX = Math.min(minX, pt.x)
+    minY = Math.min(minY, pt.y)
+    maxX = Math.max(maxX, pt.x)
+    maxY = Math.max(maxY, pt.y)
   }
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 }
