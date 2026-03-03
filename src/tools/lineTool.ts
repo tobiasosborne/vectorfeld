@@ -6,6 +6,8 @@ import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import { getDefaultStyle } from '../model/defaultStyle'
 import { snapToGrid } from '../model/grid'
+import { setSelection } from '../model/selection'
+import { setActiveTool } from './registry'
 
 /** When shift is held, constrain line angle to nearest 45-degree increment */
 function snapLineAngle(
@@ -121,7 +123,8 @@ export function createLineTool(
           'stroke-width': defaults.strokeWidth,
         })
         history.execute(cmd)
-
+        const el = cmd.getElement()
+        if (el) { setSelection([el]); setActiveTool('select') }
       },
     },
   }

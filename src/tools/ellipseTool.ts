@@ -6,6 +6,8 @@ import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import { getDefaultStyle } from '../model/defaultStyle'
 import { snapToGrid } from '../model/grid'
+import { setSelection } from '../model/selection'
+import { setActiveTool } from './registry'
 
 interface EllipseToolState {
   drawing: boolean
@@ -117,6 +119,8 @@ export function createEllipseTool(
           fill: defaults.fill,
         })
         history.execute(cmd)
+        const el = cmd.getElement()
+        if (el) { setSelection([el]); setActiveTool('select') }
       },
     },
   }

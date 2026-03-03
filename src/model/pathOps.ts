@@ -198,3 +198,21 @@ export function splitPathAt(commands: PathCommand[], segIndex: number): [string,
   // Fallback: return the whole path as-is
   return [commandsToD(commands), '']
 }
+
+/** Scale all points in a path `d` string relative to an anchor point */
+export function scalePathD(
+  d: string,
+  sx: number,
+  sy: number,
+  anchorX: number,
+  anchorY: number,
+): string {
+  const commands = parsePathD(d)
+  for (const cmd of commands) {
+    for (const pt of cmd.points) {
+      pt.x = anchorX + (pt.x - anchorX) * sx
+      pt.y = anchorY + (pt.y - anchorY) * sy
+    }
+  }
+  return commandsToD(commands)
+}
