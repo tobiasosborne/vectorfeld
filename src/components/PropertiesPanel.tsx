@@ -412,6 +412,22 @@ export function PropertiesPanel() {
               </div>
             )}
 
+            {tag === 'text' && el.querySelector('textPath') && (
+              <div>
+                <div className="text-xs font-medium text-chrome-600 mb-1">Text Path</div>
+                <div className="space-y-1">
+                  <PropertyInput
+                    label="Ofs"
+                    value={el.querySelector('textPath')?.getAttribute('startOffset') || '0%'}
+                    onChange={(v) => {
+                      const tp = el.querySelector('textPath')
+                      if (tp) tp.setAttribute('startOffset', v)
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             <div>
               <div className="text-xs font-medium text-chrome-600 mb-1">Style</div>
               <div className="space-y-2">

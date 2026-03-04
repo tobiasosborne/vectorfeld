@@ -23,6 +23,7 @@ import { elementToPathD, extractStyleAttrs } from './model/shapeToPath'
 import { joinPaths } from './model/pathOps'
 import { makeCompoundD, releaseCompoundD } from './model/compoundPath'
 import { pathBoolean } from './model/pathBooleans'
+import { placeTextOnPath, releaseTextFromPath, hasTextPath } from './model/textPath'
 import { HRuler, VRuler } from './components/Ruler'
 import { ContextMenu } from './components/ContextMenu'
 import type { ContextMenuItem } from './components/ContextMenu'
@@ -297,6 +298,23 @@ function AppContent() {
             })
           },
         })),
+        { separator: true, label: '' },
+        { label: 'Place Text on Path', shortcut: '', action: () => {
+          const sel = getSelection()
+          if (sel.length !== 2 || !editor.doc) return
+          const textEl = sel.find(e => e.tagName === 'text')
+          const pathEl = sel.find(e => e.tagName === 'path')
+          if (!textEl || !pathEl) return
+          placeTextOnPath(editor.doc, editor.history, textEl, pathEl)
+          clearSelection()
+        }},
+        { label: 'Release Text from Path', shortcut: '', action: () => {
+          const sel = getSelection()
+          if (sel.length !== 1 || !editor.doc) return
+          if (!hasTextPath(sel[0])) return
+          releaseTextFromPath(editor.doc, editor.history, sel[0])
+          clearSelection()
+        }},
       ],
     },
   ]
