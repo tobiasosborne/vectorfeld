@@ -181,11 +181,11 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 ## Project Handoff Context
 
-**Current state (updated 2026-03-04 session 2):**
+**Current state (updated 2026-03-04 session 3):**
 
 ### Summary
 
-MVP complete (22/22). Phase 2 at ~91% (39/43 features). This session: 10 issues closed (4 features + 1 tool + 1 transform + 4 test suites). 373 tests passing across 32 test files. Zero type errors. 8 issues remaining (Sprint K-M).
+MVP complete (22/22). Phase 2 at **98%** (42/43 features). This session: 15 of 17 beads issues closed. **425 tests** passing across **38 test files**. Zero type errors. Only 2 issues remain: MuPDF WASM PDF import (P1) and multiple artboards (P4).
 
 ### What was built this session (2026-03-04 session 2)
 
@@ -400,11 +400,11 @@ MVP complete (22/22). Phase 2 at ~91% (39/43 features). This session: 10 issues 
 ### Numbers
 
 - **Phase 1 (MVP):** 22/22 features (100%)
-- **Phase 2:** 39/43 features (~91%)
-- **Test count:** 373 (32 test files)
+- **Phase 2:** 42/43 features (~98%)
+- **Test count:** 425 (38 test files)
 - **Type errors:** 0
-- **LOC:** ~21,500 across ~70 source files
-- **Beads issues:** 8 open (Sprints K-M), 0 blocked
+- **LOC:** ~23,000 across ~80 source files
+- **Beads issues:** 2 open (MuPDF PDF import + multiple artboards), 0 blocked
 
 ### Known limitations / future work
 
@@ -421,11 +421,10 @@ MVP complete (22/22). Phase 2 at ~91% (39/43 features). This session: 10 issues 
 | Sprint | Features | Key Items |
 |--------|----------|-----------|
 | ~~**I**~~ | ~~3~~ | ~~Path booleans, compound paths, rulers~~ **DONE** |
-| ~~**J**~~ | ~~4 (tests)~~ | ~~smartGuides, shapeToPath, fileio, matrix tests~~ **DONE** |
-| **K** | 1 | PDF import (MuPDF WASM) — text-on-path done, offset path remaining |
-| **L** | 1 | Free transform tool — knife/skew done |
-| **M** | 3 | Lasso, opacity masks, multiple artboards |
-| Tests | 2 | selectTool.ts tests, PropertiesPanel.tsx tests |
+| ~~**J**~~ | ~~4 (tests)~~ | ~~smartGuides, shapeToPath, fileio, matrix, selectTool, PropertiesPanel~~ **DONE** |
+| ~~**K**~~ | ~~3~~ | ~~Text-on-path, offset path~~ **DONE** (PDF import remaining) |
+| ~~**L**~~ | ~~3~~ | ~~Knife, skew, free transform~~ **DONE** |
+| ~~**M**~~ | ~~2/3~~ | ~~Lasso, opacity masks~~ **DONE** (multiple artboards remaining) |
 
 Full plan: `.claude/plans/misty-hugging-valiant.md`
 
@@ -436,12 +435,16 @@ Full plan: `.claude/plans/misty-hugging-valiant.md`
 | `src/model/pathBooleans.ts` | Paper.js path boolean ops (lazy-loaded) |
 | `src/model/compoundPath.ts` | Compound path make/release |
 | `src/model/textPath.ts` | Text-on-path via SVG textPath |
+| `src/model/offsetPath.ts` | Path offset: sample → normals → fit cubics |
+| `src/model/opacityMask.ts` | SVG opacity masks (make/release) |
 | `src/model/pathOps.ts` | Added intersectLineWithPath, splitPathAtT |
 | `src/model/matrix.ts` | Added decomposeMatrix, parseSkew, setSkew |
 | `src/model/fileio.ts` | Refactored: extracted parseSvgString/exportSvgString |
 | `src/tools/knifeTool.ts` | Knife tool (K) — cut line splits paths |
+| `src/tools/lassoTool.ts` | Lasso selection (J) — freeform polygon PiP |
+| `src/tools/freeTransformTool.ts` | Free transform (Q) — scale/rotate/skew in one |
 | `src/components/Ruler.tsx` | Canvas-based rulers with adaptive ticks |
-| `src/components/icons.tsx` | Added knife icon (14 total) |
+| `src/components/icons.tsx` | Added knife, lasso, free-transform icons (16 total) |
 | `src/components/PropertiesPanel.tsx` | Added SkewX/SkewY + textPath startOffset |
 
 ### Dev environment
