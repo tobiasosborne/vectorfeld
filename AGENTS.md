@@ -181,13 +181,36 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 ## Project Handoff Context
 
-**Current state (updated 2026-03-04):**
+**Current state (updated 2026-03-04 session 2):**
 
 ### Summary
 
-MVP complete (22/22). Phase 2 at ~72% (31/43 features). This session: 20 new features + 7 bug fixes + 4 architecture improvements + chaos monkey testing. 298 tests passing across 25 test files. Zero type errors. Comprehensive roadmap filed as 17 beads issues for Sprints I-M.
+MVP complete (22/22). Phase 2 at ~91% (39/43 features). This session: 10 issues closed (4 features + 1 tool + 1 transform + 4 test suites). 373 tests passing across 32 test files. Zero type errors. 8 issues remaining (Sprint K-M).
 
-### What was built this session (2026-03-03 → 2026-03-04)
+### What was built this session (2026-03-04 session 2)
+
+**Sprint I — Path Booleans & Compound Paths (4 issues):**
+- Paper.js path booleans wrapper with lazy loading (`pathBooleans.ts`)
+- Unite/Subtract/Intersect/Exclude/Divide in Object menu
+- Compound path make/release (`compoundPath.ts`) with Object menu items
+- Canvas-based rulers with adaptive ticks, cursor tracking (`Ruler.tsx`)
+
+**Sprint L — Knife Tool & Shear/Skew (2 issues):**
+- Knife tool (K): draw cut line to split paths at intersections (`knifeTool.ts`)
+- Line-path intersection math: line-line (closed form) + line-cubic (recursive subdivision)
+- Shear/skew transform: SkewX/SkewY in PropertiesPanel, parseSkew/setSkew in matrix.ts
+
+**Sprint K — Text on Path (1 issue):**
+- Text-on-path via SVG `<textPath>` (`textPath.ts`)
+- Place/Release Text on Path in Object menu
+- startOffset property in PropertiesPanel
+
+**Sprint J — Test Coverage (3 issues):**
+- smartGuides.test.ts (10 tests) + shapeToPath.test.ts (8 tests)
+- fileio.test.ts (14 tests) + refactored fileio.ts (extracted parseSvgString/exportSvgString)
+- matrix.test.ts additions (11 new tests for decompose/skew)
+
+### What was built previous session (2026-03-03 → 2026-03-04 session 1)
 
 **Sprint A — Critical Bug Fixes (5):**
 - Eraser selection artifact: `removeFromSelection()` on erase (`eraserTool.ts`)
@@ -377,11 +400,11 @@ MVP complete (22/22). Phase 2 at ~72% (31/43 features). This session: 20 new fea
 ### Numbers
 
 - **Phase 1 (MVP):** 22/22 features (100%)
-- **Phase 2:** 31/43 features (~72%)
-- **Test count:** 298 (25 test files)
+- **Phase 2:** 39/43 features (~91%)
+- **Test count:** 373 (32 test files)
 - **Type errors:** 0
-- **LOC:** ~19,500 across ~65 source files
-- **Beads issues:** 17 open (Sprints I-M), 0 blocked (2 have deps)
+- **LOC:** ~21,500 across ~70 source files
+- **Beads issues:** 8 open (Sprints K-M), 0 blocked
 
 ### Known limitations / future work
 
@@ -397,11 +420,12 @@ MVP complete (22/22). Phase 2 at ~72% (31/43 features). This session: 20 new fea
 
 | Sprint | Features | Key Items |
 |--------|----------|-----------|
-| **I** | 3 | Path booleans (Paper.js), compound paths, rulers |
-| **J** | 0 (tests) | selectTool, PropertiesPanel, fileio, smartGuides tests |
-| **K** | 3 | PDF import (MuPDF WASM), text-on-path, offset path |
-| **L** | 3 | Shear/skew, free transform tool, knife tool |
+| ~~**I**~~ | ~~3~~ | ~~Path booleans, compound paths, rulers~~ **DONE** |
+| ~~**J**~~ | ~~4 (tests)~~ | ~~smartGuides, shapeToPath, fileio, matrix tests~~ **DONE** |
+| **K** | 1 | PDF import (MuPDF WASM) — text-on-path done, offset path remaining |
+| **L** | 1 | Free transform tool — knife/skew done |
 | **M** | 3 | Lasso, opacity masks, multiple artboards |
+| Tests | 2 | selectTool.ts tests, PropertiesPanel.tsx tests |
 
 Full plan: `.claude/plans/misty-hugging-valiant.md`
 
@@ -409,19 +433,16 @@ Full plan: `.claude/plans/misty-hugging-valiant.md`
 
 | File | Purpose |
 |------|---------|
-| `src/model/matrix.ts` | Full SVG transform parser + affine math |
-| `src/model/clipboard.ts` | Extracted clipboard ops from EditorContext |
-| `src/model/nudge.ts` | Extracted nudge ops from EditorContext |
-| `src/model/zOrder.ts` | Extracted z-order ops from EditorContext |
-| `src/model/shapeToPath.ts` | Shape-to-path converters (rect/ellipse/circle/line) |
-| `src/model/pathOps.ts` | Added scalePathD, joinPaths, reversePathD |
-| `src/components/ControlBar.tsx` | Position/transform bar below menu |
-| `src/components/FillStrokeWidget.tsx` | Illustrator-style fill/stroke swap widget |
-| `src/components/ContextMenu.tsx` | Right-click context menu |
-| `src/tools/selectTool.ts` | hitTestAll, Alt+click cycling, local-space scale, endpoint snap |
-| `src/tools/directSelectTool.ts` | Auto-convert shapes to paths on click |
-| `src/tools/lineTool.ts` | Endpoint snapping with magenta indicator |
-| `src/components/icons.tsx` | Redesigned all 12 tool icons (20x20) |
+| `src/model/pathBooleans.ts` | Paper.js path boolean ops (lazy-loaded) |
+| `src/model/compoundPath.ts` | Compound path make/release |
+| `src/model/textPath.ts` | Text-on-path via SVG textPath |
+| `src/model/pathOps.ts` | Added intersectLineWithPath, splitPathAtT |
+| `src/model/matrix.ts` | Added decomposeMatrix, parseSkew, setSkew |
+| `src/model/fileio.ts` | Refactored: extracted parseSvgString/exportSvgString |
+| `src/tools/knifeTool.ts` | Knife tool (K) — cut line splits paths |
+| `src/components/Ruler.tsx` | Canvas-based rulers with adaptive ticks |
+| `src/components/icons.tsx` | Added knife icon (14 total) |
+| `src/components/PropertiesPanel.tsx` | Added SkewX/SkewY + textPath startOffset |
 
 ### Dev environment
 
