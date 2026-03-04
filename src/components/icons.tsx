@@ -91,6 +91,18 @@ export const MeasureIcon: ReactNode = (
   </svg>
 )
 
+// Free transform tool
+export const FreeTransformIcon: ReactNode = (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" style={S}>
+    <rect x="4" y="4" width="12" height="12" strokeDasharray="2 1.5" />
+    <rect x="3" y="3" width="2" height="2" fill="currentColor" stroke="none" />
+    <rect x="15" y="3" width="2" height="2" fill="currentColor" stroke="none" />
+    <rect x="3" y="15" width="2" height="2" fill="currentColor" stroke="none" />
+    <rect x="15" y="15" width="2" height="2" fill="currentColor" stroke="none" />
+    <path d="M12 2L14.5 4.5L12.5 4.5L12.5 7" strokeWidth="1" />
+  </svg>
+)
+
 // Lasso tool
 export const LassoIcon: ReactNode = (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={S}>
@@ -134,4 +146,5 @@ export const TOOL_ICONS: Record<string, ReactNode> = {
   scissors: ScissorsIcon,
   knife: KnifeIcon,
   lasso: LassoIcon,
+  'free-transform': FreeTransformIcon,
 }
