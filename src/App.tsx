@@ -26,6 +26,7 @@ import { makeCompoundD, releaseCompoundD } from './model/compoundPath'
 import { pathBoolean } from './model/pathBooleans'
 import { placeTextOnPath, releaseTextFromPath, hasTextPath } from './model/textPath'
 import { offsetPathD } from './model/offsetPath'
+import { importPdf } from './model/pdfImport'
 import { HRuler, VRuler } from './components/Ruler'
 import { ContextMenu } from './components/ContextMenu'
 import type { ContextMenuItem } from './components/ContextMenu'
@@ -140,6 +141,7 @@ function AppContent() {
       label: 'File',
       items: [
         { label: 'Open SVG...', shortcut: '', action: () => editor.doc && importSvg(editor.doc) },
+        { label: 'Open PDF...', shortcut: '', action: () => editor.doc && importPdf(editor.doc) },
         { label: 'Place Image...', shortcut: '', action: () => editor.doc && placeImage(editor.doc, editor.history) },
         { separator: true, label: '' },
         { label: 'Export SVG', shortcut: '', action: () => editor.doc && exportSvg(editor.doc) },
