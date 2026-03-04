@@ -181,13 +181,55 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 ## Project Handoff Context
 
-**Current state (updated 2026-03-02, Phase 2 continued):**
+**Current state (updated 2026-03-04):**
 
 ### Summary
 
-Phase 2 extended with 13 new features across 4 sprints (17-20). Total: 150/150 issues closed. 277 tests passing across 24 test files. Zero type errors.
+MVP complete (22/22). Phase 2 at ~72% (31/43 features). This session: 20 new features + 7 bug fixes + 4 architecture improvements + chaos monkey testing. 298 tests passing across 25 test files. Zero type errors. Comprehensive roadmap filed as 17 beads issues for Sprints I-M.
 
-### What was built this session (2026-03-02)
+### What was built this session (2026-03-03 → 2026-03-04)
+
+**Sprint A — Critical Bug Fixes (5):**
+- Eraser selection artifact: `removeFromSelection()` on erase (`eraserTool.ts`)
+- Stale dragState: unconditional cleanup in onMouseUp/onDeactivate (`selectTool.ts`)
+- Rotation center: uses local `getBBox()` center, not AABB (`selectTool.ts`)
+- Resize after rotation: local-space anchor + inverse-rotate mouse point (`selectTool.ts`)
+- Path scaling: new `scalePathD()` in pathOps.ts, path case in selectTool
+
+**Sprint B — UI Layout (4):**
+- Selection handles 8→10px (`selection.ts`)
+- Auto-select after drawing: all tools switch to select mode
+- Layers panel moved to bottom-right under Properties (`App.tsx`)
+- Fill/stroke widget at toolbar bottom (`FillStrokeWidget.tsx`)
+
+**Sprint C — UX Polish (4):**
+- Custom SVG rotation cursors on corner hover zones (`selection.ts`)
+- Redesigned all 12 tool icons, 20x20 viewBox (`icons.tsx`)
+- Eyedropper hidden from toolbar (shortcut I still works)
+- Position/transform control bar below menu (X, Y, W, H, R) (`ControlBar.tsx`)
+
+**Sprint D-G — New Features (7):**
+- Alt center-draw rect, Ctrl corner-draw ellipse (`rectTool.ts`, `ellipseTool.ts`)
+- More dash patterns: 8 presets + custom input + SVG preview (`PropertiesPanel.tsx`)
+- Line endpoint snapping with magenta indicator (`smartGuides.ts`, `lineTool.ts`)
+- Alt+click cycle through stacked selection (`selectTool.ts`)
+- Shape-to-path conversion: direct-select auto-converts, Object > Convert to Path (`shapeToPath.ts`, `directSelectTool.ts`)
+- Path joining: Object > Join Paths with auto-orient (`pathOps.ts`)
+- Right-click context menu: Delete, Bring to Front/Back, Flip H/V (`ContextMenu.tsx`)
+
+**Sprint H — Tech Debt (4):**
+- Full SVG transform model: `matrix.ts` handles translate/scale/rotate/skew/matrix (was rotate-only)
+- EditorContext refactored: 293→148 lines. Extracted `clipboard.ts`, `nudge.ts`, `zOrder.ts`
+- Layers panel: replaced 500ms polling with `history.subscribe` + `subscribeSelection`
+- Overlay debounce: documented approach, deferred (not a current bottleneck)
+
+**Infrastructure:**
+- Playwright-cli installed (`@playwright/cli` v1.59.0, chromium v1212)
+- Dolt installed (v1.83.1) for beads issue tracking
+- bd updated to v0.58.0
+- 20-phase chaos monkey: zero console errors, app survived all phases
+
+### What was built previously (2026-03-02)
 
 **Sprint 17 — Transform & View (4 features):**
 - Reflect/Mirror: Flip H/V via Object menu (`src/model/reflect.ts`)
@@ -332,21 +374,63 @@ Phase 2 extended with 13 new features across 4 sprints (17-20). Total: 150/150 i
 | `src/components/MenuBar.tsx` | Dropdown menu bar |
 | `src/components/icons.tsx` | SVG tool icons |
 
+### Numbers
+
+- **Phase 1 (MVP):** 22/22 features (100%)
+- **Phase 2:** 31/43 features (~72%)
+- **Test count:** 298 (25 test files)
+- **Type errors:** 0
+- **LOC:** ~19,500 across ~65 source files
+- **Beads issues:** 17 open (Sprints I-M), 0 blocked (2 have deps)
+
 ### Known limitations / future work
 
-- `transformedAABB` only handles `rotate()` transforms (not `translate`/`scale`/`matrix`). Works for editor-generated content but may fail for imported SVGs with complex transforms.
-- EditorContext.tsx is a 290-line god-file with all keyboard handlers. Should be extracted to keyboardCommands.ts.
-- LayersPanel still polls on 500ms interval instead of pub-sub.
-- Selection overlay rebuilds fully on every mousemove (could be incremental).
-- No collaborative editing support (global mutable singletons).
-- Text content not part of command data model (works via DOM node reuse but fragile).
+- ~~`transformedAABB` only handles `rotate()` transforms~~ **FIXED** — now uses full affine matrix via `matrix.ts`
+- ~~EditorContext.tsx is a god-file~~ **FIXED** — refactored to 148 lines, extracted clipboard/nudge/zOrder
+- ~~LayersPanel polls on 500ms interval~~ **FIXED** — now pub-sub via history.subscribe
+- Selection overlay rebuilds fully on every call (could add RAF debounce when profiling shows need)
+- No collaborative editing support (global mutable singletons)
+- Text content not part of command data model (works via DOM node reuse but fragile)
+- Tauri shell scaffolded but unused — app runs as pure web app
+
+### Remaining roadmap (filed as beads issues)
+
+| Sprint | Features | Key Items |
+|--------|----------|-----------|
+| **I** | 3 | Path booleans (Paper.js), compound paths, rulers |
+| **J** | 0 (tests) | selectTool, PropertiesPanel, fileio, smartGuides tests |
+| **K** | 3 | PDF import (MuPDF WASM), text-on-path, offset path |
+| **L** | 3 | Shear/skew, free transform tool, knife tool |
+| **M** | 3 | Lasso, opacity masks, multiple artboards |
+
+Full plan: `.claude/plans/misty-hugging-valiant.md`
+
+### Key files added/modified this session
+
+| File | Purpose |
+|------|---------|
+| `src/model/matrix.ts` | Full SVG transform parser + affine math |
+| `src/model/clipboard.ts` | Extracted clipboard ops from EditorContext |
+| `src/model/nudge.ts` | Extracted nudge ops from EditorContext |
+| `src/model/zOrder.ts` | Extracted z-order ops from EditorContext |
+| `src/model/shapeToPath.ts` | Shape-to-path converters (rect/ellipse/circle/line) |
+| `src/model/pathOps.ts` | Added scalePathD, joinPaths, reversePathD |
+| `src/components/ControlBar.tsx` | Position/transform bar below menu |
+| `src/components/FillStrokeWidget.tsx` | Illustrator-style fill/stroke swap widget |
+| `src/components/ContextMenu.tsx` | Right-click context menu |
+| `src/tools/selectTool.ts` | hitTestAll, Alt+click cycling, local-space scale, endpoint snap |
+| `src/tools/directSelectTool.ts` | Auto-convert shapes to paths on click |
+| `src/tools/lineTool.ts` | Endpoint snapping with magenta indicator |
+| `src/components/icons.tsx` | Redesigned all 12 tool icons (20x20) |
 
 ### Dev environment
 
 - **Dev server:** `npm run dev` → `http://localhost:5173`
 - **Build:** `npm run build` (TypeScript + Vite)
-- **Tests:** `npx vitest run` (277 tests)
+- **Tests:** `npx vitest run` (298 tests, 25 files)
 - **Type check:** `npx tsc --noEmit`
-- **Issue tracking:** `bd ready` / `bd stats` / `bd list`
-- **playwright-cli:** `.claude/skills/playwright-cli` for e2e verification
+- **Issue tracking:** `/home/tobias/.local/bin/bd ready` / `bd status` / `bd list` (Dolt server on port 3307)
+- **Playwright-cli:** `playwright-cli open http://localhost:5173` for e2e verification
+- **Chaos monkey:** `bash /tmp/chaos-monkey.sh` (20-phase stress test)
 - **API Reference:** `docs/API.md` — read before writing code
+- **Roadmap:** `.claude/plans/misty-hugging-valiant.md`
