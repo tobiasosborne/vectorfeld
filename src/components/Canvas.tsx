@@ -7,6 +7,7 @@ import { renderGrid, subscribeGrid } from '../model/grid'
 import { setGuideGroup } from '../model/smartGuides'
 import { isWireframe, subscribeWireframe, WIREFRAME_STYLE } from '../model/wireframe'
 import { getGuides, subscribeGuides } from '../model/guides'
+import { getArtboards, addArtboard, subscribeArtboards, computeDocumentBounds } from '../model/artboard'
 
 export interface DocumentDimensions {
   width: number  // mm
@@ -61,19 +62,39 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     svg.setAttribute('viewBox', `0 0 ${dims.width} ${dims.height}`)
     svg.style.display = 'block'
 
-    // Artboard background
-    const artboard = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
-    artboard.setAttribute('x', '0')
-    artboard.setAttribute('y', '0')
-    artboard.setAttribute('width', String(dims.width))
-    artboard.setAttribute('height', String(dims.height))
-    artboard.setAttribute('fill', '#ffffff')
-    artboard.setAttribute('data-role', 'artboard')
-    svg.appendChild(artboard)
+    // Artboard group (contains artboard rects)
+    const artboardGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    artboardGroup.setAttribute('data-role', 'artboard-group')
+    svg.appendChild(artboardGroup)
 
-    // Default layer
+    // Initialize first artboard via model if none exist
+    if (getArtboards().length === 0) {
+      addArtboard(dims.width, dims.height, 'Artboard 1')
+    }
+
+    // Sync artboard rects from model
+    const syncArtboards = () => {
+      while (artboardGroup.firstChild) artboardGroup.removeChild(artboardGroup.firstChild)
+      for (const ab of getArtboards()) {
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+        rect.setAttribute('x', String(ab.x))
+        rect.setAttribute('y', String(ab.y))
+        rect.setAttribute('width', String(ab.width))
+        rect.setAttribute('height', String(ab.height))
+        rect.setAttribute('fill', '#ffffff')
+        rect.setAttribute('data-role', 'artboard')
+        rect.setAttribute('data-artboard-id', ab.id)
+        artboardGroup.appendChild(rect)
+      }
+    }
+    syncArtboards()
+    const unsubArtboards = subscribeArtboards(syncArtboards)
+
+    // Default layer (associated with first artboard)
+    const firstAb = getArtboards()[0]
     const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
     layer.setAttribute('data-layer-name', 'Layer 1')
+    if (firstAb) layer.setAttribute('data-artboard-id', firstAb.id)
     svg.appendChild(layer)
 
     // Grid overlay (rendered behind selection)
@@ -109,6 +130,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     onSvgReadyRef.current?.(svg)
 
     return () => {
+      unsubArtboards()
       if (svgRef.current && container) {
         container.removeChild(svgRef.current)
         svgRef.current = null
@@ -120,15 +142,11 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
   // Update viewBox when dimensions change
   useEffect(() => {
     if (!svgRef.current) return
+    const bounds = computeDocumentBounds()
     svgRef.current.setAttribute(
       'viewBox',
-      `0 0 ${dimensions.width} ${dimensions.height}`
+      `${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`
     )
-    const artboard = svgRef.current.querySelector('[data-role="artboard"]')
-    if (artboard) {
-      artboard.setAttribute('width', String(dimensions.width))
-      artboard.setAttribute('height', String(dimensions.height))
-    }
   }, [dimensions.width, dimensions.height])
 
   const emitState = useCallback(() => {

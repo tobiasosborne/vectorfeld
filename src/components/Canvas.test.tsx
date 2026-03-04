@@ -1,7 +1,9 @@
 import { render, cleanup } from '@testing-library/react'
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { Canvas } from './Canvas'
+import { resetArtboards } from '../model/artboard'
 
+beforeEach(() => resetArtboards())
 afterEach(cleanup)
 
 describe('Canvas', () => {
@@ -12,10 +14,13 @@ describe('Canvas', () => {
     expect(svg).not.toBeNull()
   })
 
-  it('sets default A4 viewBox (210x297)', () => {
+  it('sets default A4 viewBox (210x297 with padding)', () => {
     const { getByTestId } = render(<Canvas />)
     const svg = getByTestId('canvas-container').querySelector('svg')!
-    expect(svg.getAttribute('viewBox')).toBe('0 0 210 297')
+    // computeDocumentBounds adds 10mm padding: -10 -10 230 317
+    const vb = svg.getAttribute('viewBox')!
+    expect(vb).toContain('230')  // 210 + 2*10
+    expect(vb).toContain('317')  // 297 + 2*10
   })
 
   it('uses custom dimensions when provided', () => {
@@ -23,7 +28,9 @@ describe('Canvas', () => {
       <Canvas dimensions={{ width: 100, height: 50 }} />
     )
     const svg = getByTestId('canvas-container').querySelector('svg')!
-    expect(svg.getAttribute('viewBox')).toBe('0 0 100 50')
+    const vb = svg.getAttribute('viewBox')!
+    expect(vb).toContain('120')  // 100 + 2*10
+    expect(vb).toContain('70')   // 50 + 2*10
   })
 
   it('renders an artboard background rect', () => {
