@@ -181,11 +181,11 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 ## Project Handoff Context
 
-**Current state (updated 2026-03-04 session 3):**
+**Current state (updated 2026-03-04 session 4):**
 
 ### Summary
 
-MVP complete (22/22). Phase 2 at **98%** (42/43 features). This session: 15 of 17 beads issues closed. **425 tests** passing across **38 test files**. Zero type errors. Only 2 issues remain: MuPDF WASM PDF import (P1) and multiple artboards (P4).
+MVP complete (22/22). **Phase 2 complete: 43/43 features (100%).** All 17 beads issues closed. **442 tests** passing across **40 test files**. Zero type errors.
 
 ### What was built this session (2026-03-04 session 2)
 
@@ -400,11 +400,11 @@ MVP complete (22/22). Phase 2 at **98%** (42/43 features). This session: 15 of 1
 ### Numbers
 
 - **Phase 1 (MVP):** 22/22 features (100%)
-- **Phase 2:** 42/43 features (~98%)
-- **Test count:** 425 (38 test files)
+- **Phase 2:** 43/43 features (100%)
+- **Test count:** 442 (40 test files)
 - **Type errors:** 0
-- **LOC:** ~23,000 across ~80 source files
-- **Beads issues:** 2 open (MuPDF PDF import + multiple artboards), 0 blocked
+- **LOC:** ~24,500 across ~85 source files
+- **Beads issues:** 0 open, 17/17 closed
 
 ### Known limitations / future work
 
@@ -422,9 +422,9 @@ MVP complete (22/22). Phase 2 at **98%** (42/43 features). This session: 15 of 1
 |--------|----------|-----------|
 | ~~**I**~~ | ~~3~~ | ~~Path booleans, compound paths, rulers~~ **DONE** |
 | ~~**J**~~ | ~~4 (tests)~~ | ~~smartGuides, shapeToPath, fileio, matrix, selectTool, PropertiesPanel~~ **DONE** |
-| ~~**K**~~ | ~~3~~ | ~~Text-on-path, offset path~~ **DONE** (PDF import remaining) |
+| ~~**K**~~ | ~~3~~ | ~~Text-on-path, offset path, PDF import~~ **DONE** |
 | ~~**L**~~ | ~~3~~ | ~~Knife, skew, free transform~~ **DONE** |
-| ~~**M**~~ | ~~2/3~~ | ~~Lasso, opacity masks~~ **DONE** (multiple artboards remaining) |
+| ~~**M**~~ | ~~3~~ | ~~Lasso, opacity masks, multiple artboards~~ **DONE** |
 
 Full plan: `.claude/plans/misty-hugging-valiant.md`
 
