@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, useEffect } from 'react'
 import { MenuBar } from './components/MenuBar'
 import { ToolStrip } from './components/ToolStrip'
 import { LayersPanel } from './components/LayersPanel'
@@ -21,6 +21,9 @@ import { ModifyAttributeCommand, CompoundCommand, AddElementCommand, RemoveEleme
 import { makeClippingMask, releaseClippingMask, hasClipPath } from './model/clipping'
 import { elementToPathD, extractStyleAttrs } from './model/shapeToPath'
 import { joinPaths } from './model/pathOps'
+import { makeCompoundD, releaseCompoundD } from './model/compoundPath'
+import { pathBoolean } from './model/pathBooleans'
+import { HRuler, VRuler } from './components/Ruler'
 import { ContextMenu } from './components/ContextMenu'
 import type { ContextMenuItem } from './components/ContextMenu'
 
@@ -51,9 +54,25 @@ function AppContent() {
     cursorX: 0,
     cursorY: 0,
     zoomPercent: 100,
+    viewBox: { x: 0, y: 0, width: 210, height: 297 },
   })
+  const canvasContainerRef = useRef<HTMLDivElement>(null)
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
+
+  // Track canvas container size for rulers
+  useEffect(() => {
+    const el = canvasContainerRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setCanvasSize({ width: entry.contentRect.width, height: entry.contentRect.height })
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const handleCanvasState = useCallback((state: CanvasState) => {
     setCanvasState(state)
@@ -213,6 +232,71 @@ function AppContent() {
           editor.history.execute(new CompoundCommand(cmds, 'Join Paths'))
           clearSelection()
         }},
+        { separator: true, label: '' },
+        { label: 'Make Compound Path', shortcut: '', action: () => {
+          const sel = getSelection()
+          if (sel.length < 2 || !editor.doc) return
+          const dStrings: string[] = []
+          for (const el of sel) {
+            const d = el.tagName === 'path' ? el.getAttribute('d') : elementToPathD(el)
+            if (d) dStrings.push(d)
+          }
+          if (dStrings.length < 2) return
+          const parent = sel[0].parentElement
+          if (!parent) return
+          const styleAttrs = extractStyleAttrs(sel[0])
+          const cmds: Array<{ execute(): void; undo(): void; description: string }> = []
+          for (const el of sel) cmds.push(new RemoveElementCommand(editor.doc, el))
+          cmds.push(new AddElementCommand(editor.doc, parent, 'path', { ...styleAttrs, d: makeCompoundD(dStrings) }))
+          editor.history.execute(new CompoundCommand(cmds, 'Make Compound Path'))
+          clearSelection()
+        }},
+        { label: 'Release Compound Path', shortcut: '', action: () => {
+          const sel = getSelection()
+          if (sel.length !== 1 || !editor.doc) return
+          const el = sel[0]
+          if (el.tagName !== 'path') return
+          const d = el.getAttribute('d') || ''
+          const subpaths = releaseCompoundD(d)
+          if (subpaths.length < 2) return
+          const parent = el.parentElement
+          if (!parent) return
+          const styleAttrs = extractStyleAttrs(el)
+          const cmds: Array<{ execute(): void; undo(): void; description: string }> = []
+          cmds.push(new RemoveElementCommand(editor.doc, el))
+          for (const sub of subpaths) {
+            cmds.push(new AddElementCommand(editor.doc, parent, 'path', { ...styleAttrs, d: sub }))
+          }
+          editor.history.execute(new CompoundCommand(cmds, 'Release Compound Path'))
+          clearSelection()
+        }},
+        { separator: true, label: '' },
+        ...(['Unite', 'Subtract', 'Intersect', 'Exclude', 'Divide'] as const).map((label) => ({
+          label, shortcut: '', action: () => {
+            const sel = getSelection()
+            if (sel.length !== 2 || !editor.doc) return
+            const d1 = sel[0].tagName === 'path' ? sel[0].getAttribute('d') : elementToPathD(sel[0])
+            const d2 = sel[1].tagName === 'path' ? sel[1].getAttribute('d') : elementToPathD(sel[1])
+            if (!d1 || !d2) return
+            const op = label.toLowerCase() as 'unite' | 'subtract' | 'intersect' | 'exclude' | 'divide'
+            const parent = sel[0].parentElement
+            if (!parent) return
+            const styleAttrs = extractStyleAttrs(sel[0])
+            pathBoolean(d1, d2, op).then((results) => {
+              if (results.length === 0 || !editor.doc) return
+              const cmds: Array<{ execute(): void; undo(): void; description: string }> = [
+                new RemoveElementCommand(editor.doc!, sel[0]),
+                new RemoveElementCommand(editor.doc!, sel[1]),
+              ]
+              for (const d of results) {
+                cmds.push(new AddElementCommand(editor.doc!, parent, 'path', { ...styleAttrs, d }))
+              }
+              editor.history.execute(new CompoundCommand(cmds, label))
+              clearSelection()
+              refreshOverlay()
+            })
+          },
+        })),
       ],
     },
   ]
@@ -223,12 +307,23 @@ function AppContent() {
       <ControlBar />
       <div className="flex flex-1 min-h-0">
         <ToolStrip />
-        <Canvas
-          dimensions={dimensions}
-          onStateChange={handleCanvasState}
-          onSvgReady={handleSvgReady}
-          onContextMenu={handleContextMenu}
-        />
+        <div className="flex-1 min-w-0" style={{ display: 'grid', gridTemplate: '"corner hruler" 20px "vruler canvas" 1fr / 20px 1fr' }}>
+          <div style={{ gridArea: 'corner', background: '#f0f0f0', borderRight: '1px solid #ccc', borderBottom: '1px solid #ccc' }} />
+          <div style={{ gridArea: 'hruler' }}>
+            <HRuler viewBox={canvasState.viewBox} canvasSize={canvasSize.width} cursorPos={canvasState.cursorX} />
+          </div>
+          <div style={{ gridArea: 'vruler' }}>
+            <VRuler viewBox={canvasState.viewBox} canvasSize={canvasSize.height} cursorPos={canvasState.cursorY} />
+          </div>
+          <div ref={canvasContainerRef} style={{ gridArea: 'canvas' }}>
+            <Canvas
+              dimensions={dimensions}
+              onStateChange={handleCanvasState}
+              onSvgReady={handleSvgReady}
+              onContextMenu={handleContextMenu}
+            />
+          </div>
+        </div>
         <div className="flex flex-col border-l border-chrome-300">
           {propsCollapsed ? (
             <div
