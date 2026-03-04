@@ -4,6 +4,7 @@
  */
 
 import { parseTransform, applyMatrixToPoint } from './matrix'
+import { translatePathD } from './pathOps'
 
 export interface BBox {
   x: number
@@ -64,14 +65,41 @@ export function computeTranslateAttrs(el: Element, dx: number, dy: number): Arra
   } else if (tag === 'ellipse' || tag === 'circle') {
     changes.push(['cx', String(parseFloat(el.getAttribute('cx') || '0') + dx)])
     changes.push(['cy', String(parseFloat(el.getAttribute('cy') || '0') + dy)])
-  } else if (tag === 'path' || tag === 'g' || tag === 'polygon' || tag === 'polyline') {
-    // Move via translate transform
+  } else if (tag === 'path') {
+    // Bake translation directly into d attribute coordinates
+    const d = el.getAttribute('d') || ''
     const existing = el.getAttribute('transform') || ''
-    const transMatch = existing.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/)
+    // Absorb any existing translate into the d offset
+    const transMatch = existing.match(/translate\(([-\d.e+-]+),\s*([-\d.e+-]+)\)/)
+    const totalDx = dx + (transMatch ? parseFloat(transMatch[1]) : 0)
+    const totalDy = dy + (transMatch ? parseFloat(transMatch[2]) : 0)
+    changes.push(['d', translatePathD(d, totalDx, totalDy)])
+    // Rebuild transform: shift rotation center, strip translate, preserve skew
+    const rotMatch = existing.match(/rotate\(([-\d.e+-]+)(?:,\s*([-\d.e+-]+),\s*([-\d.e+-]+))?\)/)
+    const skewParts: string[] = []
+    const skewXMatch = existing.match(/skewX\([^)]+\)/)
+    const skewYMatch = existing.match(/skewY\([^)]+\)/)
+    if (skewXMatch) skewParts.push(skewXMatch[0])
+    if (skewYMatch) skewParts.push(skewYMatch[0])
+    if (rotMatch) {
+      const angle = rotMatch[1]
+      const cx = parseFloat(rotMatch[2] || '0') + totalDx
+      const cy = parseFloat(rotMatch[3] || '0') + totalDy
+      const parts = [`rotate(${angle}, ${cx}, ${cy})`, ...skewParts]
+      changes.push(['transform', parts.join(' ')])
+    } else if (transMatch || skewParts.length > 0) {
+      // Had translate and/or skew but no rotate — keep only skew
+      changes.push(['transform', skewParts.join(' ')])
+    }
+    return changes
+  } else if (tag === 'g' || tag === 'polygon' || tag === 'polyline') {
+    // Move via translate transform (can't bake coords for groups)
+    const existing = el.getAttribute('transform') || ''
+    const transMatch = existing.match(/translate\(([-\d.e+-]+),\s*([-\d.e+-]+)\)/)
     const tx = (transMatch ? parseFloat(transMatch[1]) : 0) + dx
     const ty = (transMatch ? parseFloat(transMatch[2]) : 0) + dy
     const newTransform = transMatch
-      ? existing.replace(/translate\([-\d.]+,\s*[-\d.]+\)/, `translate(${tx}, ${ty})`)
+      ? existing.replace(/translate\([-\d.e+-]+,\s*[-\d.e+-]+\)/, `translate(${tx}, ${ty})`)
       : `translate(${tx}, ${ty})${existing ? ' ' + existing : ''}`
     changes.push(['transform', newTransform])
     return changes // skip rotation center update for translate-based elements

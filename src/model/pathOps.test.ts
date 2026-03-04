@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parsePathD, commandsToD, nearestSegment, splitPathAt, splitCubicAt, intersectLineWithPath, splitPathAtT } from './pathOps'
+import { parsePathD, commandsToD, nearestSegment, splitPathAt, splitCubicAt, intersectLineWithPath, splitPathAtT, translatePathD } from './pathOps'
 
 describe('parsePathD', () => {
   it('parses M L L path', () => {
@@ -166,5 +166,29 @@ describe('splitPathAtT', () => {
     const cmds = parsePathD('M0 0 L10 0 Z')
     const result = splitPathAtT(cmds, 2, 0.5) // Z command
     expect(result).toBeNull()
+  })
+})
+
+describe('translatePathD', () => {
+  it('translates M L path by positive offset', () => {
+    expect(translatePathD('M10 20 L30 40', 5, -3)).toBe('M15 17 L35 37')
+  })
+
+  it('translates M C path (all control points)', () => {
+    expect(translatePathD('M0 0 C10 0 20 10 20 20', 100, 50))
+      .toBe('M100 50 C110 50 120 60 120 70')
+  })
+
+  it('preserves Z commands', () => {
+    expect(translatePathD('M0 0 L10 0 L10 10 Z', 5, 5))
+      .toBe('M5 5 L15 5 L15 15 Z')
+  })
+
+  it('zero delta is identity', () => {
+    expect(translatePathD('M10 20 L30 40', 0, 0)).toBe('M10 20 L30 40')
+  })
+
+  it('handles negative offsets', () => {
+    expect(translatePathD('M100 200 L300 400', -100, -200)).toBe('M0 0 L200 200')
   })
 })
