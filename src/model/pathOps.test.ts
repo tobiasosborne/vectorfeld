@@ -191,4 +191,17 @@ describe('translatePathD', () => {
   it('handles negative offsets', () => {
     expect(translatePathD('M100 200 L300 400', -100, -200)).toBe('M0 0 L200 200')
   })
+
+  it('translates paths with H/V commands (converts to L)', () => {
+    // H and V are converted to absolute L by parsePathD
+    const result = translatePathD('M10 20 h30 v40', 5, 5)
+    expect(result).toBe('M15 25 L45 25 L45 65')
+  })
+
+  it('translates paths with S (smooth cubic) commands', () => {
+    const result = translatePathD('M0 0 C10 0 20 10 20 20 S30 40 40 40', 10, 10)
+    // S is converted to C with reflected control point
+    expect(result).toContain('M10 10')
+    expect(result).toContain('C')
+  })
 })
