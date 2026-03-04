@@ -19,11 +19,13 @@ import { computeReflectH, computeReflectV } from './model/reflect'
 import { getSelection, refreshOverlay, clearSelection } from './model/selection'
 import { ModifyAttributeCommand, CompoundCommand, AddElementCommand, RemoveElementCommand } from './model/commands'
 import { makeClippingMask, releaseClippingMask, hasClipPath } from './model/clipping'
+import { makeOpacityMask, releaseOpacityMask, hasMask } from './model/opacityMask'
 import { elementToPathD, extractStyleAttrs } from './model/shapeToPath'
 import { joinPaths } from './model/pathOps'
 import { makeCompoundD, releaseCompoundD } from './model/compoundPath'
 import { pathBoolean } from './model/pathBooleans'
 import { placeTextOnPath, releaseTextFromPath, hasTextPath } from './model/textPath'
+import { offsetPathD } from './model/offsetPath'
 import { HRuler, VRuler } from './components/Ruler'
 import { ContextMenu } from './components/ContextMenu'
 import type { ContextMenuItem } from './components/ContextMenu'
@@ -195,6 +197,20 @@ function AppContent() {
             clearSelection()
           }
         }},
+        { label: 'Make Opacity Mask', shortcut: '', action: () => {
+          const sel = getSelection()
+          if (sel.length === 2 && editor.doc) {
+            makeOpacityMask(editor.doc, editor.history, sel)
+            clearSelection()
+          }
+        }},
+        { label: 'Release Opacity Mask', shortcut: '', action: () => {
+          const sel = getSelection()
+          if (sel.length === 1 && hasMask(sel[0]) && editor.doc) {
+            releaseOpacityMask(editor.doc, editor.history, sel[0])
+            clearSelection()
+          }
+        }},
         { separator: true, label: '' },
         { label: 'Convert to Path', shortcut: '', action: () => {
           const sel = getSelection()
@@ -307,6 +323,25 @@ function AppContent() {
           if (!textEl || !pathEl) return
           placeTextOnPath(editor.doc, editor.history, textEl, pathEl)
           clearSelection()
+        }},
+        { label: 'Offset Path...', shortcut: '', action: () => {
+          const sel = getSelection()
+          if (sel.length !== 1 || !editor.doc) return
+          const el = sel[0]
+          const d = el.tagName === 'path' ? el.getAttribute('d') : elementToPathD(el)
+          if (!d) return
+          const input = prompt('Offset distance (mm):', '2')
+          if (input === null) return
+          const distance = parseFloat(input)
+          if (isNaN(distance)) return
+          const result = offsetPathD(d, distance)
+          if (!result) return
+          const parent = el.parentElement
+          if (!parent) return
+          const styleAttrs = extractStyleAttrs(el)
+          editor.history.execute(new CompoundCommand([
+            new AddElementCommand(editor.doc, parent, 'path', { ...styleAttrs, d: result }),
+          ], 'Offset Path'))
         }},
         { label: 'Release Text from Path', shortcut: '', action: () => {
           const sel = getSelection()

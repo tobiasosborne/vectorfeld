@@ -11,6 +11,7 @@ import { registerPencilTool } from './pencilTool'
 import { registerMeasureTool } from './measureTool'
 import { registerScissorsTool } from './scissorsTool'
 import { registerKnifeTool } from './knifeTool'
+import { registerLassoTool } from './lassoTool'
 import { setActiveTool } from './registry'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
@@ -33,6 +34,7 @@ export function registerAllTools(
   registerMeasureTool(getSvg, getDoc, getHistory)
   registerScissorsTool(getSvg, getDoc, getHistory)
   registerKnifeTool(getSvg, getDoc, getHistory)
+  registerLassoTool(getSvg, getDoc, getHistory)
 
   // Default to select tool
   setActiveTool('select')
