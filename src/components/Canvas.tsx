@@ -19,6 +19,7 @@ export interface CanvasState {
   cursorX: number
   cursorY: number
   zoomPercent: number
+  viewBox: { x: number; y: number; width: number; height: number }
 }
 
 interface CanvasProps {
@@ -132,10 +133,12 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
 
   const emitState = useCallback(() => {
     if (!onStateChange || !svgRef.current) return
+    const vb = svgRef.current.viewBox.baseVal
     onStateChange({
       cursorX: 0,
       cursorY: 0,
       zoomPercent: getZoomPercent(svgRef.current),
+      viewBox: { x: vb.x, y: vb.y, width: vb.width, height: vb.height },
     })
   }, [onStateChange])
 
@@ -229,10 +232,12 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
       if (!svgRef.current) return
       if (onStateChange) {
         const doc = screenToDoc(svgRef.current, e.clientX, e.clientY)
+        const vb = svgRef.current.viewBox.baseVal
         onStateChange({
           cursorX: doc.x,
           cursorY: doc.y,
           zoomPercent: getZoomPercent(svgRef.current),
+          viewBox: { x: vb.x, y: vb.y, width: vb.width, height: vb.height },
         })
       }
 
