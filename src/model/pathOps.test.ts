@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parsePathD, commandsToD, nearestSegment, splitPathAt, splitCubicAt } from './pathOps'
+import { parsePathD, commandsToD, nearestSegment, splitPathAt, splitCubicAt, intersectLineWithPath, splitPathAtT } from './pathOps'
 
 describe('parsePathD', () => {
   it('parses M L L path', () => {
@@ -106,5 +106,65 @@ describe('splitCubicAt', () => {
     expect(left[3]).toEqual(p0) // degenerate
     expect(right[0]).toEqual(p0)
     expect(right[3]).toEqual(p3)
+  })
+})
+
+describe('intersectLineWithPath', () => {
+  it('finds intersection with L segment', () => {
+    // Horizontal line from (0,5) to (10,5) crossed by vertical cut from (5,0) to (5,10)
+    const cmds = parsePathD('M0 5 L10 5')
+    const hits = intersectLineWithPath(5, 0, 5, 10, cmds)
+    expect(hits.length).toBe(1)
+    expect(hits[0].segIndex).toBe(1)
+    expect(Math.abs(hits[0].x - 5)).toBeLessThan(0.1)
+    expect(Math.abs(hits[0].y - 5)).toBeLessThan(0.1)
+  })
+
+  it('finds no intersection when cut misses', () => {
+    const cmds = parsePathD('M0 0 L10 0')
+    const hits = intersectLineWithPath(5, 5, 5, 10, cmds)
+    expect(hits.length).toBe(0)
+  })
+
+  it('finds multiple intersections on a rect path', () => {
+    // Rect path: vertical cut crosses left and right sides
+    const cmds = parsePathD('M0 0 L10 0 L10 10 L0 10 Z')
+    const hits = intersectLineWithPath(5, -1, 5, 11, cmds)
+    expect(hits.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('finds intersection with cubic Bezier', () => {
+    // Curved path: C command, horizontal cut at y=10
+    const cmds = parsePathD('M0 0 C5 20 15 20 20 0')
+    const hits = intersectLineWithPath(-1, 10, 21, 10, cmds)
+    // Cubic crosses y=10 twice (going up and coming down)
+    expect(hits.length).toBe(2)
+  })
+})
+
+describe('splitPathAtT', () => {
+  it('splits L segment at t=0.5', () => {
+    const cmds = parsePathD('M0 0 L10 0')
+    const result = splitPathAtT(cmds, 1, 0.5)
+    expect(result).not.toBeNull()
+    const [d1, d2] = result!
+    expect(d1).toContain('M0 0')
+    expect(d1).toContain('5')
+    expect(d2).toContain('10')
+  })
+
+  it('splits C segment at t=0.5', () => {
+    const cmds = parsePathD('M0 0 C5 10 15 10 20 0')
+    const result = splitPathAtT(cmds, 1, 0.5)
+    expect(result).not.toBeNull()
+    const [d1, d2] = result!
+    expect(d1).toContain('M0 0')
+    expect(d2).toContain('C')
+  })
+
+  it('returns null for non-splittable commands', () => {
+    const cmds = parsePathD('M0 0 L10 0 Z')
+    const result = splitPathAtT(cmds, 2, 0.5) // Z command
+    expect(result).toBeNull()
   })
 })

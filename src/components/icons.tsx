@@ -91,6 +91,15 @@ export const MeasureIcon: ReactNode = (
   </svg>
 )
 
+// Knife tool
+export const KnifeIcon: ReactNode = (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={S}>
+    <path d="M5 16L15 4" />
+    <path d="M14 3L17 4L15 6" />
+    <line x1="3" y1="18" x2="5" y2="16" strokeWidth="2.5" />
+  </svg>
+)
+
 // Scissors tool
 export const ScissorsIcon: ReactNode = (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={S}>
@@ -114,4 +123,5 @@ export const TOOL_ICONS: Record<string, ReactNode> = {
   pencil: PencilIcon,
   measure: MeasureIcon,
   scissors: ScissorsIcon,
+  knife: KnifeIcon,
 }

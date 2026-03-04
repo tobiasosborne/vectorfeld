@@ -303,6 +303,186 @@ export function joinPaths(d1: string, d2: string, tolerance = 1): string {
   return commandsToD([...final1, ...cmds2NoM])
 }
 
+// --- Line-path intersection (for knife tool) ---
+
+interface Intersection {
+  segIndex: number
+  t: number  // parametric value 0..1
+  x: number
+  y: number
+}
+
+/**
+ * Find intersection between two line segments.
+ * Returns t parameter (0-1) on segment AB if intersection exists.
+ */
+function lineLineIntersect(
+  ax: number, ay: number, bx: number, by: number,
+  cx: number, cy: number, dx: number, dy: number,
+): { t: number; u: number } | null {
+  const denom = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx)
+  if (Math.abs(denom) < 1e-10) return null
+  const t = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / denom
+  const u = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / denom
+  if (t >= 0 && t <= 1 && u >= 0 && u <= 1) return { t, u }
+  return null
+}
+
+/** Evaluate cubic Bezier at parameter t */
+function cubicAt(
+  p0: number, p1: number, p2: number, p3: number, t: number
+): number {
+  const mt = 1 - t
+  return mt * mt * mt * p0 + 3 * mt * mt * t * p1 + 3 * mt * t * t * p2 + t * t * t * p3
+}
+
+/**
+ * Find intersections between a line segment and a cubic Bezier.
+ * Uses recursive subdivision (precision ~1e-4).
+ */
+function lineCubicIntersect(
+  lx1: number, ly1: number, lx2: number, ly2: number,
+  p0: { x: number; y: number }, p1: { x: number; y: number },
+  p2: { x: number; y: number }, p3: { x: number; y: number },
+): number[] {
+  const results: number[] = []
+  const subdivide = (tMin: number, tMax: number, depth: number) => {
+    if (depth > 20) return
+    const tMid = (tMin + tMax) / 2
+    const ax = cubicAt(p0.x, p1.x, p2.x, p3.x, tMin)
+    const ay = cubicAt(p0.y, p1.y, p2.y, p3.y, tMin)
+    const bx = cubicAt(p0.x, p1.x, p2.x, p3.x, tMax)
+    const by = cubicAt(p0.y, p1.y, p2.y, p3.y, tMax)
+    const mx = cubicAt(p0.x, p1.x, p2.x, p3.x, tMid)
+    const my = cubicAt(p0.y, p1.y, p2.y, p3.y, tMid)
+
+    // Check if the curve segment AABB intersects the line segment AABB
+    const minCX = Math.min(ax, bx, mx) - 1
+    const maxCX = Math.max(ax, bx, mx) + 1
+    const minCY = Math.min(ay, by, my) - 1
+    const maxCY = Math.max(ay, by, my) + 1
+    const minLX = Math.min(lx1, lx2)
+    const maxLX = Math.max(lx1, lx2)
+    const minLY = Math.min(ly1, ly2)
+    const maxLY = Math.max(ly1, ly2)
+    if (maxCX < minLX || minCX > maxLX || maxCY < minLY || minCY > maxLY) return
+
+    if (tMax - tMin < 1e-4) {
+      // Check actual intersection at this resolution
+      const hit = lineLineIntersect(lx1, ly1, lx2, ly2, ax, ay, bx, by)
+      if (hit) results.push(tMin + hit.t * (tMax - tMin))
+      return
+    }
+    subdivide(tMin, tMid, depth + 1)
+    subdivide(tMid, tMax, depth + 1)
+  }
+  subdivide(0, 1, 0)
+  return results
+}
+
+/**
+ * Find all intersections between a line segment and a parsed path.
+ * Returns intersections sorted by parametric position along the path.
+ */
+export function intersectLineWithPath(
+  lx1: number, ly1: number, lx2: number, ly2: number,
+  commands: PathCommand[]
+): Intersection[] {
+  const results: Intersection[] = []
+  let curX = 0, curY = 0
+
+  for (let i = 0; i < commands.length; i++) {
+    const cmd = commands[i]
+    if (cmd.type === 'M') {
+      curX = cmd.points[0].x
+      curY = cmd.points[0].y
+    } else if (cmd.type === 'L') {
+      const end = cmd.points[0]
+      const hit = lineLineIntersect(lx1, ly1, lx2, ly2, curX, curY, end.x, end.y)
+      if (hit) {
+        results.push({
+          segIndex: i,
+          t: hit.t,
+          x: curX + hit.t * (end.x - curX),
+          y: curY + hit.t * (end.y - curY),
+        })
+      }
+      curX = end.x
+      curY = end.y
+    } else if (cmd.type === 'C') {
+      const [cp1, cp2, end] = cmd.points
+      const ts = lineCubicIntersect(lx1, ly1, lx2, ly2, { x: curX, y: curY }, cp1, cp2, end)
+      for (const t of ts) {
+        results.push({
+          segIndex: i,
+          t,
+          x: cubicAt(curX, cp1.x, cp2.x, end.x, t),
+          y: cubicAt(curY, cp1.y, cp2.y, end.y, t),
+        })
+      }
+      curX = end.x
+      curY = end.y
+    } else if (cmd.type === 'Z') {
+      // Z connects back to the last M point
+      const mCmd = commands.find(c => c.type === 'M')
+      if (mCmd) {
+        const end = mCmd.points[0]
+        const hit = lineLineIntersect(lx1, ly1, lx2, ly2, curX, curY, end.x, end.y)
+        if (hit) {
+          results.push({
+            segIndex: i,
+            t: hit.t,
+            x: curX + hit.t * (end.x - curX),
+            y: curY + hit.t * (end.y - curY),
+          })
+        }
+        curX = end.x
+        curY = end.y
+      }
+    }
+  }
+
+  return results.sort((a, b) => a.segIndex - b.segIndex || a.t - b.t)
+}
+
+/**
+ * Split a path at a parametric value t within a given segment.
+ * Returns two path d strings.
+ */
+export function splitPathAtT(
+  commands: PathCommand[], segIndex: number, t: number
+): [string, string] | null {
+  const prev = currentPointBefore(commands, segIndex)
+  const cmd = commands[segIndex]
+  const before = commands.slice(0, segIndex)
+  const after = commands.slice(segIndex + 1)
+
+  if (cmd.type === 'L') {
+    const end = cmd.points[0]
+    const mid = {
+      x: prev.x + t * (end.x - prev.x),
+      y: prev.y + t * (end.y - prev.y),
+    }
+    const path1 = [...before, { type: 'L' as const, points: [mid] }]
+    const path2 = [{ type: 'M' as const, points: [mid] }, { type: 'L' as const, points: [end] }, ...after]
+    return [commandsToD(path1), commandsToD(path2)]
+  }
+
+  if (cmd.type === 'C') {
+    const [cp1, cp2, end] = cmd.points
+    const { left, right } = splitCubicAt(prev, cp1, cp2, end, t)
+    const path1 = [...before, { type: 'C' as const, points: [left[1], left[2], left[3]] }]
+    const path2 = [
+      { type: 'M' as const, points: [right[0]] },
+      { type: 'C' as const, points: [right[1], right[2], right[3]] },
+      ...after,
+    ]
+    return [commandsToD(path1), commandsToD(path2)]
+  }
+
+  return null
+}
+
 // --- Path scaling ---
 
 /** Scale all points in a path `d` string relative to an anchor point */
