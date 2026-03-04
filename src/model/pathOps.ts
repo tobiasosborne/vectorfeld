@@ -483,6 +483,20 @@ export function splitPathAtT(
   return null
 }
 
+// --- Path translation ---
+
+/** Translate all points in a path `d` string by (dx, dy) */
+export function translatePathD(d: string, dx: number, dy: number): string {
+  const commands = parsePathD(d)
+  for (const cmd of commands) {
+    for (const pt of cmd.points) {
+      pt.x += dx
+      pt.y += dy
+    }
+  }
+  return commandsToD(commands)
+}
+
 // --- Path scaling ---
 
 /** Scale all points in a path `d` string relative to an anchor point */

@@ -9,7 +9,7 @@ import { CompoundCommand, ModifyAttributeCommand } from '../model/commands'
 import { snapToGrid } from '../model/grid'
 import { computeSmartGuides, renderGuides, clearGuides, cacheSmartGuideCandidates, clearCachedCandidates } from '../model/smartGuides'
 import { transformedAABB as sharedTransformedAABB } from '../model/geometry'
-import { scalePathD } from '../model/pathOps'
+import { scalePathD, translatePathD } from '../model/pathOps'
 
 /** Minimum hit tolerance in screen pixels for thin elements like lines */
 const HIT_TOLERANCE_PX = 5
@@ -261,19 +261,29 @@ export function createSelectTool(
     } else if (tag === 'ellipse' || tag === 'circle') {
       el.setAttribute('cx', String(start.vals.cx + dx))
       el.setAttribute('cy', String(start.vals.cy + dy))
+    } else if (tag === 'path') {
+      // Bake translation into d coordinates directly
+      const origD = dragState.origPathDs.get(el) || el.getAttribute('d') || ''
+      el.setAttribute('d', translatePathD(origD, dx, dy))
     }
 
-    // Update transform: move rotation center, or add translate for path/g elements
+    // Update transform: move rotation center, preserve skew
     const origTransform = dragState.origTransforms.get(el)
     if (origTransform !== undefined) {
-      const rotMatch = (origTransform || '').match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
+      const orig = origTransform || ''
+      const rotMatch = orig.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
       if (rotMatch) {
         const angle = rotMatch[1]
         const cx = parseFloat(rotMatch[2] || '0') + dx
         const cy = parseFloat(rotMatch[3] || '0') + dy
-        el.setAttribute('transform', `rotate(${angle}, ${cx}, ${cy})`)
-      } else if (start.attr === 'transform') {
-        // For path/g: move via translate transform
+        let newTransform = `rotate(${angle}, ${cx}, ${cy})`
+        const skewXMatch = orig.match(/skewX\([^)]+\)/)
+        const skewYMatch = orig.match(/skewY\([^)]+\)/)
+        if (skewXMatch) newTransform += ` ${skewXMatch[0]}`
+        if (skewYMatch) newTransform += ` ${skewYMatch[0]}`
+        el.setAttribute('transform', newTransform)
+      } else if (start.attr === 'transform' && tag !== 'path') {
+        // For g/polygon/polyline: move via translate transform
         el.setAttribute('transform', `translate(${dx}, ${dy})`)
       }
     }
@@ -495,9 +505,13 @@ export function createSelectTool(
           dragState.startY = startSnapped.y
           dragState.startPositions.clear()
           dragState.origTransforms.clear()
+          dragState.origPathDs.clear()
           for (const el of getSelection()) {
             dragState.startPositions.set(el, getPositionAttrs(el))
             dragState.origTransforms.set(el, el.getAttribute('transform'))
+            if (el.tagName === 'path') {
+              dragState.origPathDs.set(el, el.getAttribute('d') || '')
+            }
           }
           // Cache smart guide candidates at drag-start for performance
           cacheSmartGuideCandidates(svg, new Set(getSelection()))
@@ -633,7 +647,14 @@ export function createSelectTool(
           const totalAngle = baseAngle + angleDeg
           const sel = getSelection()
           if (sel.length === 1) {
-            sel[0].setAttribute('transform', `rotate(${totalAngle}, ${centerX}, ${centerY})`)
+            let newTransform = `rotate(${totalAngle}, ${centerX}, ${centerY})`
+            // Preserve skew transforms from original
+            const origT = dragState.rotate!.origTransform || ''
+            const skewXM = origT.match(/skewX\([^)]+\)/)
+            const skewYM = origT.match(/skewY\([^)]+\)/)
+            if (skewXM) newTransform += ` ${skewXM[0]}`
+            if (skewYM) newTransform += ` ${skewYM[0]}`
+            sel[0].setAttribute('transform', newTransform)
           }
         }
 

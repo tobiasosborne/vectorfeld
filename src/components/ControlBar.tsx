@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { getSelection, subscribeSelection, refreshOverlay } from '../model/selection'
 import { useEditor } from '../model/EditorContext'
-import { ModifyAttributeCommand } from '../model/commands'
+import { ModifyAttributeCommand, CompoundCommand } from '../model/commands'
+import { translatePathD } from '../model/pathOps'
 
 function formatNum(val: string): string {
   const n = parseFloat(val)
@@ -93,6 +94,12 @@ export function ControlBar() {
     history.execute(new ModifyAttributeCommand(el, attr, value))
     refreshOverlay()
   }
+  const applyAttrs = (el: Element, changes: Array<[string, string]>) => {
+    const cmds = changes.map(([attr, val]) => new ModifyAttributeCommand(el, attr, val))
+    if (cmds.length === 1) history.execute(cmds[0])
+    else if (cmds.length > 1) history.execute(new CompoundCommand(cmds, 'Change position'))
+    refreshOverlay()
+  }
 
   if (selection.length === 0) {
     return (
@@ -121,12 +128,40 @@ export function ControlBar() {
     else if (tag === 'ellipse') applyAttr(el, 'cx', String(parseFloat(v) + parseFloat(getAttr(el, 'rx') || '0')))
     else if (tag === 'circle') applyAttr(el, 'cx', String(parseFloat(v) + parseFloat(getAttr(el, 'r') || '0')))
     else if (tag === 'text') applyAttr(el, 'x', v)
+    else if (tag === 'path') {
+      try {
+        const b = (el as SVGGraphicsElement).getBBox()
+        const pathDx = parseFloat(v) - b.x
+        if (Math.abs(pathDx) > 0.001) {
+          const d = el.getAttribute('d') || ''
+          const ch: Array<[string, string]> = [['d', translatePathD(d, pathDx, 0)]]
+          const t = el.getAttribute('transform') || ''
+          const rm = t.match(/rotate\(([-\d.e+-]+)(?:,\s*([-\d.e+-]+),\s*([-\d.e+-]+))?\)/)
+          if (rm) ch.push(['transform', t.replace(/rotate\([^)]+\)/, `rotate(${rm[1]}, ${parseFloat(rm[2] || '0') + pathDx}, ${rm[3] || '0'})`)])
+          applyAttrs(el, ch)
+        }
+      } catch { /* getBBox unavailable */ }
+    }
   }
   const onY = (v: string) => {
     if (tag === 'rect' || tag === 'image') applyAttr(el, 'y', v)
     else if (tag === 'ellipse') applyAttr(el, 'cy', String(parseFloat(v) + parseFloat(getAttr(el, 'ry') || '0')))
     else if (tag === 'circle') applyAttr(el, 'cy', String(parseFloat(v) + parseFloat(getAttr(el, 'r') || '0')))
     else if (tag === 'text') applyAttr(el, 'y', v)
+    else if (tag === 'path') {
+      try {
+        const b = (el as SVGGraphicsElement).getBBox()
+        const pathDy = parseFloat(v) - b.y
+        if (Math.abs(pathDy) > 0.001) {
+          const d = el.getAttribute('d') || ''
+          const ch: Array<[string, string]> = [['d', translatePathD(d, 0, pathDy)]]
+          const t = el.getAttribute('transform') || ''
+          const rm = t.match(/rotate\(([-\d.e+-]+)(?:,\s*([-\d.e+-]+),\s*([-\d.e+-]+))?\)/)
+          if (rm) ch.push(['transform', t.replace(/rotate\([^)]+\)/, `rotate(${rm[1]}, ${rm[2] || '0'}, ${parseFloat(rm[3] || '0') + pathDy})`)])
+          applyAttrs(el, ch)
+        }
+      } catch { /* getBBox unavailable */ }
+    }
   }
   const onW = (v: string) => {
     if (tag === 'rect' || tag === 'image') applyAttr(el, 'width', v)
