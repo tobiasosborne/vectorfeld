@@ -10,6 +10,7 @@ import type { MarkerType } from '../model/markers'
 import { detectFillType, createLinearGradient, createRadialGradient, parseGradientColors, updateGradientColors } from '../model/gradients'
 import type { FillType } from '../model/gradients'
 import { computeAlign, computeDistribute, applyDelta } from '../model/align'
+import { parseSkew, setSkew } from '../model/matrix'
 import type { AlignOp, DistributeOp } from '../model/align'
 import { CompoundCommand } from '../model/commands'
 
@@ -334,10 +335,36 @@ export function PropertiesPanel() {
                       const bbox = (el as SVGGraphicsElement).getBBox()
                       const cx = bbox.x + bbox.width / 2
                       const cy = bbox.y + bbox.height / 2
-                      applyAttr(el, 'transform', `rotate(${angle}, ${cx}, ${cy})`)
+                      const existing = getAttr(el, 'transform')
+                      const skew = parseSkew(existing)
+                      let t = `rotate(${angle}, ${cx}, ${cy})`
+                      t = setSkew(t, skew.skewX, skew.skewY)
+                      applyAttr(el, 'transform', t)
                     } catch {
                       applyAttr(el, 'transform', `rotate(${angle})`)
                     }
+                    refreshOverlay()
+                  }}
+                />
+                <PropertyInput
+                  label="SkX"
+                  value={String(parseSkew(getAttr(el, 'transform')).skewX)}
+                  onChange={(v) => {
+                    const angle = parseFloat(v) || 0
+                    const existing = getAttr(el, 'transform')
+                    const skew = parseSkew(existing)
+                    applyAttr(el, 'transform', setSkew(existing, angle, skew.skewY))
+                    refreshOverlay()
+                  }}
+                />
+                <PropertyInput
+                  label="SkY"
+                  value={String(parseSkew(getAttr(el, 'transform')).skewY)}
+                  onChange={(v) => {
+                    const angle = parseFloat(v) || 0
+                    const existing = getAttr(el, 'transform')
+                    const skew = parseSkew(existing)
+                    applyAttr(el, 'transform', setSkew(existing, skew.skewX, angle))
                     refreshOverlay()
                   }}
                 />

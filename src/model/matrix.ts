@@ -64,6 +64,77 @@ export function applyMatrixToPoint(m: Matrix, x: number, y: number): { x: number
 }
 
 /**
+ * Decompose a 2D affine matrix into translate, rotate, scale, and skew.
+ * Uses QR decomposition approach.
+ */
+export function decomposeMatrix(m: Matrix): {
+  translateX: number
+  translateY: number
+  rotate: number  // degrees
+  scaleX: number
+  scaleY: number
+  skewX: number   // degrees
+} {
+  const [a, b, c, d, e, f] = m
+  const translateX = e
+  const translateY = f
+
+  // Compute rotation and scale via polar decomposition
+  const scaleX = Math.sqrt(a * a + b * b)
+  const scaleY = Math.sqrt(c * c + d * d)
+
+  // Sign correction
+  const det = a * d - b * c
+  const signX = det < 0 ? -1 : 1
+
+  const rotate = Math.atan2(b, a) * (180 / Math.PI)
+
+  // Skew: angle between the two column vectors minus 90 degrees
+  const skewX = Math.atan2(a * c + b * d, a * d - b * c) * (180 / Math.PI)
+
+  return {
+    translateX,
+    translateY,
+    rotate,
+    scaleX: scaleX * signX,
+    scaleY,
+    skewX,
+  }
+}
+
+/**
+ * Parse skewX/skewY values from an SVG transform string.
+ * Returns { skewX: number, skewY: number } in degrees.
+ */
+export function parseSkew(transform: string): { skewX: number; skewY: number } {
+  let skewX = 0
+  let skewY = 0
+  const xMatch = transform.match(/skewX\(([-\d.]+)\)/)
+  const yMatch = transform.match(/skewY\(([-\d.]+)\)/)
+  if (xMatch) skewX = parseFloat(xMatch[1])
+  if (yMatch) skewY = parseFloat(yMatch[1])
+  return { skewX, skewY }
+}
+
+/**
+ * Update or add skewX/skewY in an SVG transform string.
+ * Preserves other transforms (translate, rotate, scale, etc.)
+ */
+export function setSkew(transform: string, skewX: number, skewY: number): string {
+  // Remove existing skew functions
+  let result = transform
+    .replace(/\s*skewX\([^)]*\)/g, '')
+    .replace(/\s*skewY\([^)]*\)/g, '')
+    .trim()
+
+  // Append new skew if non-zero
+  if (skewX !== 0) result += ` skewX(${skewX})`
+  if (skewY !== 0) result += ` skewY(${skewY})`
+
+  return result.trim()
+}
+
+/**
  * Parse an SVG transform attribute string into a combined matrix.
  * Handles: translate, scale, rotate, skewX, skewY, matrix.
  * Multiple transforms are composed left-to-right per SVG spec.
