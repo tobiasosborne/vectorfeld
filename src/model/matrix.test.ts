@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   identityMatrix, translateMatrix, scaleMatrix, rotateMatrix,
   skewXMatrix, skewYMatrix, multiplyMatrix, applyMatrixToPoint,
-  parseTransform,
+  parseTransform, decomposeMatrix, parseSkew, setSkew,
 } from './matrix'
 import { transformedAABB } from './geometry'
 
@@ -129,6 +129,78 @@ describe('parseTransform', () => {
   it('returns identity for empty string', () => {
     const m = parseTransform('')
     expect(m).toEqual([1, 0, 0, 1, 0, 0])
+  })
+})
+
+describe('decomposeMatrix', () => {
+  it('decomposes identity', () => {
+    const d = decomposeMatrix(identityMatrix())
+    expect(d.translateX).toBe(0)
+    expect(d.translateY).toBe(0)
+    expect(near(d.rotate, 0)).toBe(true)
+    expect(near(d.scaleX, 1)).toBe(true)
+    expect(near(d.scaleY, 1)).toBe(true)
+    expect(near(d.skewX, 0)).toBe(true)
+  })
+
+  it('decomposes translation', () => {
+    const d = decomposeMatrix(translateMatrix(10, 20))
+    expect(d.translateX).toBe(10)
+    expect(d.translateY).toBe(20)
+    expect(near(d.rotate, 0)).toBe(true)
+  })
+
+  it('decomposes rotation', () => {
+    const d = decomposeMatrix(rotateMatrix(45))
+    expect(near(d.rotate, 45)).toBe(true)
+  })
+
+  it('decomposes scale', () => {
+    const d = decomposeMatrix(scaleMatrix(2, 3))
+    expect(near(d.scaleX, 2)).toBe(true)
+    expect(near(d.scaleY, 3)).toBe(true)
+  })
+})
+
+describe('parseSkew', () => {
+  it('parses skewX from transform', () => {
+    const s = parseSkew('rotate(45) skewX(30)')
+    expect(s.skewX).toBe(30)
+    expect(s.skewY).toBe(0)
+  })
+
+  it('parses both skewX and skewY', () => {
+    const s = parseSkew('skewX(15) skewY(25)')
+    expect(s.skewX).toBe(15)
+    expect(s.skewY).toBe(25)
+  })
+
+  it('returns zeros for no skew', () => {
+    const s = parseSkew('rotate(30)')
+    expect(s.skewX).toBe(0)
+    expect(s.skewY).toBe(0)
+  })
+})
+
+describe('setSkew', () => {
+  it('adds skew to transform', () => {
+    const t = setSkew('rotate(45)', 30, 0)
+    expect(t).toBe('rotate(45) skewX(30)')
+  })
+
+  it('replaces existing skew', () => {
+    const t = setSkew('rotate(45) skewX(15)', 30, 20)
+    expect(t).toBe('rotate(45) skewX(30) skewY(20)')
+  })
+
+  it('removes skew when zero', () => {
+    const t = setSkew('rotate(45) skewX(15) skewY(10)', 0, 0)
+    expect(t).toBe('rotate(45)')
+  })
+
+  it('handles empty string', () => {
+    const t = setSkew('', 10, 0)
+    expect(t).toBe('skewX(10)')
   })
 })
 

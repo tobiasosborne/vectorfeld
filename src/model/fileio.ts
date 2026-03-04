@@ -7,15 +7,19 @@ import { svgToTikz } from './tikzExport'
 import { jsPDF } from 'jspdf'
 import { svg2pdf } from 'svg2pdf.js'
 
+/** Selector for editor-only overlays that should be stripped on export */
+const OVERLAY_SELECTOR = '[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"], [data-role="user-guides-overlay"], [data-role="wireframe"]'
+
 /**
- * Export the document as an SVG file download.
- * Strips editor-only elements (overlays, previews) from the output.
+ * Build a clean SVG string from the document, stripping editor overlays.
+ * Includes XML declaration and ensures xmlns is present.
+ * Exported for testing.
  */
-export function exportSvg(doc: DocumentModel, filename: string = 'document.svg'): void {
+export function exportSvgString(doc: DocumentModel): string {
   const svg = doc.svg.cloneNode(true) as SVGSVGElement
 
   // Remove all overlay/preview/editor-only elements
-  for (const el of svg.querySelectorAll('[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"], [data-role="user-guides-overlay"], [data-role="wireframe"]')) {
+  for (const el of svg.querySelectorAll(OVERLAY_SELECTOR)) {
     el.remove()
   }
 
@@ -29,7 +33,15 @@ export function exportSvg(doc: DocumentModel, filename: string = 'document.svg')
   }
 
   const xmlDecl = '<?xml version="1.0" encoding="UTF-8"?>\n'
-  const fullSvg = xmlDecl + svgString
+  return xmlDecl + svgString
+}
+
+/**
+ * Export the document as an SVG file download.
+ * Strips editor-only elements (overlays, previews) from the output.
+ */
+export function exportSvg(doc: DocumentModel, filename: string = 'document.svg'): void {
+  const fullSvg = exportSvgString(doc)
 
   // Browser download
   const blob = new Blob([fullSvg], { type: 'image/svg+xml' })
@@ -50,7 +62,7 @@ export function exportSvg(doc: DocumentModel, filename: string = 'document.svg')
 export async function exportPdf(doc: DocumentModel, filename: string = 'document.pdf'): Promise<void> {
   // Clone and clean SVG
   const svgClone = doc.svg.cloneNode(true) as SVGSVGElement
-  for (const el of svgClone.querySelectorAll('[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"], [data-role="user-guides-overlay"], [data-role="wireframe"]')) {
+  for (const el of svgClone.querySelectorAll(OVERLAY_SELECTOR)) {
     el.remove()
   }
 
@@ -90,7 +102,7 @@ export async function exportPdf(doc: DocumentModel, filename: string = 'document
  */
 export function exportPng(doc: DocumentModel, scale: number = 1, filename: string = 'document.png'): void {
   const svgClone = doc.svg.cloneNode(true) as SVGSVGElement
-  for (const el of svgClone.querySelectorAll('[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"], [data-role="user-guides-overlay"], [data-role="wireframe"]')) {
+  for (const el of svgClone.querySelectorAll(OVERLAY_SELECTOR)) {
     el.remove()
   }
 
@@ -195,6 +207,99 @@ export function placeImage(doc: DocumentModel, history: CommandHistory): Promise
   })
 }
 
+/** Result of parsing an SVG string for import */
+export interface ParsedSvg {
+  viewBox: string | null
+  defs: Element[]
+  layers: Element[]
+}
+
+/**
+ * Parse an SVG string into importable parts.
+ * Returns the viewBox, defs children, and layer groups (or a synthetic layer
+ * wrapping flat drawing elements if no layers are found).
+ * Exported for testing.
+ */
+export function parseSvgString(xmlString: string): ParsedSvg {
+  const parser = new DOMParser()
+  const svgDoc = parser.parseFromString(xmlString, 'image/svg+xml')
+  const importedSvg = svgDoc.documentElement
+
+  const viewBox = importedSvg.getAttribute('viewBox')
+
+  // Collect defs children
+  const defs: Element[] = []
+  const importedDefs = importedSvg.querySelector('defs')
+  if (importedDefs) {
+    for (const child of Array.from(importedDefs.children)) {
+      defs.push(child)
+    }
+  }
+
+  // Collect layer groups or build a synthetic layer
+  const children = Array.from(importedSvg.children)
+  const layers: Element[] = []
+  let hasLayers = false
+
+  for (const child of children) {
+    if (child.tagName === 'g' && child.getAttribute('data-layer-name')) {
+      layers.push(child)
+      hasLayers = true
+    }
+  }
+
+  if (!hasLayers) {
+    // Create a synthetic layer wrapping flat drawing elements
+    const layer = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'g')
+    layer.setAttribute('data-layer-name', 'Layer 1')
+    const drawingTags = ['g', 'line', 'rect', 'ellipse', 'circle', 'path', 'text', 'polygon', 'polyline']
+    for (const child of children) {
+      if (drawingTags.includes(child.tagName)) {
+        layer.appendChild(child.cloneNode(true))
+      }
+    }
+    layers.push(layer)
+  }
+
+  return { viewBox, defs, layers }
+}
+
+/**
+ * Apply a parsed SVG to the document model.
+ * Clears existing layers/defs and imports the parsed content.
+ */
+function applyParsedSvg(doc: DocumentModel, parsed: ParsedSvg): void {
+  // Clear selection before modifying DOM (prevents stale references)
+  clearSelection()
+
+  // Copy viewBox
+  if (parsed.viewBox) {
+    doc.svg.setAttribute('viewBox', parsed.viewBox)
+  }
+
+  // Clear existing layers
+  for (const layer of doc.getLayerElements()) {
+    layer.remove()
+  }
+
+  // Import defs
+  if (parsed.defs.length > 0) {
+    const docDefs = doc.getDefs()
+    while (docDefs.firstChild) docDefs.removeChild(docDefs.firstChild)
+    for (const child of parsed.defs) {
+      docDefs.appendChild(document.importNode(child, true))
+    }
+  }
+
+  // Import layers
+  for (const layer of parsed.layers) {
+    doc.svg.appendChild(document.importNode(layer, true))
+  }
+
+  // Advance ID counter past imported IDs to prevent collisions
+  syncIdCounter(doc.svg)
+}
+
 /**
  * Import an SVG file into the document model.
  * Returns a promise that resolves when the file is loaded.
@@ -216,66 +321,8 @@ export function importSvg(doc: DocumentModel): Promise<void> {
       reader.onerror = () => reject(new Error('Failed to read file'))
       reader.onload = () => {
         const text = reader.result as string
-        const parser = new DOMParser()
-        const svgDoc = parser.parseFromString(text, 'image/svg+xml')
-        const importedSvg = svgDoc.documentElement
-
-        // Clear selection before modifying DOM (prevents stale references)
-        clearSelection()
-
-        // Copy viewBox
-        const viewBox = importedSvg.getAttribute('viewBox')
-        if (viewBox) {
-          doc.svg.setAttribute('viewBox', viewBox)
-        }
-
-        // Clear existing layers and their content before importing
-        const existingLayers = doc.getLayerElements()
-        for (const layer of existingLayers) {
-          layer.remove()
-        }
-
-        // Import <defs> content
-        const importedDefs = importedSvg.querySelector('defs')
-        if (importedDefs) {
-          const docDefs = doc.getDefs()
-          // Clear existing defs and import new ones
-          while (docDefs.firstChild) docDefs.removeChild(docDefs.firstChild)
-          for (const child of Array.from(importedDefs.children)) {
-            docDefs.appendChild(document.importNode(child, true))
-          }
-        }
-
-        // Import child elements — look for layer groups or create one
-        const children = Array.from(importedSvg.children)
-        let hasLayers = false
-        for (const child of children) {
-          const tag = child.tagName
-          if (tag === 'g' && child.getAttribute('data-layer-name')) {
-            // Import entire layer group
-            const imported = document.importNode(child, true)
-            doc.svg.appendChild(imported)
-            hasLayers = true
-          }
-        }
-
-        // If no layer groups found, create a layer and import flat elements
-        if (!hasLayers) {
-          const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
-          layer.setAttribute('data-layer-name', 'Layer 1')
-          doc.svg.appendChild(layer)
-          for (const child of children) {
-            const tag = child.tagName
-            if (['g', 'line', 'rect', 'ellipse', 'circle', 'path', 'text', 'polygon', 'polyline'].includes(tag)) {
-              const imported = document.importNode(child, true)
-              layer.appendChild(imported)
-            }
-          }
-        }
-
-        // Advance ID counter past imported IDs to prevent collisions
-        syncIdCounter(doc.svg)
-
+        const parsed = parseSvgString(text)
+        applyParsedSvg(doc, parsed)
         resolve()
       }
       reader.readAsText(file)
