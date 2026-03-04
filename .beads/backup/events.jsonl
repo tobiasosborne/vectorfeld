@@ -15,3 +15,5 @@
 {"actor":"tobias","comment":null,"created_at":"2026-03-03T16:40:48Z","event_type":"created","id":15,"issue_id":"vectorfeld-b8y","new_value":"","old_value":""}
 {"actor":"tobias","comment":null,"created_at":"2026-03-03T16:40:49Z","event_type":"created","id":16,"issue_id":"vectorfeld-1to","new_value":"","old_value":""}
 {"actor":"tobias","comment":null,"created_at":"2026-03-03T16:40:49Z","event_type":"created","id":17,"issue_id":"vectorfeld-reg","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-04T08:09:14Z","event_type":"closed","id":18,"issue_id":"vectorfeld-0bb","new_value":"pathBooleans.ts with lazy Paper.js + 4 tests","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-04T08:09:18Z","event_type":"closed","id":19,"issue_id":"vectorfeld-0bb","new_value":"pathBooleans.ts with lazy Paper.js + 4 tests","old_value":""}
