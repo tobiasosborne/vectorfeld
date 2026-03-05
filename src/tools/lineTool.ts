@@ -173,6 +173,7 @@ export function createLineTool(
         if (!doc) return
         const layer = doc.getActiveLayer()
         if (!layer) return
+        if (layer.getAttribute('data-locked') === 'true') return
 
         const history = getHistory()
         const defaults = getDefaultStyle()

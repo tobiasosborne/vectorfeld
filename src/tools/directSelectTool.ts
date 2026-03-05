@@ -1,6 +1,7 @@
 import { registerTool } from './registry'
 import type { ToolConfig } from './registry'
 import { screenToDoc } from '../model/coordinates'
+import { hitTestElement as sharedHitTestElement } from '../model/geometry'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import { ModifyAttributeCommand, AddElementCommand, RemoveElementCommand, CompoundCommand } from '../model/commands'
@@ -182,26 +183,7 @@ function dist(a: Point, b: Point): number {
 const DIRECT_SELECT_TAGS = new Set(['path', 'rect', 'ellipse', 'circle', 'line'])
 
 function hitTestElement(svg: SVGSVGElement, screenX: number, screenY: number): Element | null {
-  const pt = screenToDoc(svg, screenX, screenY)
-  const layers = svg.querySelectorAll('g[data-layer-name]')
-  for (let li = layers.length - 1; li >= 0; li--) {
-    const layer = layers[li]
-    if (layer.getAttribute('data-locked') === 'true') continue
-    if ((layer as SVGElement).style.display === 'none') continue
-    const children = layer.children
-    for (let ci = children.length - 1; ci >= 0; ci--) {
-      const child = children[ci]
-      if (!DIRECT_SELECT_TAGS.has(child.tagName)) continue
-      try {
-        const bbox = (child as SVGGraphicsElement).getBBox()
-        if (pt.x >= bbox.x && pt.x <= bbox.x + bbox.width &&
-            pt.y >= bbox.y && pt.y <= bbox.y + bbox.height) {
-          return child
-        }
-      } catch { /* skip */ }
-    }
-  }
-  return null
+  return sharedHitTestElement(svg, screenX, screenY, { tagFilter: DIRECT_SELECT_TAGS })
 }
 
 type DragTarget = { type: 'anchor'; idx: number } | { type: 'handle'; anchorIdx: number; handleType: 'in' | 'out' }

@@ -133,8 +133,7 @@ function handleCenters(
   ]
 }
 
-// Note: overlay debouncing deferred — synchronous for now.
-// If perf profiling shows updateOverlay as a bottleneck, add RAF coalescing here.
+let refreshRafId = 0
 
 function updateOverlay(): void {
   if (!overlayGroup) return
@@ -259,11 +258,20 @@ function updateOverlay(): void {
   }
 }
 
+/** RAF-coalesced overlay refresh for use during drags */
 export function refreshOverlay(): void {
-  updateOverlay()
+  if (refreshRafId) return
+  refreshRafId = requestAnimationFrame(() => {
+    refreshRafId = 0
+    updateOverlay()
+  })
 }
 
-/** Alias for refreshOverlay — kept for API compatibility */
+/** Synchronous overlay rebuild — use for immediate visual feedback */
 export function refreshOverlaySync(): void {
+  if (refreshRafId) {
+    cancelAnimationFrame(refreshRafId)
+    refreshRafId = 0
+  }
   updateOverlay()
 }

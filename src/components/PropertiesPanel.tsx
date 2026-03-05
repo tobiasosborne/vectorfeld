@@ -421,14 +421,16 @@ export function PropertiesPanel() {
                     value={el.querySelector('textPath')?.getAttribute('startOffset') || '0%'}
                     onChange={(v) => {
                       const tp = el.querySelector('textPath')
-                      if (tp) tp.setAttribute('startOffset', v)
+                      if (tp) applyAttr(tp, 'startOffset', v)
                     }}
                   />
                 </div>
               </div>
             )}
 
-            <div>
+            {(() => {
+              const fillType = detectFillType(el)
+              return (<div>
               <div className="text-xs font-medium text-chrome-600 mb-1">Style</div>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -440,7 +442,7 @@ export function PropertiesPanel() {
                   <label className="flex items-center gap-1">
                     <span className="text-xs text-chrome-500 w-8">Fill</span>
                     <select
-                      value={detectFillType(el)}
+                      value={fillType}
                       onChange={(e) => {
                         const ft = e.target.value as FillType
                         if (ft === 'none') {
@@ -466,13 +468,13 @@ export function PropertiesPanel() {
                       {tag !== 'line' && <option value="radial">Radial Gradient</option>}
                     </select>
                   </label>
-                  {detectFillType(el) === 'solid' && (
+                  {fillType === 'solid' && (
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-chrome-500 w-8"></span>
                       <ColorPicker value={getAttr(el, 'fill') || '#000000'} onChange={(v) => applyAttr(el, 'fill', v)} />
                     </div>
                   )}
-                  {(detectFillType(el) === 'linear' || detectFillType(el) === 'radial') && (() => {
+                  {(fillType === 'linear' || fillType === 'radial') && (() => {
                     const colors = parseGradientColors(el)
                     return (
                       <>
@@ -574,7 +576,8 @@ export function PropertiesPanel() {
                   onChange={(v) => applyAttr(el, 'opacity', v)}
                 />
               </div>
-            </div>
+            </div>)
+            })()}
 
             {(tag === 'line' || tag === 'path') && doc && (
               <div>

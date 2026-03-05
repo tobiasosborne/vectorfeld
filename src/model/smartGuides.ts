@@ -82,6 +82,10 @@ export function computeSmartGuides(
   const candidates = cachedCandidates ?? collectCandidates(svg, new Set(draggedElements))
   if (candidates.length === 0) return { dx: 0, dy: 0, guides: [] }
 
+  // Pre-split candidates by axis to avoid filtering inside inner loops
+  const xCandidates = candidates.filter(c => c.axis === 'x')
+  const yCandidates = candidates.filter(c => c.axis === 'y')
+
   // Get the AABB of dragged elements
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
   for (const el of draggedElements) {
@@ -107,8 +111,7 @@ export function computeSmartGuides(
 
   // Check X alignment
   for (const edge of draggedEdges.x) {
-    for (const c of candidates) {
-      if (c.axis !== 'x') continue
+    for (const c of xCandidates) {
       const dist = Math.abs(edge - c.value)
       if (dist < tolerance && dist < bestDistX) {
         bestDistX = dist
@@ -119,8 +122,7 @@ export function computeSmartGuides(
 
   // Check Y alignment
   for (const edge of draggedEdges.y) {
-    for (const c of candidates) {
-      if (c.axis !== 'y') continue
+    for (const c of yCandidates) {
       const dist = Math.abs(edge - c.value)
       if (dist < tolerance && dist < bestDistY) {
         bestDistY = dist
@@ -134,8 +136,7 @@ export function computeSmartGuides(
   if (bestDistX <= tolerance) {
     for (const edge of draggedEdges.x) {
       const snappedEdge = edge + bestDx
-      for (const c of candidates) {
-        if (c.axis !== 'x') continue
+      for (const c of xCandidates) {
         if (Math.abs(snappedEdge - c.value) < 0.01) {
           guides.push({ axis: 'x', value: c.value, min: vb.y, max: vb.y + vb.height })
         }
@@ -145,8 +146,7 @@ export function computeSmartGuides(
   if (bestDistY <= tolerance) {
     for (const edge of draggedEdges.y) {
       const snappedEdge = edge + bestDy
-      for (const c of candidates) {
-        if (c.axis !== 'y') continue
+      for (const c of yCandidates) {
         if (Math.abs(snappedEdge - c.value) < 0.01) {
           guides.push({ axis: 'y', value: c.value, min: vb.x, max: vb.x + vb.width })
         }

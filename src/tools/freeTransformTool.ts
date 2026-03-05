@@ -119,7 +119,13 @@ export function createFreeTransformTool(
     const cornerDist = nearestCornerDist(pt, bbox, transform)
     if (cornerDist > tolerance * 0.5) {
       const center = getBBoxCenter(el)
-      const startAngle = Math.atan2(pt.y - center.y, pt.x - center.x)
+      // Capture mouse angle relative to center — baseAngle is subtracted so
+      // rotation is incremental from the element's existing orientation
+      const mouseAngle = Math.atan2(pt.y - center.y, pt.x - center.x)
+      const existingTransform = el.getAttribute('transform') || ''
+      const rotMatch = existingTransform.match(/rotate\(([-\d.e+-]+)/)
+      const baseAngleDeg = rotMatch ? parseFloat(rotMatch[1]) : 0
+      const startAngle = mouseAngle - baseAngleDeg * (Math.PI / 180)
       return { mode: 'rotate', data: { center, startAngle } }
     }
 
