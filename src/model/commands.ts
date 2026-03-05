@@ -6,6 +6,8 @@ export interface Command {
   undo(): void
 }
 
+const MAX_HISTORY = 200
+
 export class CommandHistory {
   private undoStack: Command[] = []
   private redoStack: Command[] = []
@@ -14,6 +16,9 @@ export class CommandHistory {
   execute(cmd: Command): void {
     cmd.execute()
     this.undoStack.push(cmd)
+    if (this.undoStack.length > MAX_HISTORY) {
+      this.undoStack.splice(0, this.undoStack.length - MAX_HISTORY)
+    }
     this.redoStack = []
     this.notify()
   }

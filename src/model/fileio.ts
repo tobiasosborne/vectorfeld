@@ -291,9 +291,15 @@ function applyParsedSvg(doc: DocumentModel, parsed: ParsedSvg): void {
     }
   }
 
-  // Import layers
+  // Import layers before overlay groups to maintain correct z-order
+  const firstOverlay = doc.svg.querySelector('[data-role="grid-overlay"], [data-role="user-guides-overlay"], [data-role="guides-overlay"], [data-role="overlay"]')
   for (const layer of parsed.layers) {
-    doc.svg.appendChild(document.importNode(layer, true))
+    const imported = document.importNode(layer, true)
+    if (firstOverlay) {
+      doc.svg.insertBefore(imported, firstOverlay)
+    } else {
+      doc.svg.appendChild(imported)
+    }
   }
 
   // Advance ID counter past imported IDs to prevent collisions

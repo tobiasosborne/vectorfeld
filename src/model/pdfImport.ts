@@ -138,8 +138,15 @@ function applyParsedSvg(doc: DocumentModel, parsed: ParsedSvg): void {
     }
   }
 
+  // Insert layers before overlay groups (grid, guides, selection) to maintain correct z-order
+  const firstOverlay = doc.svg.querySelector('[data-role="grid-overlay"], [data-role="user-guides-overlay"], [data-role="guides-overlay"], [data-role="overlay"]')
   for (const layer of parsed.layers) {
-    doc.svg.appendChild(document.importNode(layer, true))
+    const imported = document.importNode(layer, true)
+    if (firstOverlay) {
+      doc.svg.insertBefore(imported, firstOverlay)
+    } else {
+      doc.svg.appendChild(imported)
+    }
   }
 
   syncIdCounter(doc.svg)

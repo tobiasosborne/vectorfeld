@@ -242,10 +242,12 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     return () => container.removeEventListener('wheel', handleWheel)
   }, [emitState])
 
-  // Mouse move for cursor coordinates + tool dispatch
+  // Mouse move for cursor coordinates + tool dispatch (RAF-throttled)
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
+    let rafId = 0
+    let pendingEvent: MouseEvent | null = null
     const handleMouseMove = (e: MouseEvent) => {
       if (!svgRef.current) return
       if (onStateChange) {
@@ -259,11 +261,10 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
         })
       }
 
-      // Pan while dragging (use ref to avoid re-registering handler on state change)
+      // Pan while dragging — not throttled for smooth panning
       if (isPanningRef.current && panStart.current) {
         const svg = svgRef.current
         const vb = svg.viewBox.baseVal
-        // Use getScreenCTM for accurate scale that respects preserveAspectRatio
         const ctm = svg.getScreenCTM()
         const scaleX = ctm ? 1 / ctm.a : vb.width / svg.clientWidth
         const scaleY = ctm ? 1 / ctm.d : vb.height / svg.clientHeight
@@ -275,11 +276,24 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
         )
         updateGrid()
       } else {
-        getActiveTool()?.handlers.onMouseMove?.(e)
+        // RAF-throttle tool dispatch to at most once per frame
+        pendingEvent = e
+        if (!rafId) {
+          rafId = requestAnimationFrame(() => {
+            rafId = 0
+            if (pendingEvent) {
+              getActiveTool()?.handlers.onMouseMove?.(pendingEvent)
+              pendingEvent = null
+            }
+          })
+        }
       }
     }
     container.addEventListener('mousemove', handleMouseMove)
-    return () => container.removeEventListener('mousemove', handleMouseMove)
+    return () => {
+      container.removeEventListener('mousemove', handleMouseMove)
+      if (rafId) cancelAnimationFrame(rafId)
+    }
   }, [onStateChange])
 
   // Pan + tool event dispatch

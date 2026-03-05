@@ -111,23 +111,27 @@ export function createKnifeTool(
           const hits = intersectLineWithPath(lx1, ly1, lx2, ly2, parsed)
           if (hits.length === 0) continue
 
-          // Split path at all intersection points (process in reverse order to maintain indices)
-          let pieces: string[] = [item.d]
-          const sortedHits = [...hits].reverse()
+          // Split path at all intersection points.
+          // Sort hits descending by segIndex (then by t descending within same segment)
+          // so later splits don't affect earlier segment indices.
+          const sortedHits = [...hits].sort((a, b) =>
+            b.segIndex - a.segIndex || b.t - a.t
+          )
+
+          let currentCmds = parsePathD(item.d)
+          const pieces: string[] = []
 
           for (const hit of sortedHits) {
-            const lastPiece = pieces.pop()!
-            const lastCmds = parsePathD(lastPiece)
-            const result = splitPathAtT(lastCmds, hit.segIndex, hit.t)
+            const result = splitPathAtT(currentCmds, hit.segIndex, hit.t)
             if (result) {
-              pieces.push(result[1])
-              pieces.push(result[0])
-            } else {
-              pieces.push(lastPiece)
+              // result[0] = before split, result[1] = after split
+              // Keep the "before" part for further splitting, save the "after" part
+              pieces.unshift(result[1])
+              currentCmds = parsePathD(result[0])
             }
           }
-
-          pieces.reverse()
+          // The remaining commands form the first piece
+          pieces.unshift(commandsToD(currentCmds))
 
           if (pieces.length > 1) {
             cmds.push(new RemoveElementCommand(doc, item.el))

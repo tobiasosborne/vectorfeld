@@ -185,18 +185,39 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 ### Summary
 
-MVP complete (22/22). **Phase 2 complete: 43/43 features (100%).** 16 open bugs/tasks from chaos monkey testing + code analysis. **442 tests** passing across **40 test files**. Zero type errors.
+MVP complete (22/22). **Phase 2 complete: 43/43 features (100%).** All 16 chaos monkey issues fixed and closed. **449 tests** passing across **40 test files**. Zero type errors.
 
-### What was done last session (2026-03-04 session 4, unpushed)
+### What was done this session (2026-03-05)
 
-- Fixed `parsePathD` to handle H, V, S, Q, T, A SVG path commands (was only M, L, C, Z)
-- Ran comprehensive chaos monkey testing + code analysis, filed 16 issues:
-  - **P1 bugs (3):** Unbounded CommandHistory, eraser ignores transforms, eraser wrong layer on undo
-  - **P2 bugs (4):** Layer lock bypass, PDF import layer ordering, freeTransform rotate, knife multi-split
-  - **P2 tasks (3):** Selection overlay DOM rebuild, RAF throttling, shared hitTest extraction
-  - **P3 bugs (2):** Pencil no auto-switch, textPath bypasses history
-  - **P3 tasks (3):** Duplicated unionBBox, selectTool double-move, smart guides optimization
-  - **P4 task (1):** PropertiesPanel redundant detectFillType calls
+Fixed all 16 issues from chaos monkey testing + code analysis:
+
+**P1 Bug Fixes (3):**
+- CommandHistory capped at 200 entries (prevents unbounded memory)
+- Eraser + DirectSelect + Eyedropper hit tests now transform-aware (shared `hitTestElement` in geometry.ts)
+- Eraser undo now restores elements to their original parent/position (not active layer)
+
+**P2 Bug Fixes (4):**
+- Drawing tools (rect, ellipse, line, pen, pencil) check `data-locked` before creating elements
+- PDF/SVG import inserts layers before overlay groups (correct z-order)
+- FreeTransform rotate preserves base angle from existing rotation
+- Knife tool multi-split processes segments in descending order (correct indices)
+
+**P2 Performance (3):**
+- Extracted shared `hitTestElement`/`hitTestAll` to geometry.ts (eliminated 4-way duplication)
+- Selection overlay `refreshOverlay()` uses RAF coalescing (batch DOM rebuilds)
+- Canvas mousemove tool dispatch RAF-throttled (at most once per frame)
+
+**P3 Bug Fixes (2):**
+- Pencil tool auto-switches to select after drawing
+- TextPath startOffset uses command history (undoable)
+
+**P3 Optimizations (3):**
+- Smart guides pre-split candidates by axis (skip inner-loop filter)
+- selectTool double-move: documented as inherent to smart guide snap (not a bug)
+- PropertiesPanel caches `detectFillType` result (4 calls → 1)
+
+**P4:**
+- detectFillType caching (above)
 
 ### What was built this session (2026-03-04 session 2)
 
@@ -413,10 +434,10 @@ MVP complete (22/22). **Phase 2 complete: 43/43 features (100%).** 16 open bugs/
 
 - **Phase 1 (MVP):** 22/22 features (100%)
 - **Phase 2:** 43/43 features (100%)
-- **Test count:** 442 (40 test files)
+- **Test count:** 449 (40 test files)
 - **Type errors:** 0
 - **LOC:** ~24,500 across ~85 source files
-- **Beads issues:** 0 open, 17/17 closed
+- **Beads issues:** 0 open, 16/16 closed (this batch)
 
 ### Known limitations / future work
 

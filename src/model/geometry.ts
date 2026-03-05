@@ -5,6 +5,7 @@
 
 import { parseTransform, applyMatrixToPoint } from './matrix'
 import { translatePathD } from './pathOps'
+import { screenToDoc } from './coordinates'
 
 export interface BBox {
   x: number
@@ -116,4 +117,101 @@ export function computeTranslateAttrs(el: Element, dx: number, dy: number): Arra
     }
   }
   return changes
+}
+
+// ---------------------------------------------------------------------------
+// Shared hit testing
+// ---------------------------------------------------------------------------
+
+const HIT_TOLERANCE_PX = 5
+
+export interface HitTestOptions {
+  /** If provided, only hit elements with these tag names */
+  tagFilter?: Set<string>
+  /** Skip locked layers (default: true) */
+  skipLocked?: boolean
+}
+
+/**
+ * Hit test: find topmost element under cursor.
+ * Transform-aware (uses full affine matrix).
+ */
+export function hitTestElement(
+  svg: SVGSVGElement,
+  screenX: number,
+  screenY: number,
+  opts?: HitTestOptions,
+): Element | null {
+  const pt = screenToDoc(svg, screenX, screenY)
+  const vb = svg.viewBox.baseVal
+  const tolerance = vb.width > 0 && svg.clientWidth > 0
+    ? HIT_TOLERANCE_PX * (vb.width / svg.clientWidth)
+    : 2
+  const skipLocked = opts?.skipLocked !== false
+  const tagFilter = opts?.tagFilter
+  const layers = svg.querySelectorAll('g[data-layer-name]')
+  for (let li = layers.length - 1; li >= 0; li--) {
+    const layer = layers[li]
+    if (skipLocked && layer.getAttribute('data-locked') === 'true') continue
+    if ((layer as SVGElement).style.display === 'none') continue
+    const children = layer.children
+    for (let ci = children.length - 1; ci >= 0; ci--) {
+      const child = children[ci]
+      if (tagFilter && !tagFilter.has(child.tagName)) continue
+      try {
+        const bbox = (child as SVGGraphicsElement).getBBox()
+        const transform = child.getAttribute('transform')
+        const aabb = transformedAABB(bbox, transform)
+        const padX = aabb.width < tolerance * 2 ? tolerance : 0
+        const padY = aabb.height < tolerance * 2 ? tolerance : 0
+        if (
+          pt.x >= aabb.x - padX && pt.x <= aabb.x + aabb.width + padX &&
+          pt.y >= aabb.y - padY && pt.y <= aabb.y + aabb.height + padY
+        ) {
+          return child
+        }
+      } catch { /* skip */ }
+    }
+  }
+  return null
+}
+
+/**
+ * Hit test returning ALL elements under cursor (for Alt+click cycle-through).
+ */
+export function hitTestAll(
+  svg: SVGSVGElement,
+  screenX: number,
+  screenY: number,
+): Element[] {
+  const pt = screenToDoc(svg, screenX, screenY)
+  const vb = svg.viewBox.baseVal
+  const tolerance = vb.width > 0 && svg.clientWidth > 0
+    ? HIT_TOLERANCE_PX * (vb.width / svg.clientWidth)
+    : 2
+  const hits: Element[] = []
+  const layers = svg.querySelectorAll('g[data-layer-name]')
+  for (let li = layers.length - 1; li >= 0; li--) {
+    const layer = layers[li]
+    if (layer.getAttribute('data-locked') === 'true') continue
+    if ((layer as SVGElement).style.display === 'none') continue
+    const children = layer.children
+    for (let ci = children.length - 1; ci >= 0; ci--) {
+      const child = children[ci]
+      try {
+        const bbox = (child as SVGGraphicsElement).getBBox()
+        const transform = child.getAttribute('transform')
+        const aabb = transformedAABB(bbox, transform)
+        const padX = aabb.width < tolerance * 2 ? tolerance : 0
+        const padY = aabb.height < tolerance * 2 ? tolerance : 0
+        if (
+          pt.x >= aabb.x - padX && pt.x <= aabb.x + aabb.width + padX &&
+          pt.y >= aabb.y - padY && pt.y <= aabb.y + aabb.height + padY
+        ) {
+          hits.push(child)
+        }
+      } catch { /* skip */ }
+    }
+  }
+  return hits
 }

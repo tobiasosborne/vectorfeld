@@ -8,83 +8,15 @@ import type { CommandHistory } from '../model/commands'
 import { CompoundCommand, ModifyAttributeCommand } from '../model/commands'
 import { snapToGrid } from '../model/grid'
 import { computeSmartGuides, renderGuides, clearGuides, cacheSmartGuideCandidates, clearCachedCandidates } from '../model/smartGuides'
-import { transformedAABB as sharedTransformedAABB } from '../model/geometry'
+import { transformedAABB as sharedTransformedAABB, hitTestElement as sharedHitTestElement, hitTestAll as sharedHitTestAll } from '../model/geometry'
 import { scalePathD, translatePathD } from '../model/pathOps'
 
-/** Minimum hit tolerance in screen pixels for thin elements like lines */
-const HIT_TOLERANCE_PX = 5
-
 function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element | null {
-  const pt = screenToDoc(svg, screenX, screenY)
-  const vb = svg.viewBox.baseVal
-  const tolerance = vb.width > 0 && svg.clientWidth > 0
-    ? HIT_TOLERANCE_PX * (vb.width / svg.clientWidth)
-    : 2
-  const layers = svg.querySelectorAll('g[data-layer-name]')
-  for (let li = layers.length - 1; li >= 0; li--) {
-    const layer = layers[li]
-    if (layer.getAttribute('data-locked') === 'true') continue
-    if ((layer as SVGElement).style.display === 'none') continue
-
-    const children = layer.children
-    for (let ci = children.length - 1; ci >= 0; ci--) {
-      const child = children[ci]
-      try {
-        const bbox = (child as SVGGraphicsElement).getBBox()
-        const transform = child.getAttribute('transform')
-        const aabb = transformedAABB(bbox, transform)
-        // Expand thin bounding boxes by tolerance so lines/narrow elements are easier to click
-        const padX = aabb.width < tolerance * 2 ? tolerance : 0
-        const padY = aabb.height < tolerance * 2 ? tolerance : 0
-        if (
-          pt.x >= aabb.x - padX &&
-          pt.x <= aabb.x + aabb.width + padX &&
-          pt.y >= aabb.y - padY &&
-          pt.y <= aabb.y + aabb.height + padY
-        ) {
-          return child
-        }
-      } catch {
-        // getBBox throws for elements without geometric layout (e.g., empty groups)
-      }
-    }
-  }
-  return null
+  return sharedHitTestElement(svg, screenX, screenY)
 }
 
 function hitTestAll(svg: SVGSVGElement, screenX: number, screenY: number): Element[] {
-  const pt = screenToDoc(svg, screenX, screenY)
-  const vb = svg.viewBox.baseVal
-  const tolerance = vb.width > 0 && svg.clientWidth > 0
-    ? HIT_TOLERANCE_PX * (vb.width / svg.clientWidth)
-    : 2
-  const hits: Element[] = []
-  const layers = svg.querySelectorAll('g[data-layer-name]')
-  for (let li = layers.length - 1; li >= 0; li--) {
-    const layer = layers[li]
-    if (layer.getAttribute('data-locked') === 'true') continue
-    if ((layer as SVGElement).style.display === 'none') continue
-    const children = layer.children
-    for (let ci = children.length - 1; ci >= 0; ci--) {
-      const child = children[ci]
-      try {
-        const bbox = (child as SVGGraphicsElement).getBBox()
-        const transform = child.getAttribute('transform')
-        const aabb = transformedAABB(bbox, transform)
-        const padX = aabb.width < tolerance * 2 ? tolerance : 0
-        const padY = aabb.height < tolerance * 2 ? tolerance : 0
-        if (
-          pt.x >= aabb.x - padX &&
-          pt.x <= aabb.x + aabb.width + padX &&
-          pt.y >= aabb.y - padY &&
-          pt.y <= aabb.y + aabb.height + padY
-        ) {
-          hits.push(child)
-        }
-      } catch { /* skip */ }
-    }
-  }
-  return hits
+  return sharedHitTestAll(svg, screenX, screenY)
 }
 
 type DragMode = 'none' | 'move' | 'scale' | 'rotate' | 'marquee'
@@ -559,11 +491,11 @@ export function createSelectTool(
           const snapped = snapToGrid(pt.x, pt.y)
           let dx = snapped.x - dragState.startX
           let dy = snapped.y - dragState.startY
-          // Apply preliminary move for smart guide calculation
+          // Move elements once with preliminary delta, then compute smart guide correction
           for (const el of getSelection()) {
             moveElement(el, dx, dy)
           }
-          // Smart guides: compute snap correction
+          // Smart guides: compute snap correction and re-apply only if needed
           const vb = svg.viewBox.baseVal
           const tolerance = vb.width > 0 && svg.clientWidth > 0
             ? 2 * (vb.width / svg.clientWidth)
@@ -572,7 +504,6 @@ export function createSelectTool(
           if (sgResult.dx !== 0 || sgResult.dy !== 0) {
             dx += sgResult.dx
             dy += sgResult.dy
-            // Re-apply with corrected delta
             for (const el of getSelection()) {
               moveElement(el, dx, dy)
             }

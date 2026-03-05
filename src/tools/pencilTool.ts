@@ -7,6 +7,8 @@ import type { CommandHistory } from '../model/commands'
 import { getDefaultStyle } from '../model/defaultStyle'
 import { simplifyPath, pointsToPathD } from '../model/pathSimplify'
 import type { Point } from '../model/pathSimplify'
+import { setSelection } from '../model/selection'
+import { setActiveTool } from './registry'
 
 interface PencilToolState {
   drawing: boolean
@@ -90,6 +92,7 @@ export function createPencilTool(
         if (!doc) return
         const layer = doc.getActiveLayer()
         if (!layer) return
+        if (layer.getAttribute('data-locked') === 'true') return
 
         const history = getHistory()
         const defaults = getDefaultStyle()
@@ -100,6 +103,8 @@ export function createPencilTool(
           fill: defaults.fill,
         })
         history.execute(cmd)
+        const el = cmd.getElement()
+        if (el) { setSelection([el]); setActiveTool('select') }
         state.points = []
       },
     },

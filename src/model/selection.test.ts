@@ -4,7 +4,7 @@ import {
   setSelection,
   clearSelection,
   setOverlayGroup,
-  refreshOverlay,
+  refreshOverlaySync,
 } from './selection'
 
 function makeSvg(): SVGSVGElement {
@@ -234,7 +234,7 @@ describe('Selection overlay with scale handles', () => {
     ;(rect as unknown as { getBBox: () => DOMRect }).getBBox = () =>
       new DOMRect(100, 200, 50, 30)
 
-    refreshOverlay()
+    refreshOverlaySync()
 
     const nw = overlay.querySelector('[data-handle-pos="nw"]')!
     const cx = parseFloat(nw.getAttribute('x')!) + parseFloat(nw.getAttribute('width')!) / 2
