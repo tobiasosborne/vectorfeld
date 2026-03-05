@@ -181,11 +181,22 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 ## Project Handoff Context
 
-**Current state (updated 2026-03-04 session 4):**
+**Current state (updated 2026-03-05 session 1):**
 
 ### Summary
 
-MVP complete (22/22). **Phase 2 complete: 43/43 features (100%).** All 17 beads issues closed. **442 tests** passing across **40 test files**. Zero type errors.
+MVP complete (22/22). **Phase 2 complete: 43/43 features (100%).** 16 open bugs/tasks from chaos monkey testing + code analysis. **442 tests** passing across **40 test files**. Zero type errors.
+
+### What was done last session (2026-03-04 session 4, unpushed)
+
+- Fixed `parsePathD` to handle H, V, S, Q, T, A SVG path commands (was only M, L, C, Z)
+- Ran comprehensive chaos monkey testing + code analysis, filed 16 issues:
+  - **P1 bugs (3):** Unbounded CommandHistory, eraser ignores transforms, eraser wrong layer on undo
+  - **P2 bugs (4):** Layer lock bypass, PDF import layer ordering, freeTransform rotate, knife multi-split
+  - **P2 tasks (3):** Selection overlay DOM rebuild, RAF throttling, shared hitTest extraction
+  - **P3 bugs (2):** Pencil no auto-switch, textPath bypasses history
+  - **P3 tasks (3):** Duplicated unionBBox, selectTool double-move, smart guides optimization
+  - **P4 task (1):** PropertiesPanel redundant detectFillType calls
 
 ### What was built this session (2026-03-04 session 2)
 
