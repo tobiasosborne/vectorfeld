@@ -32,3 +32,4 @@
 {"actor":"tobias","comment":null,"created_at":"2026-03-04T08:29:00Z","event_type":"closed","id":32,"issue_id":"vectorfeld-eft","new_value":"PropertiesPanel.test.tsx with 12 tests covering all sections","old_value":""}
 {"actor":"tobias","comment":null,"created_at":"2026-03-04T08:31:31Z","event_type":"closed","id":33,"issue_id":"vectorfeld-1fy","new_value":"freeTransformTool.ts with unified scale/rotate/skew + detectMode + icon + 8 tests","old_value":""}
 {"actor":"tobias","comment":null,"created_at":"2026-03-04T08:45:21Z","event_type":"closed","id":34,"issue_id":"vectorfeld-fr0","new_value":"pdfImport.ts with MuPDF WASM lazy-load + DocumentWriter SVG device + postProcessPdfSvg + File menu + 5 tests","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-04T08:49:10Z","event_type":"closed","id":35,"issue_id":"vectorfeld-reg","new_value":"artboard.ts with CRUD + layout + pub-sub + Canvas integration + 12 tests","old_value":""}
