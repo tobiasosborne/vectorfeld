@@ -34,3 +34,28 @@
 {"actor":"tobias","comment":null,"created_at":"2026-03-04T08:45:21Z","event_type":"closed","id":34,"issue_id":"vectorfeld-fr0","new_value":"pdfImport.ts with MuPDF WASM lazy-load + DocumentWriter SVG device + postProcessPdfSvg + File menu + 5 tests","old_value":""}
 {"actor":"tobias","comment":null,"created_at":"2026-03-04T08:49:10Z","event_type":"closed","id":35,"issue_id":"vectorfeld-reg","new_value":"artboard.ts with CRUD + layout + pub-sub + Canvas integration + 12 tests","old_value":""}
 {"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:05Z","event_type":"created","id":36,"issue_id":"vectorfeld-2yu","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:08Z","event_type":"created","id":37,"issue_id":"vectorfeld-t2n","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:08Z","event_type":"created","id":38,"issue_id":"vectorfeld-o44","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:09Z","event_type":"created","id":39,"issue_id":"vectorfeld-pal","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:10Z","event_type":"created","id":40,"issue_id":"vectorfeld-dlu","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:10Z","event_type":"created","id":41,"issue_id":"vectorfeld-5g2","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:11Z","event_type":"created","id":42,"issue_id":"vectorfeld-b4g","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:11Z","event_type":"created","id":43,"issue_id":"vectorfeld-yzh","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:12Z","event_type":"created","id":44,"issue_id":"vectorfeld-xy2","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:12Z","event_type":"created","id":45,"issue_id":"vectorfeld-7ar","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:13Z","event_type":"created","id":46,"issue_id":"vectorfeld-t58","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:14Z","event_type":"created","id":47,"issue_id":"vectorfeld-029","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:14Z","event_type":"created","id":48,"issue_id":"vectorfeld-unw","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:15Z","event_type":"created","id":49,"issue_id":"vectorfeld-gjw","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:15Z","event_type":"created","id":50,"issue_id":"vectorfeld-29i","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:16Z","event_type":"created","id":51,"issue_id":"vectorfeld-3tv","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:17Z","event_type":"created","id":52,"issue_id":"vectorfeld-18e","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:17Z","event_type":"created","id":53,"issue_id":"vectorfeld-c6m","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:18Z","event_type":"created","id":54,"issue_id":"vectorfeld-45t","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:18Z","event_type":"created","id":55,"issue_id":"vectorfeld-4s4","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:19Z","event_type":"created","id":56,"issue_id":"vectorfeld-91x","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:19Z","event_type":"created","id":57,"issue_id":"vectorfeld-se2","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:20Z","event_type":"created","id":58,"issue_id":"vectorfeld-ao9","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:21Z","event_type":"created","id":59,"issue_id":"vectorfeld-c41","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:21Z","event_type":"created","id":60,"issue_id":"vectorfeld-bfm","new_value":"","old_value":""}
+{"actor":"tobias","comment":null,"created_at":"2026-03-17T09:24:22Z","event_type":"created","id":61,"issue_id":"vectorfeld-qwe","new_value":"","old_value":""}
