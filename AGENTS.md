@@ -181,7 +181,7 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 ## Project Handoff Context
 
-**Current state (updated 2026-03-05 session 1):**
+**Current state (updated 2026-03-17):**
 
 ### Summary
 
@@ -218,6 +218,35 @@ Fixed all 16 issues from chaos monkey testing + code analysis:
 
 **P4:**
 - detectFillType caching (above)
+
+### Known bugs (identified 2026-03-17, NOT YET FIXED)
+
+All bugs are in `src/tools/selectTool.ts` transform handling for `path` and `g` (group) elements:
+
+**Bug 1 — Moving groups/paths loses existing transform:**
+`moveElement()` line 277 sets `translate(dx, dy)` which **replaces** the entire existing transform. After first move (group gets `translate(10,20)`), a second move replaces it with `translate(dx,dy)` instead of accumulating `translate(10+dx, 20+dy)`. If element had a rotation, that's lost too.
+- **Root cause:** no parsing/accumulation of existing translate in origTransform
+- **Fix approach:** use matrix composition — `translateMatrix(dx,dy) * parseTransform(origTransform)` → `matrix(...)`
+
+**Bug 2 — Scaling groups not implemented:**
+`scaleElement()` has cases for rect, ellipse, circle, line, text, path — but NO `g` case. Groups silently ignore resize.
+- **Fix approach:** add `g` case using transform: `origMatrix * translate(anchor) * scale(sx,sy) * translate(-anchor)` → `matrix(...)`
+
+**Bug 3 — Rotation center wrong for groups/paths with transform:**
+`onMouseDown` for rotation uses `getBBox()` center (local space) but compares against `screenToDoc` mouse position (document space). For elements with translate/rotate transforms, these spaces differ → wrong angle calculation. Also `setAttribute('transform', 'rotate(...)')` replaces entire transform, losing existing translate.
+- **Fix approach:** transform local bbox center through element's transform via `applyMatrixToPoint(parseTransform(...))` to get doc-space center. Use matrix composition for new transform.
+
+**Bug 4 — Scale mouse-to-local mapping only handles rotation:**
+Scale handler (line 572-586) inverse-transforms mouse point only for `rotate(...)` via regex. For groups with `translate(...)` or compound transforms, mouse stays in doc space while anchor is in local space → wrong scale factors.
+- **Fix approach:** use `invertMatrix(parseTransform(origTransform))` for full inverse transform.
+
+**Key files for fixes:**
+- `src/tools/selectTool.ts` — moveElement, scaleElement, rotation handler, scale handler
+- `src/model/matrix.ts` — needs `invertMatrix()` added
+- `src/model/selection.ts` — rotation cursor zones (may need size/position check for groups)
+
+**Matrix utilities already available in `matrix.ts`:** `parseTransform`, `applyMatrixToPoint`, `multiplyMatrix`, `translateMatrix`, `scaleMatrix`, `rotateMatrix`
+**Missing:** `invertMatrix` (formula: standard 2x3 affine inverse via determinant)
 
 ### What was built this session (2026-03-04 session 2)
 
