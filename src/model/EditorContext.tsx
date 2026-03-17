@@ -130,6 +130,20 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       } else if (e.ctrlKey && e.shiftKey && (e.key === '{' || e.code === 'BracketLeft')) {
         e.preventDefault()
         sendToBack(history)
+      } else if (e.ctrlKey && e.key === 'a' && !e.shiftKey) {
+        e.preventDefault()
+        if (docRef.current) {
+          const layers = docRef.current.getLayerElements()
+          const all: Element[] = []
+          for (const layer of layers) {
+            if (layer.getAttribute('data-locked') === 'true') continue
+            if ((layer as SVGElement).style.display === 'none') continue
+            for (const child of Array.from(layer.children)) {
+              all.push(child)
+            }
+          }
+          setSelection(all)
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)

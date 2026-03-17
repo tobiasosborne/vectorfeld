@@ -311,9 +311,22 @@ export function createPenTool(
         }
 
         // Update rubber-band line
-        if (state.previewLine && !state.draggingHandle) {
-          state.previewLine.setAttribute('x2', String(pt.x))
-          state.previewLine.setAttribute('y2', String(pt.y))
+        if (state.previewLine) {
+          if (state.draggingHandle && state.dragAnchorIdx >= 0) {
+            // During handle drag, show preview line from the mirrored control
+            // point (handleIn) to the current mouse position so the user can
+            // see the direction the next segment will take.
+            const anchor = state.anchors[state.dragAnchorIdx]
+            const mirroredX = 2 * anchor.pos.x - pt.x
+            const mirroredY = 2 * anchor.pos.y - pt.y
+            state.previewLine.setAttribute('x1', String(mirroredX))
+            state.previewLine.setAttribute('y1', String(mirroredY))
+            state.previewLine.setAttribute('x2', String(pt.x))
+            state.previewLine.setAttribute('y2', String(pt.y))
+          } else {
+            state.previewLine.setAttribute('x2', String(pt.x))
+            state.previewLine.setAttribute('y2', String(pt.y))
+          }
         }
 
         // Highlight first anchor for close hint
@@ -358,9 +371,12 @@ export function createPenTool(
 
       onKeyDown(e: KeyboardEvent) {
         if (!state.drawing) return
-        if (e.key === 'Enter' || e.key === 'Escape') {
+        if (e.key === 'Enter') {
           e.preventDefault()
           finish()
+        } else if (e.key === 'Escape') {
+          e.preventDefault()
+          cleanup() // Cancel: remove preview without committing
         }
       },
     },

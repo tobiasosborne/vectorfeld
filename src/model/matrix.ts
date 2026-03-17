@@ -134,6 +134,29 @@ export function setSkew(transform: string, skewX: number, skewY: number): string
   return result.trim()
 }
 
+/** Scale around a point: T(cx,cy) * S(sx,sy) * T(-cx,-cy) */
+export function scaleAroundMatrix(sx: number, sy: number, cx: number, cy: number): Matrix {
+  return multiplyMatrix(
+    multiplyMatrix(translateMatrix(cx, cy), scaleMatrix(sx, sy)),
+    translateMatrix(-cx, -cy)
+  )
+}
+
+/** Invert a 2x3 affine matrix. Returns identity for singular matrices. */
+export function invertMatrix(m: Matrix): Matrix {
+  const [a, b, c, d, e, f] = m
+  const det = a * d - b * c
+  if (Math.abs(det) < 1e-10) return identityMatrix()
+  const id = 1 / det
+  return [d * id, -b * id, -c * id, a * id, (c * f - d * e) * id, (b * e - a * f) * id]
+}
+
+/** Serialize a matrix to SVG `matrix(a,b,c,d,e,f)` string. Uses 6 decimal places. */
+export function matrixToString(m: Matrix): string {
+  const f = (v: number) => +v.toFixed(6)
+  return `matrix(${f(m[0])}, ${f(m[1])}, ${f(m[2])}, ${f(m[3])}, ${f(m[4])}, ${f(m[5])})`
+}
+
 /**
  * Parse an SVG transform attribute string into a combined matrix.
  * Handles: translate, scale, rotate, skewX, skewY, matrix.

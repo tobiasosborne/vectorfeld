@@ -3,6 +3,7 @@ import {
   identityMatrix, translateMatrix, scaleMatrix, rotateMatrix,
   skewXMatrix, skewYMatrix, multiplyMatrix, applyMatrixToPoint,
   parseTransform, decomposeMatrix, parseSkew, setSkew,
+  invertMatrix, matrixToString, scaleAroundMatrix,
 } from './matrix'
 import { transformedAABB } from './geometry'
 
@@ -201,6 +202,134 @@ describe('setSkew', () => {
   it('handles empty string', () => {
     const t = setSkew('', 10, 0)
     expect(t).toBe('skewX(10)')
+  })
+})
+
+describe('invertMatrix', () => {
+  it('inverts identity to identity', () => {
+    const inv = invertMatrix(identityMatrix())
+    const id = identityMatrix()
+    for (let i = 0; i < 6; i++) expect(near(inv[i], id[i])).toBe(true)
+  })
+
+  it('inverts translation', () => {
+    const inv = invertMatrix(translateMatrix(10, 20))
+    const p = applyMatrixToPoint(inv, 10, 20)
+    expect(near(p.x, 0)).toBe(true)
+    expect(near(p.y, 0)).toBe(true)
+  })
+
+  it('inverts rotation', () => {
+    const m = rotateMatrix(90)
+    const inv = invertMatrix(m)
+    // rotate(90) maps (10,0) → (0,10); inverse should map (0,10) → (10,0)
+    const p = applyMatrixToPoint(inv, 0, 10)
+    expect(near(p.x, 10)).toBe(true)
+    expect(near(p.y, 0)).toBe(true)
+  })
+
+  it('inverts compound transform', () => {
+    const m = multiplyMatrix(translateMatrix(50, 30), rotateMatrix(45))
+    const inv = invertMatrix(m)
+    // Apply forward then inverse should return to original
+    const fwd = applyMatrixToPoint(m, 7, 13)
+    const back = applyMatrixToPoint(inv, fwd.x, fwd.y)
+    expect(near(back.x, 7)).toBe(true)
+    expect(near(back.y, 13)).toBe(true)
+  })
+
+  it('returns identity for singular matrix', () => {
+    // det = 0 (both columns parallel)
+    const singular = [1, 2, 1, 2, 0, 0] as [number, number, number, number, number, number]
+    expect(invertMatrix(singular)).toEqual(identityMatrix())
+  })
+
+  it('inverts non-uniform scale', () => {
+    const m = scaleMatrix(3, 0.5)
+    const inv = invertMatrix(m)
+    const fwd = applyMatrixToPoint(m, 7, 11)
+    const back = applyMatrixToPoint(inv, fwd.x, fwd.y)
+    expect(near(back.x, 7)).toBe(true)
+    expect(near(back.y, 11)).toBe(true)
+  })
+
+  it('inverts negative scale (mirror)', () => {
+    const m = scaleMatrix(-1, 1)
+    const inv = invertMatrix(m)
+    const fwd = applyMatrixToPoint(m, 5, 10)
+    const back = applyMatrixToPoint(inv, fwd.x, fwd.y)
+    expect(near(back.x, 5)).toBe(true)
+    expect(near(back.y, 10)).toBe(true)
+  })
+
+  it('inverts skew matrix', () => {
+    const m = skewXMatrix(30)
+    const inv = invertMatrix(m)
+    const fwd = applyMatrixToPoint(m, 10, 20)
+    const back = applyMatrixToPoint(inv, fwd.x, fwd.y)
+    expect(near(back.x, 10)).toBe(true)
+    expect(near(back.y, 20)).toBe(true)
+  })
+
+  it('double inversion returns original matrix', () => {
+    const m = multiplyMatrix(
+      multiplyMatrix(translateMatrix(30, -15), rotateMatrix(37)),
+      scaleMatrix(2, 0.7)
+    )
+    const inv = invertMatrix(m)
+    const back = invertMatrix(inv)
+    for (let i = 0; i < 6; i++) expect(near(back[i], m[i])).toBe(true)
+  })
+
+  it('inverts large translation', () => {
+    const m = translateMatrix(1e6, -1e6)
+    const inv = invertMatrix(m)
+    const p = applyMatrixToPoint(inv, 1e6, -1e6)
+    expect(near(p.x, 0)).toBe(true)
+    expect(near(p.y, 0)).toBe(true)
+  })
+})
+
+describe('scaleAroundMatrix', () => {
+  it('scales around origin is same as plain scale', () => {
+    const m = scaleAroundMatrix(2, 3, 0, 0)
+    const s = scaleMatrix(2, 3)
+    for (let i = 0; i < 6; i++) expect(near(m[i], s[i])).toBe(true)
+  })
+
+  it('anchor point stays fixed', () => {
+    const m = scaleAroundMatrix(2, 3, 50, 50)
+    const p = applyMatrixToPoint(m, 50, 50)
+    expect(near(p.x, 50)).toBe(true)
+    expect(near(p.y, 50)).toBe(true)
+  })
+
+  it('scales distance from anchor', () => {
+    const m = scaleAroundMatrix(2, 2, 10, 10)
+    // Point (20, 10) is 10 units right of anchor
+    // After 2x scale: 20 units right → (30, 10)
+    const p = applyMatrixToPoint(m, 20, 10)
+    expect(near(p.x, 30)).toBe(true)
+    expect(near(p.y, 10)).toBe(true)
+  })
+})
+
+describe('matrixToString', () => {
+  it('serializes identity', () => {
+    expect(matrixToString(identityMatrix())).toBe('matrix(1, 0, 0, 1, 0, 0)')
+  })
+
+  it('serializes translation', () => {
+    expect(matrixToString(translateMatrix(10, 20))).toBe('matrix(1, 0, 0, 1, 10, 20)')
+  })
+
+  it('round-trips through parseTransform', () => {
+    const m = multiplyMatrix(translateMatrix(10, 20), rotateMatrix(45))
+    const str = matrixToString(m)
+    const parsed = parseTransform(str)
+    for (let i = 0; i < 6; i++) {
+      expect(near(parsed[i], m[i])).toBe(true)
+    }
   })
 })
 

@@ -8,16 +8,16 @@ import type { CommandHistory } from '../model/commands'
 import { CompoundCommand, ModifyAttributeCommand } from '../model/commands'
 import { snapToGrid } from '../model/grid'
 import { computeSmartGuides, renderGuides, clearGuides, cacheSmartGuideCandidates, clearCachedCandidates } from '../model/smartGuides'
-import { transformedAABB as sharedTransformedAABB, hitTestElement as sharedHitTestElement, hitTestAll as sharedHitTestAll } from '../model/geometry'
+import { transformedAABB, hitTestElement, hitTestAll } from '../model/geometry'
 import { scalePathD, translatePathD } from '../model/pathOps'
+import { parseTransform, multiplyMatrix, translateMatrix, rotateMatrix, invertMatrix, matrixToString, applyMatrixToPoint, scaleAroundMatrix } from '../model/matrix'
 
-function hitTest(svg: SVGSVGElement, screenX: number, screenY: number): Element | null {
-  return sharedHitTestElement(svg, screenX, screenY)
-}
-
-function hitTestAll(svg: SVGSVGElement, screenX: number, screenY: number): Element[] {
-  return sharedHitTestAll(svg, screenX, screenY)
-}
+// Named constants
+const MIN_BBOX_DIM = 0.001       // Minimum bbox dimension to avoid division by zero
+const MIN_SCALE_SIZE = 0.1       // Minimum width/height during scale
+const ROTATION_SNAP_DEG = 15     // Shift-constrained rotation increment
+const MARQUEE_THRESHOLD = 0.5    // Doc-space threshold for click-vs-drag (marquee)
+const MOVE_DEAD_ZONE = 0.01      // Doc-space dead zone for move commit
 
 type DragMode = 'none' | 'move' | 'scale' | 'rotate' | 'marquee'
 
@@ -57,7 +57,7 @@ function getAllGeomAttrs(el: Element): Record<string, number> {
       x2: parseFloat(el.getAttribute('x2') || '0'),
       y2: parseFloat(el.getAttribute('y2') || '0'),
     }
-  } else if (tag === 'rect') {
+  } else if (tag === 'rect' || tag === 'image') {
     return {
       x: parseFloat(el.getAttribute('x') || '0'),
       y: parseFloat(el.getAttribute('y') || '0'),
@@ -103,6 +103,7 @@ function computeAnchor(
     case 's':  return { x: cx, y: bbox.y }
     case 'sw': return { x: bbox.x + bbox.width, y: bbox.y }
     case 'w':  return { x: bbox.x + bbox.width, y: cy }
+    default:   return { x: cx, y: cy } // fallback: center
   }
 }
 
@@ -113,14 +114,6 @@ function handleAxes(handle: HandlePosition): { scaleX: boolean; scaleY: boolean 
     case 'e': case 'w':  return { scaleX: true, scaleY: false }
     default:             return { scaleX: true, scaleY: true } // corners
   }
-}
-
-/** Transform a local-space bbox through a rotation to get the AABB */
-function transformedAABB(
-  bbox: { x: number; y: number; width: number; height: number },
-  transform: string | null
-) {
-  return sharedTransformedAABB(bbox, transform)
 }
 
 /** Compute union bounding box of elements (transform-aware) */
@@ -164,7 +157,7 @@ export function createSelectTool(
     const tag = el.tagName
     if (tag === 'line') {
       return { attr: 'line', vals: { x1: parseFloat(el.getAttribute('x1') || '0'), y1: parseFloat(el.getAttribute('y1') || '0'), x2: parseFloat(el.getAttribute('x2') || '0'), y2: parseFloat(el.getAttribute('y2') || '0') } }
-    } else if (tag === 'rect') {
+    } else if (tag === 'rect' || tag === 'image') {
       return { attr: 'rect', vals: { x: parseFloat(el.getAttribute('x') || '0'), y: parseFloat(el.getAttribute('y') || '0') } }
     } else if (tag === 'ellipse') {
       return { attr: 'ellipse', vals: { cx: parseFloat(el.getAttribute('cx') || '0'), cy: parseFloat(el.getAttribute('cy') || '0') } }
@@ -187,7 +180,7 @@ export function createSelectTool(
       el.setAttribute('y1', String(start.vals.y1 + dy))
       el.setAttribute('x2', String(start.vals.x2 + dx))
       el.setAttribute('y2', String(start.vals.y2 + dy))
-    } else if (tag === 'rect' || tag === 'text') {
+    } else if (tag === 'rect' || tag === 'text' || tag === 'image') {
       el.setAttribute('x', String(start.vals.x + dx))
       el.setAttribute('y', String(start.vals.y + dy))
     } else if (tag === 'ellipse' || tag === 'circle') {
@@ -199,24 +192,35 @@ export function createSelectTool(
       el.setAttribute('d', translatePathD(origD, dx, dy))
     }
 
-    // Update transform: move rotation center, preserve skew
+    // Update transform
     const origTransform = dragState.origTransforms.get(el)
     if (origTransform !== undefined) {
       const orig = origTransform || ''
-      const rotMatch = orig.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
-      if (rotMatch) {
-        const angle = rotMatch[1]
-        const cx = parseFloat(rotMatch[2] || '0') + dx
-        const cy = parseFloat(rotMatch[3] || '0') + dy
-        let newTransform = `rotate(${angle}, ${cx}, ${cy})`
-        const skewXMatch = orig.match(/skewX\([^)]+\)/)
-        const skewYMatch = orig.match(/skewY\([^)]+\)/)
-        if (skewXMatch) newTransform += ` ${skewXMatch[0]}`
-        if (skewYMatch) newTransform += ` ${skewYMatch[0]}`
-        el.setAttribute('transform', newTransform)
-      } else if (start.attr === 'transform' && tag !== 'path') {
-        // For g/polygon/polyline: move via translate transform
-        el.setAttribute('transform', `translate(${dx}, ${dy})`)
+      if (start.attr === 'transform' && tag !== 'path') {
+        // Groups: compose translate with full original transform via matrix
+        const origM = parseTransform(orig)
+        const newM = multiplyMatrix(translateMatrix(dx, dy), origM)
+        el.setAttribute('transform', matrixToString(newM))
+      } else if (orig) {
+        // Elements with position attrs: shift rotation center, preserve skew
+        const rotMatch = orig.match(/rotate\(([-\d.]+)(?:,\s*([-\d.]+),\s*([-\d.]+))?\)/)
+        if (rotMatch) {
+          const angle = rotMatch[1]
+          const cx = parseFloat(rotMatch[2] || '0') + dx
+          const cy = parseFloat(rotMatch[3] || '0') + dy
+          let newTransform = `rotate(${angle}, ${cx}, ${cy})`
+          const skewXMatch = orig.match(/skewX\([^)]+\)/)
+          const skewYMatch = orig.match(/skewY\([^)]+\)/)
+          if (skewXMatch) newTransform += ` ${skewXMatch[0]}`
+          if (skewYMatch) newTransform += ` ${skewYMatch[0]}`
+          el.setAttribute('transform', newTransform)
+        } else {
+          // Fallback for non-standard transforms (e.g., imported matrix()):
+          // pre-multiply T(dx,dy) * orig to translate in doc space
+          const origM = parseTransform(orig)
+          const newM = multiplyMatrix(translateMatrix(dx, dy), origM)
+          el.setAttribute('transform', matrixToString(newM))
+        }
       }
     }
   }
@@ -227,7 +231,7 @@ export function createSelectTool(
     if (!start) return
     const tag = el.tagName
 
-    if (tag === 'rect') {
+    if (tag === 'rect' || tag === 'image') {
       const origX = start.vals.x, origY = start.vals.y
       const origW = start.vals.width, origH = start.vals.height
       el.setAttribute('x', String(anchorX + (origX - anchorX) * sx))
@@ -266,6 +270,12 @@ export function createSelectTool(
     } else if (tag === 'path') {
       const origD = dragState.origPathDs.get(el) || el.getAttribute('d') || ''
       el.setAttribute('d', scalePathD(origD, sx, sy, anchorX, anchorY))
+    } else if (tag === 'g' || tag === 'polygon' || tag === 'polyline') {
+      // Scale via transform composition: origTransform * scale_around(anchor)
+      const origT = dragState.origTransforms.get(el) || ''
+      const origM = parseTransform(origT)
+      const newM = multiplyMatrix(origM, scaleAroundMatrix(sx, sy, anchorX, anchorY))
+      el.setAttribute('transform', matrixToString(newM))
     }
   }
 
@@ -337,15 +347,20 @@ export function createSelectTool(
         if (!svg || e.button !== 0) return
 
         // Check if clicking on the rotation handle
-        const target = e.target as Element
-        if (target?.getAttribute?.('data-role') === 'rotation-handle') {
+        const target = e.target instanceof Element ? e.target : null
+        if (target?.getAttribute('data-role') === 'rotation-handle') {
           const sel = getSelection()
           if (sel.length === 1) {
             const pt = screenToDoc(svg, e.clientX, e.clientY)
-            // Always use local bbox center — invariant under rotation
+            // Transform local bbox center to doc space for correct angle computation
             const localBBox = (sel[0] as SVGGraphicsElement).getBBox()
-            const cx = localBBox.x + localBBox.width / 2
-            const cy = localBBox.y + localBBox.height / 2
+            const localCx = localBBox.x + localBBox.width / 2
+            const localCy = localBBox.y + localBBox.height / 2
+            const elTransform = sel[0].getAttribute('transform')
+            const elM = parseTransform(elTransform || '')
+            const docCenter = applyMatrixToPoint(elM, localCx, localCy)
+            const cx = docCenter.x
+            const cy = docCenter.y
             const startAngle = Math.atan2(pt.y - cy, pt.x - cx)
             dragState.mode = 'rotate'
             dragState.startX = pt.x
@@ -364,7 +379,7 @@ export function createSelectTool(
         }
 
         // Check if clicking on a scale handle
-        if (target?.getAttribute?.('data-role') === 'scale-handle') {
+        if (target?.getAttribute('data-role') === 'scale-handle') {
           const handle = target.getAttribute('data-handle-pos') as HandlePosition
           if (handle) {
             const sel = getSelection()
@@ -394,17 +409,18 @@ export function createSelectTool(
                 dragState.origPathDs.set(el, el.getAttribute('d') || '')
               }
             }
+            const anchor = computeAnchor(handle, bbox)
             dragState.scale = {
               handle,
-              anchorX: computeAnchor(handle, bbox).x,
-              anchorY: computeAnchor(handle, bbox).y,
+              anchorX: anchor.x,
+              anchorY: anchor.y,
               origBBox: bbox,
             }
             return
           }
         }
 
-        const hit = hitTest(svg, e.clientX, e.clientY)
+        const hit = hitTestElement(svg, e.clientX, e.clientY)
         const pt = screenToDoc(svg, e.clientX, e.clientY)
 
         // Alt+click: cycle through stacked elements
@@ -513,21 +529,15 @@ export function createSelectTool(
           const { handle, anchorX, anchorY, origBBox } = dragState.scale
           const axes = handleAxes(handle)
 
-          // For rotated single-element, inverse-rotate mouse point into local space
+          // Inverse-transform mouse point into local space (handles any transform type)
           let localPt = { x: pt.x, y: pt.y }
           const sel = getSelection()
           if (sel.length === 1) {
             const transform = sel[0].getAttribute('transform')
-            const rotMatch = transform?.match(/rotate\(([-\d.]+),\s*([-\d.]+),\s*([-\d.]+)\)/)
-            if (rotMatch) {
-              const angle = -parseFloat(rotMatch[1]) * Math.PI / 180
-              const rcx = parseFloat(rotMatch[2])
-              const rcy = parseFloat(rotMatch[3])
-              const cos = Math.cos(angle)
-              const sin = Math.sin(angle)
-              const dx = pt.x - rcx
-              const dy = pt.y - rcy
-              localPt = { x: rcx + dx * cos - dy * sin, y: rcy + dx * sin + dy * cos }
+            if (transform) {
+              const m = parseTransform(transform)
+              const inv = invertMatrix(m)
+              localPt = applyMatrixToPoint(inv, pt.x, pt.y)
             }
           }
 
@@ -537,15 +547,15 @@ export function createSelectTool(
 
           if (axes.scaleX) {
             newWidth = Math.abs(localPt.x - anchorX)
-            if (newWidth < 0.1) newWidth = 0.1
+            if (newWidth < MIN_SCALE_SIZE) newWidth = MIN_SCALE_SIZE
           }
           if (axes.scaleY) {
             newHeight = Math.abs(localPt.y - anchorY)
-            if (newHeight < 0.1) newHeight = 0.1
+            if (newHeight < MIN_SCALE_SIZE) newHeight = MIN_SCALE_SIZE
           }
 
-          let sx = axes.scaleX && origBBox.width > 0.001 ? newWidth / origBBox.width : 1
-          let sy = axes.scaleY && origBBox.height > 0.001 ? newHeight / origBBox.height : 1
+          let sx = axes.scaleX && origBBox.width > MIN_BBOX_DIM ? newWidth / origBBox.width : 1
+          let sy = axes.scaleY && origBBox.height > MIN_BBOX_DIM ? newHeight / origBBox.height : 1
 
           // Shift constrains proportions for corner handles
           if (e.shiftKey && axes.scaleX && axes.scaleY) {
@@ -564,28 +574,38 @@ export function createSelectTool(
 
           // Shift constrains to 15° increments
           if (e.shiftKey) {
-            angleDeg = Math.round(angleDeg / 15) * 15
+            angleDeg = Math.round(angleDeg / ROTATION_SNAP_DEG) * ROTATION_SNAP_DEG
           }
 
-          // Parse existing rotation from original transform
-          let baseAngle = 0
-          const orig = dragState.rotate.origTransform
-          if (orig) {
-            const match = orig.match(/rotate\(([-\d.]+)/)
-            if (match) baseAngle = parseFloat(match[1])
-          }
-
-          const totalAngle = baseAngle + angleDeg
           const sel = getSelection()
           if (sel.length === 1) {
-            let newTransform = `rotate(${totalAngle}, ${centerX}, ${centerY})`
-            // Preserve skew transforms from original
             const origT = dragState.rotate!.origTransform || ''
-            const skewXM = origT.match(/skewX\([^)]+\)/)
-            const skewYM = origT.match(/skewY\([^)]+\)/)
-            if (skewXM) newTransform += ` ${skewXM[0]}`
-            if (skewYM) newTransform += ` ${skewYM[0]}`
-            sel[0].setAttribute('transform', newTransform)
+            if (sel[0].tagName === 'g') {
+              // Groups: compose rotation with full original transform via matrix
+              const rotM = rotateMatrix(angleDeg, centerX, centerY)
+              const origM = parseTransform(origT)
+              const newM = multiplyMatrix(rotM, origM)
+              sel[0].setAttribute('transform', matrixToString(newM))
+            } else {
+              // Elements with position attrs
+              const rotMatch = origT.match(/rotate\(([-\d.]+)/)
+              if (rotMatch || !origT) {
+                // Standard case: rotate() string + skew preservation
+                const baseAngle = rotMatch ? parseFloat(rotMatch[1]) : 0
+                const totalAngle = baseAngle + angleDeg
+                let newTransform = `rotate(${totalAngle}, ${centerX}, ${centerY})`
+                const skewXM = origT.match(/skewX\([^)]+\)/)
+                const skewYM = origT.match(/skewY\([^)]+\)/)
+                if (skewXM) newTransform += ` ${skewXM[0]}`
+                if (skewYM) newTransform += ` ${skewYM[0]}`
+                sel[0].setAttribute('transform', newTransform)
+              } else {
+                // Fallback for non-standard transforms: matrix composition
+                const rotM = rotateMatrix(angleDeg, centerX, centerY)
+                const origM = parseTransform(origT)
+                sel[0].setAttribute('transform', matrixToString(multiplyMatrix(rotM, origM)))
+              }
+            }
           }
         }
 
@@ -613,7 +633,7 @@ export function createSelectTool(
           const my = Math.min(dragState.startY, pt.y)
           const mw = Math.abs(pt.x - dragState.startX)
           const mh = Math.abs(pt.y - dragState.startY)
-          if (mw < 0.5 && mh < 0.5) return // too small, treat as click-to-deselect
+          if (mw < MARQUEE_THRESHOLD && mh < MARQUEE_THRESHOLD) return // too small, treat as click-to-deselect
           // Find all elements intersecting the marquee rect
           const hits: Element[] = []
           const layers = svg.querySelectorAll('g[data-layer-name]')
@@ -642,8 +662,36 @@ export function createSelectTool(
         const dx = pt.x - dragState.startX
         const dy = pt.y - dragState.startY
 
-        if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
+        if (Math.abs(dx) < MOVE_DEAD_ZONE && Math.abs(dy) < MOVE_DEAD_ZONE) {
+          // Restore mutated DOM attributes for scale/rotate to avoid dirty DOM
+          if (mode === 'scale' || mode === 'rotate') {
+            for (const el of getSelection()) {
+              // Restore geometry attributes
+              const start = dragState.startPositions.get(el)
+              if (start) {
+                for (const [attr, origVal] of Object.entries(start.vals)) {
+                  el.setAttribute(attr, String(origVal))
+                }
+              }
+              // Restore path d attribute
+              const origD = dragState.origPathDs.get(el)
+              if (origD !== undefined) {
+                el.setAttribute('d', origD)
+              }
+              // Restore transform attribute
+              const origTransform = dragState.origTransforms.get(el)
+              if (origTransform !== undefined) {
+                if (origTransform) {
+                  el.setAttribute('transform', origTransform)
+                } else {
+                  el.removeAttribute('transform')
+                }
+              }
+            }
+          }
           dragState.startPositions.clear()
+          dragState.origTransforms.clear()
+          dragState.origPathDs.clear()
           dragState.scale = null
           dragState.rotate = null
           return

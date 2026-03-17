@@ -5,6 +5,7 @@ interface MenuItem {
   shortcut?: string
   action?: () => void
   separator?: boolean
+  disabled?: boolean
 }
 
 interface MenuDef {
@@ -51,15 +52,17 @@ export function MenuBar({ menus }: MenuBarProps) {
                 ) : (
                   <button
                     key={i}
-                    className="w-full text-left px-3 py-1 text-xs hover:bg-accent/10 flex justify-between items-center"
+                    disabled={item.disabled}
+                    className={`w-full text-left px-3 py-1 text-xs flex justify-between items-center ${item.disabled ? 'text-chrome-300 cursor-default' : 'hover:bg-accent/10'}`}
                     onClick={() => {
+                      if (item.disabled) return
                       item.action?.()
                       setOpenMenu(null)
                     }}
                   >
                     <span>{item.label}</span>
                     {item.shortcut && (
-                      <span className="text-chrome-400 ml-4">{item.shortcut}</span>
+                      <span className={`ml-4 ${item.disabled ? 'text-chrome-300' : 'text-chrome-400'}`}>{item.shortcut}</span>
                     )}
                   </button>
                 )

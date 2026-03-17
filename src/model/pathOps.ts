@@ -7,152 +7,206 @@ export interface PathCommand {
   points: Array<{ x: number; y: number }>
 }
 
+/** Check whether a token looks like a number rather than a command letter */
+function isNumericToken(token: string): boolean {
+  return /^[+-]?(\d|\.)/i.test(token)
+}
+
 /** Parse an SVG path `d` attribute into structured commands.
  * Converts all commands to absolute M/L/C/Z. Handles H, V, S, Q, T, A by
- * converting to equivalent L or C commands. */
+ * converting to equivalent L or C commands.
+ * Handles implicit repeat commands per SVG spec (extra coordinate pairs after
+ * a command repeat that command; M becomes implicit L after the first pair). */
 export function parsePathD(d: string): PathCommand[] {
   const commands: PathCommand[] = []
   // Normalize: insert spaces before commands, handle negative numbers as separators
   const normalized = d.replace(/([MLCZHVSQTAmlczhvsqta])/g, ' $1 ')
-    .replace(/-/g, ' -').trim()
+    .replace(/(?<![eE])-/g, ' -').trim()
   const tokens = normalized.split(/[\s,]+/).filter(Boolean)
 
   let i = 0
   let curX = 0, curY = 0
   let startX = 0, startY = 0 // for Z to return to
   let lastCp2X = 0, lastCp2Y = 0 // for S/T smooth commands
-  let lastCmd = ''
+
+  function parseM(cmd: string) {
+    const x = parseFloat(tokens[i++])
+    const y = parseFloat(tokens[i++])
+    const absX = cmd === 'm' ? curX + x : x
+    const absY = cmd === 'm' ? curY + y : y
+    commands.push({ type: 'M', points: [{ x: absX, y: absY }] })
+    curX = absX; curY = absY
+    startX = absX; startY = absY
+    lastCp2X = curX; lastCp2Y = curY
+    // Per SVG spec, subsequent pairs after M become implicit L
+    const implicitL = cmd === 'm' ? 'l' : 'L'
+    while (i < tokens.length && isNumericToken(tokens[i])) {
+      parseL(implicitL)
+    }
+  }
+
+  function parseL(cmd: string) {
+    const x = parseFloat(tokens[i++])
+    const y = parseFloat(tokens[i++])
+    const absX = cmd === 'l' ? curX + x : x
+    const absY = cmd === 'l' ? curY + y : y
+    commands.push({ type: 'L', points: [{ x: absX, y: absY }] })
+    curX = absX; curY = absY
+    lastCp2X = curX; lastCp2Y = curY
+  }
+
+  function parseH(cmd: string) {
+    const x = parseFloat(tokens[i++])
+    const absX = cmd === 'h' ? curX + x : x
+    commands.push({ type: 'L', points: [{ x: absX, y: curY }] })
+    curX = absX
+    lastCp2X = curX; lastCp2Y = curY
+  }
+
+  function parseV(cmd: string) {
+    const y = parseFloat(tokens[i++])
+    const absY = cmd === 'v' ? curY + y : y
+    commands.push({ type: 'L', points: [{ x: curX, y: absY }] })
+    curY = absY
+    lastCp2X = curX; lastCp2Y = curY
+  }
+
+  function parseC(cmd: string) {
+    const x1 = parseFloat(tokens[i++])
+    const y1 = parseFloat(tokens[i++])
+    const x2 = parseFloat(tokens[i++])
+    const y2 = parseFloat(tokens[i++])
+    const x = parseFloat(tokens[i++])
+    const y = parseFloat(tokens[i++])
+    if (cmd === 'c') {
+      const cp2x = curX + x2, cp2y = curY + y2
+      commands.push({ type: 'C', points: [
+        { x: curX + x1, y: curY + y1 },
+        { x: cp2x, y: cp2y },
+        { x: curX + x, y: curY + y },
+      ]})
+      lastCp2X = cp2x; lastCp2Y = cp2y
+      curX += x; curY += y
+    } else {
+      commands.push({ type: 'C', points: [
+        { x: x1, y: y1 }, { x: x2, y: y2 }, { x, y },
+      ]})
+      lastCp2X = x2; lastCp2Y = y2
+      curX = x; curY = y
+    }
+  }
+
+  function parseS(cmd: string) {
+    // Smooth cubic: reflect previous control point
+    const cp1x = 2 * curX - lastCp2X
+    const cp1y = 2 * curY - lastCp2Y
+    const x2 = parseFloat(tokens[i++])
+    const y2 = parseFloat(tokens[i++])
+    const x = parseFloat(tokens[i++])
+    const y = parseFloat(tokens[i++])
+    const absCp2x = cmd === 's' ? curX + x2 : x2
+    const absCp2y = cmd === 's' ? curY + y2 : y2
+    const absX = cmd === 's' ? curX + x : x
+    const absY = cmd === 's' ? curY + y : y
+    commands.push({ type: 'C', points: [
+      { x: cp1x, y: cp1y }, { x: absCp2x, y: absCp2y }, { x: absX, y: absY },
+    ]})
+    lastCp2X = absCp2x; lastCp2Y = absCp2y
+    curX = absX; curY = absY
+  }
+
+  function parseQ(cmd: string) {
+    // Quadratic → cubic approximation
+    const qx1 = parseFloat(tokens[i++])
+    const qy1 = parseFloat(tokens[i++])
+    const qx = parseFloat(tokens[i++])
+    const qy = parseFloat(tokens[i++])
+    const absQx1 = cmd === 'q' ? curX + qx1 : qx1
+    const absQy1 = cmd === 'q' ? curY + qy1 : qy1
+    const absQx = cmd === 'q' ? curX + qx : qx
+    const absQy = cmd === 'q' ? curY + qy : qy
+    // Convert quadratic to cubic: CP1 = P0 + 2/3*(Q1-P0), CP2 = P1 + 2/3*(Q1-P1)
+    const cp1x = curX + 2/3 * (absQx1 - curX)
+    const cp1y = curY + 2/3 * (absQy1 - curY)
+    const cp2x = absQx + 2/3 * (absQx1 - absQx)
+    const cp2y = absQy + 2/3 * (absQy1 - absQy)
+    commands.push({ type: 'C', points: [
+      { x: cp1x, y: cp1y }, { x: cp2x, y: cp2y }, { x: absQx, y: absQy },
+    ]})
+    lastCp2X = absQx1; lastCp2Y = absQy1 // quadratic control point for T reflection
+    curX = absQx; curY = absQy
+  }
+
+  function parseT(cmd: string) {
+    // Smooth quadratic: reflect previous quadratic control point
+    const qx1 = 2 * curX - lastCp2X
+    const qy1 = 2 * curY - lastCp2Y
+    const x = parseFloat(tokens[i++])
+    const y = parseFloat(tokens[i++])
+    const absX = cmd === 't' ? curX + x : x
+    const absY = cmd === 't' ? curY + y : y
+    const cp1x = curX + 2/3 * (qx1 - curX)
+    const cp1y = curY + 2/3 * (qy1 - curY)
+    const cp2x = absX + 2/3 * (qx1 - absX)
+    const cp2y = absY + 2/3 * (qy1 - absY)
+    commands.push({ type: 'C', points: [
+      { x: cp1x, y: cp1y }, { x: cp2x, y: cp2y }, { x: absX, y: absY },
+    ]})
+    lastCp2X = qx1; lastCp2Y = qy1
+    curX = absX; curY = absY
+  }
+
+  function parseA(cmd: string) {
+    // Arc: approximate as line to endpoint (exact arc→cubic conversion is complex)
+    const _rx = parseFloat(tokens[i++])
+    const _ry = parseFloat(tokens[i++])
+    const _xRotation = parseFloat(tokens[i++])
+    const _largeArc = parseFloat(tokens[i++])
+    const _sweep = parseFloat(tokens[i++])
+    const x = parseFloat(tokens[i++])
+    const y = parseFloat(tokens[i++])
+    void _rx; void _ry; void _xRotation; void _largeArc; void _sweep
+    const absX = cmd === 'a' ? curX + x : x
+    const absY = cmd === 'a' ? curY + y : y
+    commands.push({ type: 'L', points: [{ x: absX, y: absY }] })
+    curX = absX; curY = absY
+    lastCp2X = curX; lastCp2Y = curY
+  }
 
   while (i < tokens.length) {
     const cmd = tokens[i]
     i++
     if (cmd === 'M' || cmd === 'm') {
-      const x = parseFloat(tokens[i++])
-      const y = parseFloat(tokens[i++])
-      const absX = cmd === 'm' ? curX + x : x
-      const absY = cmd === 'm' ? curY + y : y
-      commands.push({ type: 'M', points: [{ x: absX, y: absY }] })
-      curX = absX; curY = absY
-      startX = absX; startY = absY
-      lastCp2X = curX; lastCp2Y = curY
+      parseM(cmd)
     } else if (cmd === 'L' || cmd === 'l') {
-      const x = parseFloat(tokens[i++])
-      const y = parseFloat(tokens[i++])
-      const absX = cmd === 'l' ? curX + x : x
-      const absY = cmd === 'l' ? curY + y : y
-      commands.push({ type: 'L', points: [{ x: absX, y: absY }] })
-      curX = absX; curY = absY
-      lastCp2X = curX; lastCp2Y = curY
+      parseL(cmd)
+      while (i < tokens.length && isNumericToken(tokens[i])) parseL(cmd)
     } else if (cmd === 'H' || cmd === 'h') {
-      const x = parseFloat(tokens[i++])
-      const absX = cmd === 'h' ? curX + x : x
-      commands.push({ type: 'L', points: [{ x: absX, y: curY }] })
-      curX = absX
-      lastCp2X = curX; lastCp2Y = curY
+      parseH(cmd)
+      while (i < tokens.length && isNumericToken(tokens[i])) parseH(cmd)
     } else if (cmd === 'V' || cmd === 'v') {
-      const y = parseFloat(tokens[i++])
-      const absY = cmd === 'v' ? curY + y : y
-      commands.push({ type: 'L', points: [{ x: curX, y: absY }] })
-      curY = absY
-      lastCp2X = curX; lastCp2Y = curY
+      parseV(cmd)
+      while (i < tokens.length && isNumericToken(tokens[i])) parseV(cmd)
     } else if (cmd === 'C' || cmd === 'c') {
-      const x1 = parseFloat(tokens[i++])
-      const y1 = parseFloat(tokens[i++])
-      const x2 = parseFloat(tokens[i++])
-      const y2 = parseFloat(tokens[i++])
-      const x = parseFloat(tokens[i++])
-      const y = parseFloat(tokens[i++])
-      if (cmd === 'c') {
-        const cp2x = curX + x2, cp2y = curY + y2
-        commands.push({ type: 'C', points: [
-          { x: curX + x1, y: curY + y1 },
-          { x: cp2x, y: cp2y },
-          { x: curX + x, y: curY + y },
-        ]})
-        lastCp2X = cp2x; lastCp2Y = cp2y
-        curX += x; curY += y
-      } else {
-        commands.push({ type: 'C', points: [
-          { x: x1, y: y1 }, { x: x2, y: y2 }, { x, y },
-        ]})
-        lastCp2X = x2; lastCp2Y = y2
-        curX = x; curY = y
-      }
+      parseC(cmd)
+      while (i < tokens.length && isNumericToken(tokens[i])) parseC(cmd)
     } else if (cmd === 'S' || cmd === 's') {
-      // Smooth cubic: reflect previous control point
-      const cp1x = 2 * curX - lastCp2X
-      const cp1y = 2 * curY - lastCp2Y
-      const x2 = parseFloat(tokens[i++])
-      const y2 = parseFloat(tokens[i++])
-      const x = parseFloat(tokens[i++])
-      const y = parseFloat(tokens[i++])
-      const absCp2x = cmd === 's' ? curX + x2 : x2
-      const absCp2y = cmd === 's' ? curY + y2 : y2
-      const absX = cmd === 's' ? curX + x : x
-      const absY = cmd === 's' ? curY + y : y
-      commands.push({ type: 'C', points: [
-        { x: cp1x, y: cp1y }, { x: absCp2x, y: absCp2y }, { x: absX, y: absY },
-      ]})
-      lastCp2X = absCp2x; lastCp2Y = absCp2y
-      curX = absX; curY = absY
+      parseS(cmd)
+      while (i < tokens.length && isNumericToken(tokens[i])) parseS(cmd)
     } else if (cmd === 'Q' || cmd === 'q') {
-      // Quadratic → cubic approximation
-      const qx1 = parseFloat(tokens[i++])
-      const qy1 = parseFloat(tokens[i++])
-      const qx = parseFloat(tokens[i++])
-      const qy = parseFloat(tokens[i++])
-      const absQx1 = cmd === 'q' ? curX + qx1 : qx1
-      const absQy1 = cmd === 'q' ? curY + qy1 : qy1
-      const absQx = cmd === 'q' ? curX + qx : qx
-      const absQy = cmd === 'q' ? curY + qy : qy
-      // Convert quadratic to cubic: CP1 = P0 + 2/3*(Q1-P0), CP2 = P1 + 2/3*(Q1-P1)
-      const cp1x = curX + 2/3 * (absQx1 - curX)
-      const cp1y = curY + 2/3 * (absQy1 - curY)
-      const cp2x = absQx + 2/3 * (absQx1 - absQx)
-      const cp2y = absQy + 2/3 * (absQy1 - absQy)
-      commands.push({ type: 'C', points: [
-        { x: cp1x, y: cp1y }, { x: cp2x, y: cp2y }, { x: absQx, y: absQy },
-      ]})
-      lastCp2X = absQx1; lastCp2Y = absQy1 // quadratic control point for T reflection
-      curX = absQx; curY = absQy
+      parseQ(cmd)
+      while (i < tokens.length && isNumericToken(tokens[i])) parseQ(cmd)
     } else if (cmd === 'T' || cmd === 't') {
-      // Smooth quadratic: reflect previous quadratic control point
-      const qx1 = 2 * curX - lastCp2X
-      const qy1 = 2 * curY - lastCp2Y
-      const x = parseFloat(tokens[i++])
-      const y = parseFloat(tokens[i++])
-      const absX = cmd === 't' ? curX + x : x
-      const absY = cmd === 't' ? curY + y : y
-      const cp1x = curX + 2/3 * (qx1 - curX)
-      const cp1y = curY + 2/3 * (qy1 - curY)
-      const cp2x = absX + 2/3 * (qx1 - absX)
-      const cp2y = absY + 2/3 * (qy1 - absY)
-      commands.push({ type: 'C', points: [
-        { x: cp1x, y: cp1y }, { x: cp2x, y: cp2y }, { x: absX, y: absY },
-      ]})
-      lastCp2X = qx1; lastCp2Y = qy1
-      curX = absX; curY = absY
+      parseT(cmd)
+      while (i < tokens.length && isNumericToken(tokens[i])) parseT(cmd)
     } else if (cmd === 'A' || cmd === 'a') {
-      // Arc: approximate as line to endpoint (exact arc→cubic conversion is complex)
-      const _rx = parseFloat(tokens[i++])
-      const _ry = parseFloat(tokens[i++])
-      const _xRotation = parseFloat(tokens[i++])
-      const _largeArc = parseFloat(tokens[i++])
-      const _sweep = parseFloat(tokens[i++])
-      const x = parseFloat(tokens[i++])
-      const y = parseFloat(tokens[i++])
-      void _rx; void _ry; void _xRotation; void _largeArc; void _sweep
-      const absX = cmd === 'a' ? curX + x : x
-      const absY = cmd === 'a' ? curY + y : y
-      commands.push({ type: 'L', points: [{ x: absX, y: absY }] })
-      curX = absX; curY = absY
-      lastCp2X = curX; lastCp2Y = curY
+      parseA(cmd)
+      while (i < tokens.length && isNumericToken(tokens[i])) parseA(cmd)
     } else if (cmd === 'Z' || cmd === 'z') {
       commands.push({ type: 'Z', points: [] })
       curX = startX; curY = startY
       lastCp2X = curX; lastCp2Y = curY
     }
-    lastCmd = cmd
   }
   return commands
 }

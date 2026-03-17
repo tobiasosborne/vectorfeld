@@ -61,12 +61,12 @@ describe('Direct Selection Tool', () => {
       expect(result).toContain('15 15')
     })
 
-    it('updates C command endpoint', () => {
+    it('updates C command endpoint and moves adjacent handles by same delta', () => {
       const result = updatePathAnchor('M 0 0 C 5 0 5 10 10 10', 1, { x: 12, y: 12 })
       expect(result).toContain('M 0 0')
       expect(result).toContain('12 12')
-      // Control points should be preserved
-      expect(result).toContain('5 0 5 10')
+      // cp1 (outgoing from anchor 0) is preserved; cp2 (incoming to anchor 1) moves by delta (+2,+2)
+      expect(result).toContain('5 0 7 12')
     })
 
     it('preserves Z command', () => {

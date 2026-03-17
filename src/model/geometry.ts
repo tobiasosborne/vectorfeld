@@ -3,7 +3,7 @@
  * bounding box computation and hit testing.
  */
 
-import { parseTransform, applyMatrixToPoint } from './matrix'
+import { parseTransform, applyMatrixToPoint, multiplyMatrix, translateMatrix, matrixToString } from './matrix'
 import { translatePathD } from './pathOps'
 import { screenToDoc } from './coordinates'
 
@@ -94,15 +94,11 @@ export function computeTranslateAttrs(el: Element, dx: number, dy: number): Arra
     }
     return changes
   } else if (tag === 'g' || tag === 'polygon' || tag === 'polyline') {
-    // Move via translate transform (can't bake coords for groups)
+    // Move via matrix composition: T(dx,dy) * existing
     const existing = el.getAttribute('transform') || ''
-    const transMatch = existing.match(/translate\(([-\d.e+-]+),\s*([-\d.e+-]+)\)/)
-    const tx = (transMatch ? parseFloat(transMatch[1]) : 0) + dx
-    const ty = (transMatch ? parseFloat(transMatch[2]) : 0) + dy
-    const newTransform = transMatch
-      ? existing.replace(/translate\([-\d.e+-]+,\s*[-\d.e+-]+\)/, `translate(${tx}, ${ty})`)
-      : `translate(${tx}, ${ty})${existing ? ' ' + existing : ''}`
-    changes.push(['transform', newTransform])
+    const existingM = parseTransform(existing)
+    const newM = multiplyMatrix(translateMatrix(dx, dy), existingM)
+    changes.push(['transform', matrixToString(newM)])
     return changes // skip rotation center update for translate-based elements
   }
   // Update rotation center in transform if present

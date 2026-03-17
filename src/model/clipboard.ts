@@ -67,6 +67,18 @@ export function pasteClipboard(clipboard: { current: string[] }, history: Comman
   if (cmds.length > 0) {
     const compound = new CompoundCommand(cmds, 'Paste')
     history.execute(compound)
+    // Transfer child nodes from parsed originals into the newly created elements
+    for (let i = 0; i < cmds.length; i++) {
+      const created = cmds[i].getElement()
+      if (!created) continue
+      const temp = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+      temp.innerHTML = clipboard.current[i]
+      const original = temp.firstElementChild
+      if (!original) continue
+      while (original.firstChild) {
+        created.appendChild(original.firstChild)
+      }
+    }
     const pasted = cmds.map((c) => c.getElement()).filter(Boolean) as Element[]
     setSelection(pasted)
   }

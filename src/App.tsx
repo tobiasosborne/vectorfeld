@@ -16,8 +16,8 @@ import { toggleGridVisible } from './model/grid'
 import { toggleWireframe } from './model/wireframe'
 import { addGuide, clearAllGuides } from './model/guides'
 import { computeReflectH, computeReflectV } from './model/reflect'
-import { getSelection, refreshOverlay, clearSelection } from './model/selection'
-import { ModifyAttributeCommand, CompoundCommand, AddElementCommand, RemoveElementCommand } from './model/commands'
+import { getSelection, subscribeSelection, refreshOverlay, clearSelection } from './model/selection'
+import { ModifyAttributeCommand, CompoundCommand, AddElementCommand, RemoveElementCommand, ReorderElementCommand } from './model/commands'
 import { makeClippingMask, releaseClippingMask, hasClipPath } from './model/clipping'
 import { makeOpacityMask, releaseOpacityMask, hasMask } from './model/opacityMask'
 import { elementToPathD, extractStyleAttrs } from './model/shapeToPath'
@@ -64,6 +64,12 @@ function AppContent() {
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
+  const [selCount, setSelCount] = useState(0)
+  useEffect(() => {
+    const update = () => setSelCount(getSelection().length)
+    update()
+    return subscribeSelection(update)
+  }, [])
 
   // Track canvas container size for rulers
   useEffect(() => {
@@ -115,8 +121,7 @@ function AppContent() {
         const s = getSelection()
         if (s.length === 1) {
           const el = s[0]
-          const parent = el.parentElement
-          if (parent) parent.appendChild(el)
+          editor.history.execute(new ReorderElementCommand(el, null, 'Bring to Front'))
           refreshOverlay()
         }
       }, disabled: sel.length !== 1 },
@@ -125,8 +130,10 @@ function AppContent() {
         if (s.length === 1) {
           const el = s[0]
           const parent = el.parentElement
-          if (parent && parent.firstChild) parent.insertBefore(el, parent.firstChild)
-          refreshOverlay()
+          if (parent && parent.firstElementChild !== el) {
+            editor.history.execute(new ReorderElementCommand(el, parent.firstElementChild, 'Send to Back'))
+            refreshOverlay()
+          }
         }
       }, disabled: sel.length !== 1 },
       { label: '', action: () => {}, separator: true },
@@ -182,31 +189,31 @@ function AppContent() {
     {
       label: 'Object',
       items: [
-        { label: 'Flip Horizontal', shortcut: '', action: () => applyReflect(computeReflectH) },
-        { label: 'Flip Vertical', shortcut: '', action: () => applyReflect(computeReflectV) },
+        { label: 'Flip Horizontal', shortcut: '', disabled: selCount === 0, action: () => applyReflect(computeReflectH) },
+        { label: 'Flip Vertical', shortcut: '', disabled: selCount === 0, action: () => applyReflect(computeReflectV) },
         { separator: true, label: '' },
-        { label: 'Make Clipping Mask', shortcut: '', action: () => {
+        { label: 'Make Clipping Mask', shortcut: '', disabled: selCount !== 2, action: () => {
           const sel = getSelection()
           if (sel.length === 2 && editor.doc) {
             makeClippingMask(editor.doc, editor.history, sel)
             clearSelection()
           }
         }},
-        { label: 'Release Clipping Mask', shortcut: '', action: () => {
+        { label: 'Release Clipping Mask', shortcut: '', disabled: selCount !== 1, action: () => {
           const sel = getSelection()
           if (sel.length === 1 && hasClipPath(sel[0]) && editor.doc) {
             releaseClippingMask(editor.doc, editor.history, sel[0])
             clearSelection()
           }
         }},
-        { label: 'Make Opacity Mask', shortcut: '', action: () => {
+        { label: 'Make Opacity Mask', shortcut: '', disabled: selCount !== 2, action: () => {
           const sel = getSelection()
           if (sel.length === 2 && editor.doc) {
             makeOpacityMask(editor.doc, editor.history, sel)
             clearSelection()
           }
         }},
-        { label: 'Release Opacity Mask', shortcut: '', action: () => {
+        { label: 'Release Opacity Mask', shortcut: '', disabled: selCount !== 1, action: () => {
           const sel = getSelection()
           if (sel.length === 1 && hasMask(sel[0]) && editor.doc) {
             releaseOpacityMask(editor.doc, editor.history, sel[0])
@@ -214,7 +221,7 @@ function AppContent() {
           }
         }},
         { separator: true, label: '' },
-        { label: 'Convert to Path', shortcut: '', action: () => {
+        { label: 'Convert to Path', shortcut: '', disabled: selCount === 0, action: () => {
           const sel = getSelection()
           if (sel.length === 0 || !editor.doc) return
           const cmds: Array<{ execute(): void; undo(): void; description: string }> = []
@@ -233,7 +240,7 @@ function AppContent() {
             clearSelection()
           }
         }},
-        { label: 'Join Paths', shortcut: '', action: () => {
+        { label: 'Join Paths', shortcut: '', disabled: selCount !== 2, action: () => {
           const sel = getSelection()
           if (sel.length !== 2 || !editor.doc) return
           if (sel[0].tagName !== 'path' || sel[1].tagName !== 'path') return
@@ -252,7 +259,7 @@ function AppContent() {
           clearSelection()
         }},
         { separator: true, label: '' },
-        { label: 'Make Compound Path', shortcut: '', action: () => {
+        { label: 'Make Compound Path', shortcut: '', disabled: selCount < 2, action: () => {
           const sel = getSelection()
           if (sel.length < 2 || !editor.doc) return
           const dStrings: string[] = []
@@ -270,7 +277,7 @@ function AppContent() {
           editor.history.execute(new CompoundCommand(cmds, 'Make Compound Path'))
           clearSelection()
         }},
-        { label: 'Release Compound Path', shortcut: '', action: () => {
+        { label: 'Release Compound Path', shortcut: '', disabled: selCount !== 1, action: () => {
           const sel = getSelection()
           if (sel.length !== 1 || !editor.doc) return
           const el = sel[0]
@@ -291,7 +298,7 @@ function AppContent() {
         }},
         { separator: true, label: '' },
         ...(['Unite', 'Subtract', 'Intersect', 'Exclude', 'Divide'] as const).map((label) => ({
-          label, shortcut: '', action: () => {
+          label, shortcut: '', disabled: selCount !== 2, action: () => {
             const sel = getSelection()
             if (sel.length !== 2 || !editor.doc) return
             const d1 = sel[0].tagName === 'path' ? sel[0].getAttribute('d') : elementToPathD(sel[0])
@@ -317,7 +324,7 @@ function AppContent() {
           },
         })),
         { separator: true, label: '' },
-        { label: 'Place Text on Path', shortcut: '', action: () => {
+        { label: 'Place Text on Path', shortcut: '', disabled: selCount !== 2, action: () => {
           const sel = getSelection()
           if (sel.length !== 2 || !editor.doc) return
           const textEl = sel.find(e => e.tagName === 'text')
@@ -326,7 +333,7 @@ function AppContent() {
           placeTextOnPath(editor.doc, editor.history, textEl, pathEl)
           clearSelection()
         }},
-        { label: 'Offset Path...', shortcut: '', action: () => {
+        { label: 'Offset Path...', shortcut: '', disabled: selCount !== 1, action: () => {
           const sel = getSelection()
           if (sel.length !== 1 || !editor.doc) return
           const el = sel[0]
@@ -345,7 +352,7 @@ function AppContent() {
             new AddElementCommand(editor.doc, parent, 'path', { ...styleAttrs, d: result }),
           ], 'Offset Path'))
         }},
-        { label: 'Release Text from Path', shortcut: '', action: () => {
+        { label: 'Release Text from Path', shortcut: '', disabled: selCount !== 1, action: () => {
           const sel = getSelection()
           if (sel.length !== 1 || !editor.doc) return
           if (!hasTextPath(sel[0])) return

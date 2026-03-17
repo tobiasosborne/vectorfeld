@@ -185,9 +185,84 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 ### Summary
 
-MVP complete (22/22). **Phase 2 complete: 43/43 features (100%).** All 16 chaos monkey issues fixed and closed. **449 tests** passing across **40 test files**. Zero type errors.
+MVP complete (22/22). **Phase 2 complete: 43/43 features (100%).** All 16 chaos monkey issues fixed and closed. **472 tests** passing across **40 test files**. Zero type errors.
 
-### What was done this session (2026-03-05)
+### What was done this session (2026-03-17)
+
+Fixed all 4 group transform bugs identified in handoff + review follow-ups:
+
+**P1 Bug Fixes (4 — selectTool.ts group transform handling):**
+- **Move**: Groups now compose `translate(dx,dy) * origTransform` via matrix (was replacing entire transform)
+- **Scale**: Added `g` case to `scaleElement()` using `origTransform * scale_around(anchor)` matrix composition
+- **Rotation center**: Local bbox center now transformed to doc space via element's transform matrix
+- **Scale inverse**: Replaced regex-only `rotate()` inverse with `invertMatrix(parseTransform())` for any transform type
+
+**P2 Bug Fix (1):**
+- **`image` tag**: Added to `getAllGeomAttrs`, `getPositionAttrs`, `moveElement`, `scaleElement` (same model as rect)
+
+**New in matrix.ts:**
+- `invertMatrix()` — standard 2x3 affine inverse with singularity guard
+- `matrixToString()` — serializes to SVG `matrix()` with `toFixed(6)` precision
+
+**Tests:** 23 new tests (472 total): invertMatrix edge cases, matrixToString round-trip, scaleAroundMatrix, group move (4 tests), group transform math (3 tests)
+
+**5-agent code review** (Torvalds, Knuth, Architecture, Test Coverage, Code Smells):
+- All math rated CORRECT by Knuth (11/11 operations verified)
+- Torvalds rates 3 GOOD + 1 OK (scale composition order intentionally different)
+- Architecture confirmed `computeTranslateAttrs` works correctly with `matrix()` transforms
+- Reports in `docs/reviews/`
+
+**Review follow-up fixes:**
+- Extracted `scaleAroundMatrix(sx, sy, cx, cy)` to matrix.ts (shared by selectTool + freeTransformTool)
+- freeTransformTool: added group scale (matrix composition), path scale, rotation center fix (local→doc space), rotation matrix composition for groups
+- selectTool: added fallback for non-standard transforms (imported SVGs with `matrix()` on primitives) in both move and rotation handlers — uses matrix conjugation/composition instead of silently dropping transforms
+- Removed 3 thin wrapper functions in selectTool (hitTest, hitTestAll, transformedAABB → direct imports)
+
+**Code quality fixes (from 5-agent review):**
+- Extracted 5 named constants (MIN_BBOX_DIM, MIN_SCALE_SIZE, ROTATION_SNAP_DEG, MARQUEE_THRESHOLD, MOVE_DEAD_ZONE)
+- Added `default` branch to `computeAnchor` switch
+- Added `polygon`/`polyline` to `scaleElement` (same transform-based scaling as groups)
+- Fixed target cast inconsistency: `instanceof Element` guard instead of contradictory `as Element` + `?.`
+
+**Stress test + 3 code-analysis agents found 26 more bugs — all fixed:**
+
+P0 Critical (2):
+- Dead zone in scale/rotate leaves dirty DOM without undo — now restores all attributes on dead zone
+- Paste/Duplicate loses all children of group elements — now clones child nodes
+
+P1 High (7):
+- `computeTranslateAttrs` breaks for groups with `matrix()` — now uses matrix composition
+- `moveElement` conjugation math wrong — changed to simple `T(dx,dy) * M` pre-multiplication
+- DirectSelect: relative path commands (lowercase m/l/c) silently dropped — case-insensitive checks
+- DirectSelect: moving Bezier anchor doesn't move control handles — now offsets adjacent C1/C2
+- freeTransformTool undo broken when transform newly added — removes attr before capturing oldValue
+- Context menu z-order operations not undoable — now uses ReorderElementCommand
+- Gradient color changes bypass undo history — now uses ModifyAttributeCommand
+
+P2 Medium (12):
+- ControlBar: getRotation returns 0 for `matrix()` — falls back to decomposeMatrix
+- ControlBar: onRot destroys existing skew/scale — now preserves non-rotation components
+- ControlBar: X/Y position wrong for groups — uses transformedAABB for doc-space coords
+- ControlBar: X/Y input no-op for groups — added `g` branch using computeTranslateAttrs
+- freeTransformTool: rotation clobbers existing rotation — adds baseAngle + delta
+- freeTransformTool: group scale anchor wrong space — inverse-transforms to local space
+- Ctrl+A Select All implemented — selects all visible unlocked layer children
+- Pen tool Escape commits instead of canceling — now discards in-progress path
+- DirectSelect no onDeactivate cleanup — clears anchor/handle visuals on switch
+- Style controls cascade wrongly on groups — now applies to each child element
+- parsePathD breaks scientific notation — lookbehind for e/E before minus
+- Pen tool rubber-band freezes during Bezier drag — updates preview during handle drag
+
+P3 Low (5):
+- PropertiesPanel missing Position fields for path/group/image — shows AABB or attribute-based
+- Menu items always enabled without selection — disabled field + grayed styling
+- parsePathD no implicit repeat command — handles SVG spec repeat + M→L
+- No validation on numeric inputs — parseFloat/NaN guard
+- stroke-width blank without attribute — fallback to '1'
+
+All 43 session issues closed. 0 open.
+
+### What was done previous session (2026-03-05)
 
 Fixed all 16 issues from chaos monkey testing + code analysis:
 
@@ -219,34 +294,9 @@ Fixed all 16 issues from chaos monkey testing + code analysis:
 **P4:**
 - detectFillType caching (above)
 
-### Known bugs (identified 2026-03-17, NOT YET FIXED)
+### Known bugs
 
-All bugs are in `src/tools/selectTool.ts` transform handling for `path` and `g` (group) elements:
-
-**Bug 1 — Moving groups/paths loses existing transform:**
-`moveElement()` line 277 sets `translate(dx, dy)` which **replaces** the entire existing transform. After first move (group gets `translate(10,20)`), a second move replaces it with `translate(dx,dy)` instead of accumulating `translate(10+dx, 20+dy)`. If element had a rotation, that's lost too.
-- **Root cause:** no parsing/accumulation of existing translate in origTransform
-- **Fix approach:** use matrix composition — `translateMatrix(dx,dy) * parseTransform(origTransform)` → `matrix(...)`
-
-**Bug 2 — Scaling groups not implemented:**
-`scaleElement()` has cases for rect, ellipse, circle, line, text, path — but NO `g` case. Groups silently ignore resize.
-- **Fix approach:** add `g` case using transform: `origMatrix * translate(anchor) * scale(sx,sy) * translate(-anchor)` → `matrix(...)`
-
-**Bug 3 — Rotation center wrong for groups/paths with transform:**
-`onMouseDown` for rotation uses `getBBox()` center (local space) but compares against `screenToDoc` mouse position (document space). For elements with translate/rotate transforms, these spaces differ → wrong angle calculation. Also `setAttribute('transform', 'rotate(...)')` replaces entire transform, losing existing translate.
-- **Fix approach:** transform local bbox center through element's transform via `applyMatrixToPoint(parseTransform(...))` to get doc-space center. Use matrix composition for new transform.
-
-**Bug 4 — Scale mouse-to-local mapping only handles rotation:**
-Scale handler (line 572-586) inverse-transforms mouse point only for `rotate(...)` via regex. For groups with `translate(...)` or compound transforms, mouse stays in doc space while anchor is in local space → wrong scale factors.
-- **Fix approach:** use `invertMatrix(parseTransform(origTransform))` for full inverse transform.
-
-**Key files for fixes:**
-- `src/tools/selectTool.ts` — moveElement, scaleElement, rotation handler, scale handler
-- `src/model/matrix.ts` — needs `invertMatrix()` added
-- `src/model/selection.ts` — rotation cursor zones (may need size/position check for groups)
-
-**Matrix utilities already available in `matrix.ts`:** `parseTransform`, `applyMatrixToPoint`, `multiplyMatrix`, `translateMatrix`, `scaleMatrix`, `rotateMatrix`
-**Missing:** `invertMatrix` (formula: standard 2x3 affine inverse via determinant)
+None. All 43 issues from this session are closed (4 initial transform bugs + 7 review follow-ups + 26 stress test bugs + 6 code quality).
 
 ### What was built this session (2026-03-04 session 2)
 

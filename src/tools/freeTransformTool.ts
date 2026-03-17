@@ -16,7 +16,8 @@ import { getSelection, refreshOverlay } from '../model/selection'
 import { CompoundCommand, ModifyAttributeCommand } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
-import { parseTransform, applyMatrixToPoint, setSkew, parseSkew, type Matrix } from '../model/matrix'
+import { parseTransform, decomposeMatrix, applyMatrixToPoint, setSkew, parseSkew, multiplyMatrix, translateMatrix, rotateMatrix, scaleAroundMatrix, matrixToString, invertMatrix, type Matrix } from '../model/matrix'
+import { scalePathD } from '../model/pathOps'
 
 type Pt = { x: number; y: number }
 type Mode = 'idle' | 'scale' | 'rotate' | 'skew'
@@ -118,15 +119,11 @@ export function createFreeTransformTool(
     // Outside the bbox → rotate
     const cornerDist = nearestCornerDist(pt, bbox, transform)
     if (cornerDist > tolerance * 0.5) {
-      const center = getBBoxCenter(el)
-      // Capture mouse angle relative to center — baseAngle is subtracted so
-      // rotation is incremental from the element's existing orientation
+      // Transform local center to doc space for correct angle computation
+      const localCenter = getBBoxCenter(el)
+      const center = applyMatrixToPoint(transform, localCenter.x, localCenter.y)
       const mouseAngle = Math.atan2(pt.y - center.y, pt.x - center.x)
-      const existingTransform = el.getAttribute('transform') || ''
-      const rotMatch = existingTransform.match(/rotate\(([-\d.e+-]+)/)
-      const baseAngleDeg = rotMatch ? parseFloat(rotMatch[1]) : 0
-      const startAngle = mouseAngle - baseAngleDeg * (Math.PI / 180)
-      return { mode: 'rotate', data: { center, startAngle } }
+      return { mode: 'rotate', data: { center, startAngle: mouseAngle } }
     }
 
     return { mode: 'idle' }
@@ -191,11 +188,20 @@ export function createFreeTransformTool(
           let degrees = angle * (180 / Math.PI)
           if (e.shiftKey) degrees = Math.round(degrees / 15) * 15
 
-          // Preserve existing rotation center, replace angle
-          const existingSkew = parseSkew(state.origTransform)
-          let t = `rotate(${degrees.toFixed(2)}, ${center.x.toFixed(2)}, ${center.y.toFixed(2)})`
-          t = setSkew(t, existingSkew.skewX, existingSkew.skewY)
-          el.setAttribute('transform', t)
+          if (el.tagName === 'g') {
+            // Groups: compose rotation with original transform via matrix
+            const rotM = rotateMatrix(degrees, center.x, center.y)
+            const origM = parseTransform(state.origTransform)
+            el.setAttribute('transform', matrixToString(multiplyMatrix(rotM, origM)))
+          } else {
+            // Elements with position attrs: rotate() string + skew preservation
+            // Add delta to the original rotation so we don't clobber existing rotation
+            const baseAngle = decomposeMatrix(parseTransform(state.origTransform)).rotate
+            const existingSkew = parseSkew(state.origTransform)
+            let t = `rotate(${(baseAngle + degrees).toFixed(2)}, ${center.x.toFixed(2)}, ${center.y.toFixed(2)})`
+            t = setSkew(t, existingSkew.skewX, existingSkew.skewY)
+            el.setAttribute('transform', t)
+          }
           refreshOverlay()
         } else if (state.mode === 'skew') {
           const { center } = state
@@ -232,6 +238,8 @@ export function createFreeTransformTool(
         // Handle newly added attributes (like transform)
         const currentTransform = el.getAttribute('transform')
         if (currentTransform && !state.origAttrs.has('transform')) {
+          // Temporarily remove so ModifyAttributeCommand.execute() captures oldValue as null
+          el.removeAttribute('transform')
           cmds.push(new ModifyAttributeCommand(el, 'transform', currentTransform))
         }
 
@@ -281,8 +289,19 @@ function applyScale(
     el.setAttribute('y1', String(anchor.y + (getOrig('y1') - anchor.y) * sy))
     el.setAttribute('x2', String(anchor.x + (getOrig('x2') - anchor.x) * sx))
     el.setAttribute('y2', String(anchor.y + (getOrig('y2') - anchor.y) * sy))
+  } else if (tag === 'path') {
+    // Scale path d attribute
+    const origD = origAttrs.get('d') || ''
+    el.setAttribute('d', scalePathD(origD, sx, sy, anchor.x, anchor.y))
+  } else if (tag === 'g') {
+    // Scale group via transform composition
+    // anchor is in doc-space; inverse-transform to local space for scaleAroundMatrix
+    const origT = origAttrs.get('transform') || ''
+    const origM = parseTransform(origT)
+    const localAnchor = applyMatrixToPoint(invertMatrix(origM), anchor.x, anchor.y)
+    const newM = multiplyMatrix(origM, scaleAroundMatrix(sx, sy, localAnchor.x, localAnchor.y))
+    el.setAttribute('transform', matrixToString(newM))
   }
-  // paths and groups use transform-based scaling (handled elsewhere)
 }
 
 export function registerFreeTransformTool(

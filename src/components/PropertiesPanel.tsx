@@ -7,12 +7,20 @@ import { refreshOverlay } from '../model/selection'
 import { setDefaultStyle } from '../model/defaultStyle'
 import { MARKER_TYPES, getMarkerLabel, getMarkerUrl, parseMarkerType, ensureMarkerDef } from '../model/markers'
 import type { MarkerType } from '../model/markers'
-import { detectFillType, createLinearGradient, createRadialGradient, parseGradientColors, updateGradientColors } from '../model/gradients'
+import { detectFillType, createLinearGradient, createRadialGradient, parseGradientColors } from '../model/gradients'
 import type { FillType } from '../model/gradients'
 import { computeAlign, computeDistribute, applyDelta } from '../model/align'
 import { parseSkew, setSkew } from '../model/matrix'
 import type { AlignOp, DistributeOp } from '../model/align'
 import { CompoundCommand } from '../model/commands'
+import { getElementAABB } from '../model/geometry'
+
+/** Attributes that must be valid numbers */
+const NUMERIC_ATTRS = new Set([
+  'x', 'y', 'width', 'height', 'cx', 'cy', 'rx', 'ry', 'r',
+  'font-size', 'stroke-width', 'opacity',
+  'x1', 'y1', 'x2', 'y2',
+])
 
 const FONT_FAMILIES = [
   'sans-serif',
@@ -100,8 +108,22 @@ export function PropertiesPanel() {
   }, [])
 
   const applyAttr = (el: Element, attr: string, value: string) => {
-    const cmd = new ModifyAttributeCommand(el, attr, value)
-    history.execute(cmd)
+    // Bug 3: validate numeric attributes
+    if (NUMERIC_ATTRS.has(attr) && isNaN(parseFloat(value))) return
+
+    // Bug 1: distribute fill/stroke to children when element is a <g>
+    if (el.tagName === 'g' && (attr === 'fill' || attr === 'stroke' || attr === 'stroke-width' || attr === 'opacity')) {
+      const cmds: ModifyAttributeCommand[] = []
+      for (let i = 0; i < el.children.length; i++) {
+        cmds.push(new ModifyAttributeCommand(el.children[i], attr, value))
+      }
+      if (cmds.length > 0) {
+        history.execute(new CompoundCommand(cmds, `Set ${attr} on group children`))
+      }
+    } else {
+      const cmd = new ModifyAttributeCommand(el, attr, value)
+      history.execute(cmd)
+    }
     // Update default style when style properties change
     if (attr === 'stroke') setDefaultStyle({ stroke: value })
     else if (attr === 'fill') setDefaultStyle({ fill: value })
@@ -195,16 +217,23 @@ export function PropertiesPanel() {
           <>
             <div>
               <div className="text-xs font-medium text-chrome-600 mb-1">Position</div>
-              {(tag === 'rect' || tag === 'text') && (
+              {(tag === 'rect' || tag === 'text' || tag === 'image') && (
                 <div className="space-y-1">
                   <PropertyInput label="X" value={getAttr(el, 'x')} onChange={(v) => applyAttr(el, 'x', v)} />
                   <PropertyInput label="Y" value={getAttr(el, 'y')} onChange={(v) => applyAttr(el, 'y', v)} />
                 </div>
               )}
-              {(tag === 'ellipse' || tag === 'circle') && (
+              {tag === 'ellipse' && (
                 <div className="space-y-1">
                   <PropertyInput label="CX" value={getAttr(el, 'cx')} onChange={(v) => applyAttr(el, 'cx', v)} />
                   <PropertyInput label="CY" value={getAttr(el, 'cy')} onChange={(v) => applyAttr(el, 'cy', v)} />
+                </div>
+              )}
+              {tag === 'circle' && (
+                <div className="space-y-1">
+                  <PropertyInput label="CX" value={getAttr(el, 'cx')} onChange={(v) => applyAttr(el, 'cx', v)} />
+                  <PropertyInput label="CY" value={getAttr(el, 'cy')} onChange={(v) => applyAttr(el, 'cy', v)} />
+                  <PropertyInput label="R" value={getAttr(el, 'r')} onChange={(v) => applyAttr(el, 'r', v)} />
                 </div>
               )}
               {tag === 'line' && (
@@ -215,9 +244,20 @@ export function PropertiesPanel() {
                   <PropertyInput label="Y2" value={getAttr(el, 'y2')} onChange={(v) => applyAttr(el, 'y2', v)} />
                 </div>
               )}
+              {(tag === 'path' || tag === 'g') && (() => {
+                const aabb = getElementAABB(el)
+                return aabb ? (
+                  <div className="space-y-1">
+                    <PropertyInput label="X" value={String(aabb.x)} onChange={() => {}} />
+                    <PropertyInput label="Y" value={String(aabb.y)} onChange={() => {}} />
+                    <PropertyInput label="W" value={String(aabb.width)} onChange={() => {}} />
+                    <PropertyInput label="H" value={String(aabb.height)} onChange={() => {}} />
+                  </div>
+                ) : null
+              })()}
             </div>
 
-            {(tag === 'rect' || tag === 'ellipse') && (
+            {(tag === 'rect' || tag === 'ellipse' || tag === 'image') && (
               <div>
                 <div className="text-xs font-medium text-chrome-600 mb-1 flex items-center justify-between">
                   Size
@@ -242,7 +282,7 @@ export function PropertiesPanel() {
                   </button>
                 </div>
                 <div className="space-y-1">
-                  {tag === 'rect' && (
+                  {(tag === 'rect' || tag === 'image') && (
                     <>
                       <PropertyInput label="W" value={getAttr(el, 'width')} onChange={(v) => {
                         const newW = parseFloat(v)
@@ -437,7 +477,7 @@ export function PropertiesPanel() {
                   <span className="text-xs text-chrome-500 w-8">Str</span>
                   <ColorPicker value={getAttr(el, 'stroke') || '#000000'} onChange={(v) => applyAttr(el, 'stroke', v)} allowNone={false} />
                 </div>
-                <PropertyInput label="SW" value={getAttr(el, 'stroke-width')} onChange={(v) => applyAttr(el, 'stroke-width', v)} />
+                <PropertyInput label="SW" value={getAttr(el, 'stroke-width') || '1'} onChange={(v) => applyAttr(el, 'stroke-width', v)} />
                 <div className="space-y-1">
                   <label className="flex items-center gap-1">
                     <span className="text-xs text-chrome-500 w-8">Fill</span>
@@ -483,8 +523,17 @@ export function PropertiesPanel() {
                           <ColorPicker
                             value={colors?.color1 || '#000000'}
                             onChange={(v) => {
-                              const c2 = colors?.color2 || '#ffffff'
-                              updateGradientColors(el, v, c2)
+                              const fill = el.getAttribute('fill') || ''
+                              if (!fill.startsWith('url(#')) return
+                              const id = fill.slice(5, -1)
+                              const svg = el.closest('svg')
+                              if (!svg) return
+                              const grad = svg.querySelector(`#${CSS.escape(id)}`)
+                              if (!grad) return
+                              const stops = grad.querySelectorAll('stop')
+                              if (stops.length < 2) return
+                              const cmd = new ModifyAttributeCommand(stops[0], 'stop-color', v)
+                              history.execute(cmd)
                             }}
                             allowNone={false}
                           />
@@ -494,8 +543,17 @@ export function PropertiesPanel() {
                           <ColorPicker
                             value={colors?.color2 || '#ffffff'}
                             onChange={(v) => {
-                              const c1 = colors?.color1 || '#000000'
-                              updateGradientColors(el, c1, v)
+                              const fill = el.getAttribute('fill') || ''
+                              if (!fill.startsWith('url(#')) return
+                              const id = fill.slice(5, -1)
+                              const svg = el.closest('svg')
+                              if (!svg) return
+                              const grad = svg.querySelector(`#${CSS.escape(id)}`)
+                              if (!grad) return
+                              const stops = grad.querySelectorAll('stop')
+                              if (stops.length < 2) return
+                              const cmd = new ModifyAttributeCommand(stops[1], 'stop-color', v)
+                              history.execute(cmd)
                             }}
                             allowNone={false}
                           />

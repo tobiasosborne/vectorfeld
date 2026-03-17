@@ -25,14 +25,14 @@ export function parsePathWithHandles(d: string): { pos: Point; handles: ControlP
     if (!nums && cmd !== 'Z' && cmd !== 'z') continue
     const values = nums ? nums.split(/[\s,]+/).map(Number) : []
 
-    if (cmd === 'M' || cmd === 'L') {
+    if (cmd === 'M' || cmd === 'm' || cmd === 'L' || cmd === 'l') {
       for (let i = 0; i < values.length - 1; i += 2) {
         result.push({
           pos: { x: values[i], y: values[i + 1] },
           handles: { handleIn: null, handleOut: null },
         })
       }
-    } else if (cmd === 'C') {
+    } else if (cmd === 'C' || cmd === 'c') {
       for (let i = 0; i < values.length - 5; i += 6) {
         // cp1 is outgoing from PREVIOUS anchor
         const cp1 = { x: values[i], y: values[i + 1] }
@@ -75,11 +75,11 @@ export function updatePathControlPoint(
   // Walk through to find the right C segment
   let currentIdx = 0
   for (const seg of segments) {
-    if (seg.cmd === 'M' || seg.cmd === 'L') {
+    if (seg.cmd === 'M' || seg.cmd === 'm' || seg.cmd === 'L' || seg.cmd === 'l') {
       for (let i = 0; i < seg.coords.length - 1; i += 2) {
         currentIdx++
       }
-    } else if (seg.cmd === 'C') {
+    } else if (seg.cmd === 'C' || seg.cmd === 'c') {
       for (let i = 0; i < seg.coords.length - 5; i += 6) {
         // This C segment: cp1 is handleOut of anchor (currentIdx-1), cp2 is handleIn of anchor (currentIdx)
         const prevIdx = currentIdx - 1
@@ -114,11 +114,11 @@ export function parsePathAnchors(d: string): Point[] {
     if (!nums && cmd !== 'Z' && cmd !== 'z') continue
     const values = nums.split(/[\s,]+/).map(Number)
 
-    if (cmd === 'M' || cmd === 'L') {
+    if (cmd === 'M' || cmd === 'm' || cmd === 'L' || cmd === 'l') {
       for (let i = 0; i < values.length - 1; i += 2) {
         points.push({ x: values[i], y: values[i + 1] })
       }
-    } else if (cmd === 'C') {
+    } else if (cmd === 'C' || cmd === 'c') {
       // C cp1x cp1y cp2x cp2y x y — we only take the endpoint
       for (let i = 0; i < values.length - 5; i += 6) {
         points.push({ x: values[i + 4], y: values[i + 5] })
@@ -129,7 +129,8 @@ export function parsePathAnchors(d: string): Point[] {
   return points
 }
 
-/** Update a specific anchor point's position in a path d string */
+/** Update a specific anchor point's position in a path d string,
+ *  also moving adjacent Bezier control handles by the same delta. */
 export function updatePathAnchor(d: string, anchorIdx: number, newPos: Point): string {
   const segments: { cmd: string; coords: number[] }[] = []
   const re = /([MLCZmlcz])\s*([-\d.e+]+(?:\s*,?\s*[-\d.e+]+)*)?/g
@@ -141,23 +142,58 @@ export function updatePathAnchor(d: string, anchorIdx: number, newPos: Point): s
     segments.push({ cmd, coords: values })
   }
 
-  // Map anchor index to the right segment/position
-  let currentIdx = 0
+  // First pass: find old position so we can compute delta
+  let oldPos: Point | null = null
+  let ci = 0
   for (const seg of segments) {
-    if (seg.cmd === 'M' || seg.cmd === 'L') {
+    if (seg.cmd === 'M' || seg.cmd === 'm' || seg.cmd === 'L' || seg.cmd === 'l') {
+      for (let i = 0; i < seg.coords.length - 1; i += 2) {
+        if (ci === anchorIdx) oldPos = { x: seg.coords[i], y: seg.coords[i + 1] }
+        ci++
+      }
+    } else if (seg.cmd === 'C' || seg.cmd === 'c') {
+      for (let i = 0; i < seg.coords.length - 5; i += 6) {
+        if (ci === anchorIdx) oldPos = { x: seg.coords[i + 4], y: seg.coords[i + 5] }
+        ci++
+      }
+    }
+  }
+
+  const dx = oldPos ? newPos.x - oldPos.x : 0
+  const dy = oldPos ? newPos.y - oldPos.y : 0
+
+  // Second pass: move anchor and adjacent control handles by the same delta.
+  // For a C segment endpoint at anchorIdx:
+  //   - cp2 (coords[i+2..i+3]) is the incoming handle => move with this anchor
+  // For the NEXT C segment after this anchor:
+  //   - cp1 (coords[i..i+1]) is the outgoing handle => move with this anchor
+  let currentIdx = 0
+  let prevAnchorIdx = -1
+  for (const seg of segments) {
+    if (seg.cmd === 'M' || seg.cmd === 'm' || seg.cmd === 'L' || seg.cmd === 'l') {
       for (let i = 0; i < seg.coords.length - 1; i += 2) {
         if (currentIdx === anchorIdx) {
           seg.coords[i] = newPos.x
           seg.coords[i + 1] = newPos.y
         }
+        prevAnchorIdx = currentIdx
         currentIdx++
       }
-    } else if (seg.cmd === 'C') {
+    } else if (seg.cmd === 'C' || seg.cmd === 'c') {
       for (let i = 0; i < seg.coords.length - 5; i += 6) {
+        // cp1 (outgoing from previous anchor) — move if previous anchor is the target
+        if (prevAnchorIdx === anchorIdx) {
+          seg.coords[i] += dx
+          seg.coords[i + 1] += dy
+        }
+        // cp2 (incoming to this anchor) — move if this anchor is the target
         if (currentIdx === anchorIdx) {
+          seg.coords[i + 2] += dx
+          seg.coords[i + 3] += dy
           seg.coords[i + 4] = newPos.x
           seg.coords[i + 5] = newPos.y
         }
+        prevAnchorIdx = currentIdx
         currentIdx++
       }
     }
@@ -312,6 +348,15 @@ export function createDirectSelectTool(
     icon: 'A',
     shortcut: 'a',
     cursor: 'default',
+    onDeactivate() {
+      clearVisuals()
+      state.selectedPath = null
+      state.anchors = []
+      state.anchorHandles = []
+      state.selectedAnchorIdx = -1
+      state.dragTarget = null
+      state.dragging = false
+    },
     handlers: {
       onMouseDown(e: MouseEvent) {
         const svg = getSvg()

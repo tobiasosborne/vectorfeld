@@ -3,6 +3,9 @@ import { getSelection, subscribeSelection, refreshOverlay } from '../model/selec
 import { useEditor } from '../model/EditorContext'
 import { ModifyAttributeCommand, CompoundCommand } from '../model/commands'
 import { translatePathD } from '../model/pathOps'
+import { decomposeMatrix, parseTransform, rotateMatrix, multiplyMatrix, matrixToString } from '../model/matrix'
+import { transformedAABB, computeTranslateAttrs } from '../model/geometry'
+import type { BBox } from '../model/geometry'
 
 function formatNum(val: string): string {
   const n = parseFloat(val)
@@ -47,8 +50,13 @@ function getAttr(el: Element, attr: string): string {
 
 function getRotation(el: Element): string {
   const t = el.getAttribute('transform') || ''
+  if (!t) return '0'
   const m = t.match(/rotate\(([-\d.]+)/)
-  return m ? m[1] : '0'
+  if (m) return m[1]
+  // Fallback: decompose matrix() or other complex transforms
+  const mat = parseTransform(t)
+  const decomp = decomposeMatrix(mat)
+  return Math.abs(decomp.rotate) < 0.001 ? '0' : String(decomp.rotate)
 }
 
 function getBBox(el: Element): { x: string; y: string; w: string; h: string } {
@@ -70,9 +78,14 @@ function getBBox(el: Element): { x: string; y: string; w: string; h: string } {
   } else if (tag === 'text') {
     return { x: getAttr(el, 'x'), y: getAttr(el, 'y'), w: '', h: '' }
   }
-  // path or other — use getBBox if available
+  // path, g, or other — use getBBox if available
   try {
     const b = (el as SVGGraphicsElement).getBBox()
+    const transform = el.getAttribute('transform')
+    if (transform) {
+      const aabb = transformedAABB(b as BBox, transform)
+      return { x: String(aabb.x), y: String(aabb.y), w: String(aabb.width), h: String(aabb.height) }
+    }
     return { x: String(b.x), y: String(b.y), w: String(b.width), h: String(b.height) }
   } catch {
     return { x: '0', y: '0', w: '0', h: '0' }
@@ -128,7 +141,18 @@ export function ControlBar() {
     else if (tag === 'ellipse') applyAttr(el, 'cx', String(parseFloat(v) + parseFloat(getAttr(el, 'rx') || '0')))
     else if (tag === 'circle') applyAttr(el, 'cx', String(parseFloat(v) + parseFloat(getAttr(el, 'r') || '0')))
     else if (tag === 'text') applyAttr(el, 'x', v)
-    else if (tag === 'path') {
+    else if (tag === 'g') {
+      try {
+        const b = (el as SVGGraphicsElement).getBBox()
+        const transform = el.getAttribute('transform')
+        const aabb = transform ? transformedAABB(b as BBox, transform) : b
+        const dx = parseFloat(v) - aabb.x
+        if (Math.abs(dx) > 0.001) {
+          const changes = computeTranslateAttrs(el, dx, 0)
+          if (changes.length > 0) applyAttrs(el, changes)
+        }
+      } catch { /* getBBox unavailable */ }
+    } else if (tag === 'path') {
       try {
         const b = (el as SVGGraphicsElement).getBBox()
         const pathDx = parseFloat(v) - b.x
@@ -148,7 +172,18 @@ export function ControlBar() {
     else if (tag === 'ellipse') applyAttr(el, 'cy', String(parseFloat(v) + parseFloat(getAttr(el, 'ry') || '0')))
     else if (tag === 'circle') applyAttr(el, 'cy', String(parseFloat(v) + parseFloat(getAttr(el, 'r') || '0')))
     else if (tag === 'text') applyAttr(el, 'y', v)
-    else if (tag === 'path') {
+    else if (tag === 'g') {
+      try {
+        const b = (el as SVGGraphicsElement).getBBox()
+        const transform = el.getAttribute('transform')
+        const aabb = transform ? transformedAABB(b as BBox, transform) : b
+        const dy = parseFloat(v) - aabb.y
+        if (Math.abs(dy) > 0.001) {
+          const changes = computeTranslateAttrs(el, 0, dy)
+          if (changes.length > 0) applyAttrs(el, changes)
+        }
+      } catch { /* getBBox unavailable */ }
+    } else if (tag === 'path') {
       try {
         const b = (el as SVGGraphicsElement).getBBox()
         const pathDy = parseFloat(v) - b.y
@@ -179,7 +214,30 @@ export function ControlBar() {
     if (lb) {
       const cx = lb.x + lb.width / 2
       const cy = lb.y + lb.height / 2
-      applyAttr(el, 'transform', angle === 0 ? '' : `rotate(${angle}, ${cx}, ${cy})`)
+      const existingTransform = el.getAttribute('transform') || ''
+      // Check for matrix() or other non-trivial transforms that we need to preserve
+      const hasMatrix = /matrix\(/.test(existingTransform)
+      if (hasMatrix) {
+        // Decompose existing, replace rotation, recompose as matrix
+        const mat = parseTransform(existingTransform)
+        const decomp = decomposeMatrix(mat)
+        const oldRad = (decomp.rotate * Math.PI) / 180
+        const newRad = (angle * Math.PI) / 180
+        const deltaRad = newRad - oldRad
+        const deltaRot = rotateMatrix(deltaRad * (180 / Math.PI), cx, cy)
+        const newMat = multiplyMatrix(deltaRot, mat)
+        applyAttr(el, 'transform', angle === 0 && Math.abs(decomp.skewX) < 0.001 ? '' : matrixToString(newMat))
+      } else {
+        // Preserve skew transforms
+        const skewParts: string[] = []
+        const skewXMatch = existingTransform.match(/skewX\([^)]+\)/)
+        const skewYMatch = existingTransform.match(/skewY\([^)]+\)/)
+        if (skewXMatch) skewParts.push(skewXMatch[0])
+        if (skewYMatch) skewParts.push(skewYMatch[0])
+        const rotatePart = angle === 0 ? '' : `rotate(${angle}, ${cx}, ${cy})`
+        const parts = [rotatePart, ...skewParts].filter(Boolean)
+        applyAttr(el, 'transform', parts.join(' '))
+      }
     }
   }
 

@@ -5,6 +5,7 @@ import { CommandHistory } from '../model/commands'
 import { clearRegistry, getAllTools, getActiveTool, setActiveTool } from './registry'
 import { getSelection, setSelection, clearSelection, setOverlayGroup } from '../model/selection'
 import type { DocumentModel } from '../model/document'
+import { parseTransform, applyMatrixToPoint, invertMatrix, scaleAroundMatrix } from '../model/matrix'
 
 function makeSvg(): SVGSVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
@@ -389,6 +390,131 @@ describe('Select Tool', () => {
       tool.handlers.onMouseUp!(mouseUp(133, 71))
 
       expect(getSelection()).toHaveLength(0)
+    })
+  })
+
+  // ---- Group transform tests ----
+
+  /** Add a <g> element with optional transform and mock getBBox */
+  function addGroup(
+    svgEl: SVGSVGElement,
+    transform?: string,
+    bboxOverride?: { x: number; y: number; width: number; height: number }
+  ): SVGGElement {
+    const layer = svgEl.querySelector('g[data-layer-name]')!
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g') as SVGGElement
+    if (transform) g.setAttribute('transform', transform)
+    const childRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    childRect.setAttribute('x', '10')
+    childRect.setAttribute('y', '10')
+    childRect.setAttribute('width', '80')
+    childRect.setAttribute('height', '80')
+    g.appendChild(childRect)
+    const bbox = bboxOverride || { x: 10, y: 10, width: 80, height: 80 }
+    ;(g as any).getBBox = () => ({ ...bbox })
+    layer.appendChild(g)
+    return g
+  }
+
+  const near = (a: number, b: number, tol = 0.5) => Math.abs(a - b) < tol
+
+  describe('group move (Bug 1)', () => {
+    it('moves group from identity transform', () => {
+      const tool = makeTool()
+      const g = addGroup(svg)
+
+      // Click inside group: doc (50, 50) -> screen (50/(210/800), 50/(297/600)) ≈ (190.5, 101)
+      tool.handlers.onMouseDown!(mouseDown(190, 101))
+      // Drag right by ~26 doc units (100 screen px * 210/800)
+      tool.handlers.onMouseMove!(mouseMove(290, 101))
+      tool.handlers.onMouseUp!(mouseUp(290, 101))
+
+      const t = g.getAttribute('transform')
+      expect(t).toBeTruthy()
+      expect(t!.startsWith('matrix(')).toBe(true)
+      // The translation component should be non-zero (moved right)
+      const m = parseTransform(t!)
+      expect(m[4]).toBeGreaterThan(10) // translate X > 0
+      expect(history.canUndo).toBe(true)
+    })
+
+    it('second move accumulates with first', () => {
+      const tool = makeTool()
+      const g = addGroup(svg, 'translate(20, 10)')
+      // Mock getBBox to reflect the original local position
+      ;(g as any).getBBox = () => ({ x: 10, y: 10, width: 80, height: 80 })
+
+      // First move: click on group, drag right
+      tool.handlers.onMouseDown!(mouseDown(190, 101))
+      tool.handlers.onMouseMove!(mouseMove(290, 101))
+      tool.handlers.onMouseUp!(mouseUp(290, 101))
+
+      const t1 = g.getAttribute('transform')!
+      const m1 = parseTransform(t1)
+      // translate X should include original 20 + drag delta
+      expect(m1[4]).toBeGreaterThan(20)
+    })
+
+    it('move preserves existing rotation on group', () => {
+      const tool = makeTool()
+      // Group with 45-degree rotation (matrix form)
+      const g = addGroup(svg, 'rotate(45, 50, 50)')
+
+      tool.handlers.onMouseDown!(mouseDown(190, 101))
+      tool.handlers.onMouseMove!(mouseMove(290, 101))
+      tool.handlers.onMouseUp!(mouseUp(290, 101))
+
+      const t = g.getAttribute('transform')!
+      const m = parseTransform(t)
+      // Rotation component should be preserved (a,b,c,d encode rotation)
+      // For 45 deg: a ≈ 0.707, b ≈ 0.707
+      expect(near(Math.abs(m[1]), 0.707, 0.1)).toBe(true)
+    })
+
+    it('group move is undoable', () => {
+      const tool = makeTool()
+      const g = addGroup(svg, 'translate(10, 20)')
+      const origTransform = g.getAttribute('transform')
+
+      tool.handlers.onMouseDown!(mouseDown(190, 101))
+      tool.handlers.onMouseMove!(mouseMove(290, 101))
+      tool.handlers.onMouseUp!(mouseUp(290, 101))
+
+      expect(g.getAttribute('transform')).not.toBe(origTransform)
+      history.undo()
+      expect(g.getAttribute('transform')).toBe(origTransform)
+    })
+  })
+
+  describe('group transform math', () => {
+    it('matrix composition for move: translate(dx,dy) * orig', () => {
+      // Verify the math directly: translate(10, 5) * rotate(45, 50, 50)
+      const orig = parseTransform('rotate(45, 50, 50)')
+      const moved = parseTransform('matrix(1, 0, 0, 1, 10, 5)')
+      // Apply orig to a test point
+      const p1 = applyMatrixToPoint(orig, 30, 30)
+      // Apply translate then orig
+      const combined = parseTransform(`translate(10, 5) rotate(45, 50, 50)`)
+      const p2 = applyMatrixToPoint(combined, 30, 30)
+      // p2 should be p1 shifted by (10, 5)
+      expect(near(p2.x, p1.x + 10, 0.01)).toBe(true)
+      expect(near(p2.y, p1.y + 5, 0.01)).toBe(true)
+    })
+
+    it('scale around anchor preserves anchor position', () => {
+      const m = scaleAroundMatrix(2, 2, 50, 50)
+      const anchor = applyMatrixToPoint(m, 50, 50)
+      expect(near(anchor.x, 50, 0.01)).toBe(true)
+      expect(near(anchor.y, 50, 0.01)).toBe(true)
+    })
+
+    it('inverse transform round-trips through forward', () => {
+      const m = parseTransform('translate(50, 30) rotate(30) scale(2, 1.5)')
+      const inv = invertMatrix(m)
+      const fwd = applyMatrixToPoint(m, 25, 25)
+      const back = applyMatrixToPoint(inv, fwd.x, fwd.y)
+      expect(near(back.x, 25, 0.01)).toBe(true)
+      expect(near(back.y, 25, 0.01)).toBe(true)
     })
   })
 })

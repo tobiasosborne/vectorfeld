@@ -124,7 +124,7 @@ describe('Pen Tool', () => {
     expect(path!.getAttribute('d')).toContain('L')
   })
 
-  it('finishes path on Escape (same as Enter)', () => {
+  it('cancels path on Escape without committing', () => {
     const tool = makeTool()
     tool.handlers.onMouseDown!(mouseDown(100, 100))
     tool.handlers.onMouseUp!(mouseUp(100, 100))
@@ -134,9 +134,10 @@ describe('Pen Tool', () => {
 
     const layer = svg.querySelector('g[data-layer-name]')!
     const path = layer.querySelector('path')
-    expect(path).not.toBeNull()
-    expect(path!.getAttribute('d')).toContain('M')
-    expect(path!.getAttribute('d')).toContain('L')
+    expect(path).toBeNull()
+    // Preview elements should also be cleaned up
+    const previews = svg.querySelectorAll('[data-role="preview"]')
+    expect(previews.length).toBe(0)
   })
 
   it('committed path is undoable', () => {
