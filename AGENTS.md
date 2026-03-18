@@ -187,14 +187,27 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 MVP complete (22/22). **Phase 2 complete: 43/43 features (100%).** **472 tests** passing across **40 test files**. Zero type errors. SVG benchmark redraw protocol established.
 
-### What was done this session (2026-03-18)
+### What was done this session (2026-03-18, session 2)
 
-**SVG Benchmark Redraw Protocol** — downloaded 8 W3C/svgweb reference SVGs, used playwright-cli to redraw them from scratch using vectorfeld's actual tools (rect, ellipse, line, pen), then compared visually with reference.
+**SVG Benchmark Exact Recreation** — recreated 3 W3C reference SVGs from scratch using vectorfeld's drawing tools via playwright-cli. Exported results as SVG. Compared by **parsing SVG structure** (no PNG/vision). Results:
 
-**P1 Bug Fix (1):**
-- **removeChild crash on undo** (`document.ts:70`, `commands.ts:86`): `AddElementCommand.undo()` crashed with `TypeError: Cannot read properties of null` when element's parent was already removed. Added null guards in `removeElement()` and `AddElementCommand.undo/execute`.
+| Benchmark | Elements | Verdict | Details |
+|-----------|----------|---------|---------|
+| painting-stroke-01 | 2 rects | **PASS** (17/18) | 1 test-setup error (unscaled stroke-width) |
+| shapes-rect-01 | 8 rects | **PASS** (72/72) | All fill/stroke/rx/ry/position checks pass |
+| paths-data-01 | 8 bezier paths | **FAIL** (0/10) | Pen tool limitations — see below |
 
-**5 new bugs/features filed:**
+**Pen tool failures (paths-data-01):**
+- Cannot produce `S`/`s` (smooth curveto) — only generates `C`
+- Cannot create asymmetric bezier handles — click-drag creates symmetric handles (44mm error measured)
+- Cannot create multi-subpath elements — each Enter creates a separate `<path>`
+- Only emits absolute commands — never relative `c`/`s`/`m`
+
+**8 bugs/features filed (3 new this session):**
+- `vectorfeld-9hu` (P2 bug): Pen tool cannot produce S/s (smooth curveto) path commands
+- `vectorfeld-t7u` (P2 bug): Pen tool cannot create asymmetric bezier control handles
+- `vectorfeld-3t8` (P3 feature): Pen tool cannot create multi-subpath elements
+- `vectorfeld-87e` (P4 chore): Pen tool only emits absolute path commands
 - `vectorfeld-ptz` (P2 bug): Default style bleeds fill to subsequent drawings
 - `vectorfeld-els` (P2 feature): No UI for rx/ry (rounded corners) on rect elements
 - `vectorfeld-vj5` (P2 bug): Stroke ColorPicker has `allowNone={false}` — cannot set stroke=none via Properties panel
@@ -202,10 +215,15 @@ MVP complete (22/22). **Phase 2 complete: 43/43 features (100%).** **472 tests**
 - `vectorfeld-lb4` (P3 bug): Input focus traps keyboard tool shortcuts
 
 **Benchmark infrastructure:**
-- `test-benchmarks/` — 8 downloaded reference SVGs + redraw scripts + comparison screenshots
-- `test-benchmarks/comparisons/` — side-by-side REFERENCE vs VECTORFELD PNGs for 3 benchmarks
-- `test-benchmarks/benchmark-runner.js` — automated operation test script
-- `test-benchmarks/REPORT.md` — full benchmark report
+- `test-benchmarks/*-VECTORFELD.svg` — vectorfeld recreations exported as SVG
+- `test-benchmarks/svg-compare.py` — structural SVG comparison (element-by-element, no vision)
+- `test-benchmarks/REPORT.md` — full benchmark report with pass/fail tables
+- `test-benchmarks/benchmark-runner.js` — automated operation test script (previous session)
+
+### What was done this session (2026-03-18, session 1)
+
+**P1 Bug Fix (1):**
+- **removeChild crash on undo** (`document.ts:70`, `commands.ts:86`): `AddElementCommand.undo()` crashed with `TypeError: Cannot read properties of null` when element's parent was already removed. Added null guards in `removeElement()` and `AddElementCommand.undo/execute`.
 
 ### What was done previous session (2026-03-17)
 
