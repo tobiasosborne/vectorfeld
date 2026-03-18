@@ -68,7 +68,11 @@ export function createDocumentModel(svg: SVGSVGElement): DocumentModel {
     },
 
     removeElement(el: Element): { parent: Element; nextSibling: Element | null } {
-      const parent = el.parentElement!
+      const parent = el.parentElement
+      if (!parent) {
+        // Element already detached (e.g., layer cleared outside command history)
+        return { parent: svg, nextSibling: null }
+      }
       const nextSibling = el.nextElementSibling
       parent.removeChild(el)
       return { parent, nextSibling }

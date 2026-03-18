@@ -181,13 +181,33 @@ This project uses **playwright-cli** (installed as a Claude Code skill at `.clau
 
 ## Project Handoff Context
 
-**Current state (updated 2026-03-17):**
+**Current state (updated 2026-03-18):**
 
 ### Summary
 
-MVP complete (22/22). **Phase 2 complete: 43/43 features (100%).** All 16 chaos monkey issues fixed and closed. **472 tests** passing across **40 test files**. Zero type errors.
+MVP complete (22/22). **Phase 2 complete: 43/43 features (100%).** **472 tests** passing across **40 test files**. Zero type errors. SVG benchmark redraw protocol established.
 
-### What was done this session (2026-03-17)
+### What was done this session (2026-03-18)
+
+**SVG Benchmark Redraw Protocol** — downloaded 8 W3C/svgweb reference SVGs, used playwright-cli to redraw them from scratch using vectorfeld's actual tools (rect, ellipse, line, pen), then compared visually with reference.
+
+**P1 Bug Fix (1):**
+- **removeChild crash on undo** (`document.ts:70`, `commands.ts:86`): `AddElementCommand.undo()` crashed with `TypeError: Cannot read properties of null` when element's parent was already removed. Added null guards in `removeElement()` and `AddElementCommand.undo/execute`.
+
+**5 new bugs/features filed:**
+- `vectorfeld-ptz` (P2 bug): Default style bleeds fill to subsequent drawings
+- `vectorfeld-els` (P2 feature): No UI for rx/ry (rounded corners) on rect elements
+- `vectorfeld-vj5` (P2 bug): Stroke ColorPicker has `allowNone={false}` — cannot set stroke=none via Properties panel
+- `vectorfeld-eke` (P3 bug): Canvas SVG overflows flex container on viewport resize
+- `vectorfeld-lb4` (P3 bug): Input focus traps keyboard tool shortcuts
+
+**Benchmark infrastructure:**
+- `test-benchmarks/` — 8 downloaded reference SVGs + redraw scripts + comparison screenshots
+- `test-benchmarks/comparisons/` — side-by-side REFERENCE vs VECTORFELD PNGs for 3 benchmarks
+- `test-benchmarks/benchmark-runner.js` — automated operation test script
+- `test-benchmarks/REPORT.md` — full benchmark report
+
+### What was done previous session (2026-03-17)
 
 Fixed all 4 group transform bugs identified in handoff + review follow-ups:
 

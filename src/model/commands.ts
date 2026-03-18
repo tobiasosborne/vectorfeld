@@ -77,14 +77,17 @@ export class AddElementCommand implements Command {
 
   execute(): void {
     if (this.element) {
-      this.parent.appendChild(this.element)
+      // Re-add to parent if parent is still in the DOM
+      if (this.parent.isConnected) {
+        this.parent.appendChild(this.element)
+      }
     } else {
       this.element = this.doc.addElement(this.parent, this.tag, this.attrs)
     }
   }
 
   undo(): void {
-    if (this.element) {
+    if (this.element && this.element.parentElement) {
       this.doc.removeElement(this.element)
     }
   }
