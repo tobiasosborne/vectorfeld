@@ -1,6 +1,8 @@
 # vectorfeld — Agent-First API Reference
 
-This document is the primary reference for AI agents working on vectorfeld. It covers every exported function, class, interface, and component with full signatures and descriptions. Start here before writing any code.
+This document is the primary reference for AI agents working on vectorfeld. Start here before writing code.
+
+**Pivot context (2026-04-19):** the project has pivoted from "scientific-diagram editor with LaTeX export" to "casual PDF editor" (Adobe CC replacement for editing Word-generated PDFs). See `AGENTS.md` for the pivot details. Several modules in the original design were deleted; this doc reflects the current state, not the original PRD.
 
 ---
 
@@ -8,11 +10,16 @@ This document is the primary reference for AI agents working on vectorfeld. It c
 
 ```
 src/
-  model/          Core data: document, commands, selection, coordinates, zoom, file I/O
-  tools/          Tool implementations: select, line, rect, ellipse, eraser + registry
-  components/     React UI: Canvas, Toolbar, LayersPanel, PropertiesPanel, StatusBar, etc.
-  test/           Test setup
-src-tauri/        Rust backend (thin, rarely touched)
+  model/          Core domain: document, commands, selection, geometry, matrix, path ops,
+                  coordinates, zoom, file I/O, PDF import, pub-sub singletons (grid,
+                  guides, smartGuides, artboard, defaultStyle, wireframe, activeLayer)
+  tools/          13 tool implementations + registry. 7 visible in sidebar; 6 hidden
+                  but reachable via keyboard shortcut.
+  components/     React UI: Canvas, ToolStrip, MenuBar, ControlBar, LayersPanel,
+                  PropertiesPanel, StatusBar, ColorPicker, FillStrokeWidget,
+                  ArtboardDialog, ContextMenu, Ruler, icons
+  test/           Vitest setup
+src-tauri/        Rust shell — thin, no custom commands wired yet
 ```
 
 **Data flow:**
@@ -148,12 +155,21 @@ Uses pure viewBox math (no SVG DOM APIs — works in jsdom).
 
 ---
 
-## 6. File I/O (`src/model/fileio.ts`)
+## 6. File I/O (`src/model/fileio.ts` + `src/model/pdfImport.ts`)
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `exportSvg` | `(doc, filename?) => void` | Clones SVG, strips overlays/previews, triggers browser download |
-| `importSvg` | `(doc) => Promise<void>` | Opens file picker, parses SVG, imports elements to active layer |
+| `exportPdf` | `(doc, filename?) => void` | jsPDF + svg2pdf.js pipeline |
+| `exportPng` | `(doc, filename?) => void` | SVG-to-canvas raster at 96 DPI |
+| `importSvg` | `(doc) => Promise<void>` | Opens file picker, parses SVG, imports to active layer |
+| `placeImage` | `(doc, history) => Promise<void>` | File picker for PNG/JPG, creates `<image>` data URI |
+| `importPdf` | `(doc) => Promise<void>` | File picker, MuPDF WASM, `text=text` mode → real `<text>`/`<tspan>`/`<image>` |
+| `parseSvgString` | `(xml) => ParsedSvg` | DOMParser + `sanitizeSvgTree()` + extract defs/layers |
+| `sanitizeSvgTree` | `(root: Element) => void` | **Security**: strips `<script>`, `<foreignObject>`, `<iframe>`, `on*` attrs, `javascript:`/`data:text/html` hrefs |
+| `exportSvgString` | `(doc) => string` | For tests |
+
+The PDF pipeline (`pdfImport.ts`) prepends `scale(25.4/72)` to each top-level element's `transform` so content (MuPDF emits pt) scales into the mm viewBox. Each text/image stays a direct layer child (individually selectable).
 
 ---
 
@@ -174,8 +190,8 @@ interface EditorContextValue {
 Wraps app with context. Manages:
 - CommandHistory instance
 - DocumentModel (created when `setSvg` is called)
-- Internal clipboard for copy/paste
-- All global keybindings (see below)
+- Clipboard ref passed to `src/model/clipboard.ts` functions
+- All global keybindings (undo/redo, copy/cut/paste/duplicate, group/ungroup, delete, nudge, z-order, select-all, grid toggle)
 
 ---
 
@@ -226,23 +242,33 @@ function createXxxTool(
 ): ToolConfig
 ```
 
-### Registered Tools
+### Registered Tools (13 total; 7 visible, 6 hidden-but-keyboard-accessible)
 
-| Tool | Name | Key | Icon | File | Behavior |
-|------|------|-----|------|------|----------|
-| Select | `select` | V | `V` | `selectTool.ts` | Click to select, shift+click toggle, drag to move, undoable |
-| Line | `line` | L | `L` | `lineTool.ts` | Click start, click end, preview line follows cursor |
-| Rectangle | `rectangle` | R | `R` | `rectTool.ts` | Click-drag, shift = square, preview rect |
-| Ellipse | `ellipse` | E | `E` | `ellipseTool.ts` | Click-drag from center, shift = circle |
-| Eraser | `eraser` | X | `X` | `eraserTool.ts` | Click or drag to delete, undoable |
+| Tool | Name | Key | Visible | File | Behavior |
+|------|------|-----|---------|------|----------|
+| Select | `select` | V | ✓ | `selectTool.ts` | Click, shift-click toggle, marquee, drag-move, 8-handle scale, rotation handle. Snapshots tspan x-arrays so MuPDF-imported text moves as a unit. |
+| Direct Select | `direct-select` | A | ✓ | `directSelectTool.ts` | Edit path anchor points and Bézier handles |
+| Rectangle | `rectangle` | R | ✓ | `rectTool.ts` | Click-drag; shift=square, ctrl=from-center |
+| Ellipse | `ellipse` | E | ✓ | `ellipseTool.ts` | Click-drag; shift=circle |
+| Line | `line` | L | ✓ | `lineTool.ts` | Click-drag; shift=45°, endpoint snap via smartGuides |
+| Text | `text` | T | ✓ | `textTool.ts` | Click to place, typeable with caret + selection |
+| Eraser | `eraser` | X | ✓ | `eraserTool.ts` | Click or drag to delete touched elements |
+| Pen | `pen` | P | — | `penTool.ts` | Bézier anchor placement. Known limitations (no S/s curveto, symmetric handles only) — see beads issues. |
+| Pencil | `pencil` | N | — | `pencilTool.ts` | Freehand with Ramer-Douglas-Peucker simplification |
+| Measure | `measure` | M | — | `measureTool.ts` | Click-drag shows distance overlay in mm |
+| Lasso | `lasso` | J | — | `lassoTool.ts` | Freeform polygon select (ray-cast PiP) |
+| Free Transform | `free-transform` | Q | — | `freeTransformTool.ts` | Scale + rotate + skew in one tool (redundant with selectTool handles for most cases) |
+| Eyedropper | `eyedropper` | I | — | `eyedropperTool.ts` | Sample stroke/fill/strokeWidth into `defaultStyle` |
+
+Visible tools are shown in `ToolStrip.tsx`. Hidden tools are filtered out via `HIDDEN_TOOLS` set. To toggle visibility, edit `ToolStrip.tsx` — all tools stay registered and reachable via keyboard.
 
 ### `registerAllTools(getSvg, getDoc, getHistory): void`
 
-Registers all 5 tools and sets active to `select`. Called once on SVG mount.
+Registers all 13 tools and sets `select` as active. Called once on SVG mount.
 
 ### `useToolShortcuts(): void`
 
-Hook — listens for single-key presses (V/L/R/E/X) to switch tools. Ignores when input/textarea focused or Ctrl/Alt/Meta held.
+Hook — listens for single-key presses to switch tools. Ignores when input/textarea focused or Ctrl/Alt/Meta held.
 
 ---
 
@@ -253,10 +279,18 @@ Hook — listens for single-key presses (V/L/R/E/X) to switch tools. Ignores whe
 | Key | Action |
 |-----|--------|
 | V | Select tool |
-| L | Line tool |
+| A | Direct-select tool |
 | R | Rectangle tool |
 | E | Ellipse tool |
+| L | Line tool |
+| T | Text tool |
 | X | Eraser tool |
+| P | Pen tool (hidden from strip) |
+| N | Pencil tool (hidden) |
+| M | Measure tool (hidden) |
+| J | Lasso tool (hidden) |
+| Q | Free Transform tool (hidden) |
+| I | Eyedropper (hidden) |
 
 ### Editor Actions (via `EditorProvider`)
 
@@ -300,21 +334,33 @@ interface CanvasProps {
 
 Creates SVG once on mount. Handles zoom, pan, and tool event dispatch.
 
-### `Toolbar` (`src/components/Toolbar.tsx`)
+### `ToolStrip` (`src/components/ToolStrip.tsx`)
 
-```typescript
-interface ToolbarProps {
-  onArtboardSetup?: () => void
-  onExportSvg?: () => void
-  onImportSvg?: () => void
-}
-```
+Vertical tool palette on the left side. Renders icon buttons for each registered tool EXCEPT those in the module-level `HIDDEN_TOOLS` set. Active tool highlighted via accent color. Bottom contains a `FillStrokeWidget`.
 
-Renders tool buttons from registry. Active tool highlighted.
+### `MenuBar` (`src/components/MenuBar.tsx`)
+
+Horizontal menu bar along the top. Takes a `MenuDef[]` prop; renders dropdown menus with separators, shortcut text, and disabled states. Closes on outside click.
+
+### `ControlBar` (`src/components/ControlBar.tsx`)
+
+Top strip (below MenuBar) with X/Y/W/H/R numeric inputs bound to the selection. Also renders align and distribute buttons when 2+ elements are selected.
 
 ### `LayersPanel` (`src/components/LayersPanel.tsx`)
 
-Lists layers from `g[data-layer-name]`. Add/delete, visibility toggle (`style.display`), lock toggle (`data-locked`). Refreshes every 500ms.
+Lists layers from `g[data-layer-name]`. Add/delete/rename/reorder/visibility toggle (`style.display`)/lock toggle (`data-locked`). Subscribes to `history` and `selection` (not polling).
+
+### `FillStrokeWidget` (`src/components/FillStrokeWidget.tsx`)
+
+Illustrator-style stacked fill+stroke swatches at the bottom of the ToolStrip. Shows `defaultStyle` current values; supports swap and reset.
+
+### `Ruler` (`src/components/Ruler.tsx`)
+
+Exports `HRuler` and `VRuler`. Canvas-based; adaptive tick intervals follow zoom level. Dragging from the ruler body calls `addGuide('h'|'v', pos)` to create a user placement guide. Exports `pickInterval`, `formatLabel`, `ViewBoxInfo` for tests.
+
+### `ContextMenu` (`src/components/ContextMenu.tsx`)
+
+Portal-style floating right-click menu. Props: `{ x, y, items: ContextMenuItem[], onClose }`. Closes on outside click or Escape.
 
 ### `PropertiesPanel` (`src/components/PropertiesPanel.tsx`)
 
