@@ -34,6 +34,12 @@ dolt-server.port
 dolt-server.activity
 dolt-monitor.pid
 
+# Credentials and per-machine backup runtime state — never commit
+.beads-credential-key
+backup/LOCK
+backup/manifest
+backup/*.darc
+
 # Legacy files (from pre-Dolt versions)
 *.db
 *.db?*
