@@ -136,10 +136,15 @@ function applyParsedSvg(doc: DocumentModel, parsed: ParsedSvg): void {
     }
   }
 
-  // Insert layers before overlay groups (grid, guides, selection) to maintain correct z-order
+  // MuPDF emits content in PDF points; viewBox was converted to mm.
+  // Wrap each layer's content in a scale(pt→mm) group so content space matches viewBox units.
   const firstOverlay = doc.svg.querySelector('[data-role="grid-overlay"], [data-role="user-guides-overlay"], [data-role="guides-overlay"], [data-role="overlay"]')
   for (const layer of parsed.layers) {
-    const imported = document.importNode(layer, true)
+    const imported = document.importNode(layer, true) as Element
+    const scaleG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    scaleG.setAttribute('transform', `scale(${PT_TO_MM})`)
+    while (imported.firstChild) scaleG.appendChild(imported.firstChild)
+    imported.appendChild(scaleG)
     if (firstOverlay) {
       doc.svg.insertBefore(imported, firstOverlay)
     } else {

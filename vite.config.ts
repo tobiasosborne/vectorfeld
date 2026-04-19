@@ -5,6 +5,10 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    exclude: ['mupdf'],
+  },
+  assetsInclude: ['**/*.wasm'],
   test: {
     environment: 'jsdom',
     globals: true,

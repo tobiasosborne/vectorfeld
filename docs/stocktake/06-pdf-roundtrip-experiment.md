@@ -76,10 +76,46 @@ Both modes render visually equivalent at the pixel level (Chromium renders, scre
 - `npm run build` — green
 - `npm test -- --run` — 472/472 passing across 40 files
 
-## Next experiments (not done in this pass)
+## Live in-app verification (done 2026-04-19)
+
+Ran `experiments/pdf-roundtrip/verify-import.mjs` — a headed Chromium script
+using playwright from `qvls-sturm/viz/node_modules`. Steps: load the dev server,
+click `File → Open PDF…`, inject `sample-with-image.pdf` via the file chooser,
+inspect the imported DOM, click a text element, drag it, inspect PropertiesPanel.
+
+**Result: 7/7 checks pass.**
+
+- Canvas SVG located, viewBox `0.00 0.00 215.90 279.40` (mm, US Letter)
+- Imported DOM: 6 `<text>`, 6 `<tspan>`, 1 `<image>`, 0 `<path>`, 0 `<use>` — text=text confirmed live
+- Click on text element selects it (overlay renders 13 handles)
+- Drag translates the element (ΔX = 80px = ~15mm)
+- PropertiesPanel populated with Position, Transform, Style, Fill, Dash, Cap, Join, Opacity
+
+### Bugs surfaced by the live test
+
+1. **pt→mm scale mismatch (FIXED):** MuPDF emits content coordinates in points,
+   but `postProcessPdfSvg` was converting only the viewBox to mm — content
+   rendered ~2.8× too large and positioned partway down the page. Fix: in
+   `applyParsedSvg`, wrap each imported layer's children in a `<g transform="scale(PT_TO_MM)">`
+   group so content space matches viewBox units. Was latent in path mode too
+   but less visible (all glyphs equally wrong).
+
+2. **Vite dev server doesn't serve mupdf's .wasm (FIXED):** dev server returned
+   `index.html` for `mupdf-wasm.wasm` requests, triggering "expected magic word
+   00 61 73 6d, found 3c 21 64 6f" (that's `<!do` — the HTML doctype). Fix:
+   `optimizeDeps.exclude: ['mupdf']` + `assetsInclude: ['**/*.wasm']` in
+   vite.config.ts. Production build was already correct.
+
+3. **Click-selects-whole-page (KNOWN, not fixed):** MuPDF's output has all text
+   and images wrapped in a single top-level `<g>`. Clicking a character selects
+   the entire group rather than the text element. Workarounds: Alt+click to
+   cycle down the stack; or ungroup after import; or double-click-into-group.
+   Usability issue, not a blocker for "open, move text around, save".
+
+## Remaining next experiments (not done in this pass)
 
 1. **Word-text recovery from x-gaps** — implement a small post-process that walks each `<tspan>`'s `x` array and inserts space chars where gap > char-width × 1.5.
-2. **PDF export round-trip** — import a PDF, immediately re-export to PDF, diff the rendered pages. Establishes whether the text font information survives the jsPDF + svg2pdf path or whether export falls back to embedded font subsets.
-3. **Multi-page support** — current `importPdf` only loads page 0. Extend to import all pages as separate artboards (this also unblocks the "Multiple artboards" PRD item, currently absent).
-4. **Cross-document clipboard** — load PDF A in vectorfeld, load PDF B in a second tab/window, copy from B and paste into A. Requires architectural addition (currently `clipboard.ts` is single-document).
-5. **Live in-app verification** — open the dev server, use the actual `Import PDF…` menu item against a real document, confirm selection, move, and edit work on the imported text.
+2. **PDF export round-trip** — import a PDF, immediately re-export to PDF, diff the rendered pages. Establishes whether text font information survives the jsPDF + svg2pdf path.
+3. **Multi-page support** — current `importPdf` only loads page 0. Extend to all pages as separate artboards (also unblocks the "Multiple artboards" PRD gap).
+4. **Cross-document clipboard** — load PDF A, load PDF B in a second tab, copy from B and paste into A. Requires architectural addition; currently `clipboard.ts` is single-document.
+5. **Ungroup-on-import or single-click-in-group** — fix the click-selects-whole-page usability issue from bug #3 above.
