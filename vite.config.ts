@@ -9,6 +9,11 @@ export default defineConfig({
     exclude: ['mupdf'],
   },
   assetsInclude: ['**/*.wasm'],
+  worker: {
+    // ES module format is required for code-splitting in workers that
+    // dynamic-import further modules (e.g. mupdf's WASM glue).
+    format: 'es',
+  },
   test: {
     environment: 'jsdom',
     globals: true,

@@ -1,24 +1,51 @@
 /**
  * PDF import via MuPDF WASM.
  *
- * Lazy-loads mupdf (~13.8 MB WASM) on first use.
- * Renders PDF page → SVG via DocumentWriter("svg") → pipes through parseSvgString().
+ * Runs MuPDF on a Web Worker so the ~10 MB WASM load and the per-page
+ * render don't block the main thread. renderPageToSvg delegates to
+ * pdfRender.worker.ts; the worker is instantiated once and reused.
  */
 
 import type { DocumentModel } from './document'
 import { syncIdCounter } from './document'
 import { clearSelection } from './selection'
 import { parseSvgString, type ParsedSvg } from './fileio'
+import RenderWorker from './pdfRender.worker.ts?worker'
 
-// ── Lazy-loaded MuPDF ──────────────────────────────────────────────────
+// ── Worker management ──────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let mupdf: any = null
+let worker: Worker | null = null
+let pendingId = 0
+const pending = new Map<number, { resolve: (svg: string) => void; reject: (err: Error) => void }>()
 
-async function getMuPDF() {
-  if (mupdf) return mupdf
-  mupdf = await import('mupdf')
-  return mupdf
+function getWorker(): Worker {
+  if (worker) return worker
+  worker = new RenderWorker()
+  worker.addEventListener('message', (e: MessageEvent) => {
+    const msg = e.data as { kind: string; id: number; svg?: string; message?: string }
+    const p = pending.get(msg.id)
+    if (!p) return
+    pending.delete(msg.id)
+    if (msg.kind === 'rendered' && typeof msg.svg === 'string') p.resolve(msg.svg)
+    else p.reject(new Error(msg.message ?? 'PDF render failed'))
+  })
+  worker.addEventListener('error', (e) => {
+    // If the worker dies, reject every pending request so callers don't hang.
+    for (const [, p] of pending) p.reject(new Error(`PDF worker error: ${e.message}`))
+    pending.clear()
+    worker = null
+  })
+  return worker
+}
+
+function postRender(pdf: ArrayBuffer, pageIndex: number): Promise<string> {
+  const w = getWorker()
+  const id = ++pendingId
+  return new Promise<string>((resolve, reject) => {
+    pending.set(id, { resolve, reject })
+    // Transfer the ArrayBuffer to avoid a copy.
+    w.postMessage({ kind: 'render', id, pdf, pageIndex }, [pdf])
+  })
 }
 
 // ── SVG post-processing ────────────────────────────────────────────────
@@ -55,31 +82,12 @@ export function postProcessPdfSvg(svgString: string): string {
 // ── Import pipeline ────────────────────────────────────────────────────
 
 /**
- * Render a PDF page to SVG using MuPDF's DocumentWriter with "svg" format.
+ * Render a PDF page to SVG via the worker. Pure pipeline: the worker
+ * holds the MuPDF instance; this function just shepherds bytes in and
+ * the SVG string out.
  */
 async function renderPageToSvg(pdfData: ArrayBuffer, pageIndex = 0): Promise<string> {
-  const m = await getMuPDF()
-
-  const doc = m.Document.openDocument(pdfData, 'application/pdf')
-  const page = doc.loadPage(pageIndex)
-  const bounds = page.getBounds()
-
-  // Render page to SVG via DocumentWriter.
-  // text=text → emit real <text>/<tspan> instead of glyph-as-path outlines.
-  const buf = new m.Buffer()
-  const writer = new m.DocumentWriter(buf, 'svg', 'text=text')
-  const device = writer.beginPage(bounds)
-  page.run(device, m.Matrix.identity)
-  writer.endPage()
-  writer.close()
-
-  const svgString = buf.asString()
-
-  // Cleanup
-  page.destroy()
-  doc.destroy()
-
-  return svgString
+  return postRender(pdfData, pageIndex)
 }
 
 /**
