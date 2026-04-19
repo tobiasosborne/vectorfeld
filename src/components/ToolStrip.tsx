@@ -3,7 +3,18 @@ import { getAllTools, getActiveToolName, setActiveTool, subscribe } from '../too
 import { TOOL_ICONS } from './icons'
 import { FillStrokeWidget } from './FillStrokeWidget'
 
-const HIDDEN_TOOLS = new Set(['eyedropper'])
+/** Tools hidden from the sidebar but still invokable via keyboard shortcut.
+ *  Rationale for casual PDF editing: hide pure-authoring tools so the
+ *  cold-pickup UX shows ~7 relevant affordances instead of 13. Power users
+ *  who know the keys (P, N, M, J, Q, I) keep access. */
+const HIDDEN_TOOLS = new Set([
+  'eyedropper',      // I — sample color
+  'pen',             // P — Bézier authoring
+  'pencil',          // N — freehand
+  'measure',         // M — distance readout
+  'lasso',           // J — freeform selection
+  'free-transform',  // Q — redundant with select tool handles
+])
 
 export function ToolStrip() {
   const [activeToolName, setActiveToolName] = useState<string | null>(getActiveToolName())

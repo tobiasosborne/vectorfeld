@@ -112,25 +112,6 @@ export const LassoIcon: ReactNode = (
   </svg>
 )
 
-// Knife tool
-export const KnifeIcon: ReactNode = (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={S}>
-    <path d="M5 16L15 4" />
-    <path d="M14 3L17 4L15 6" />
-    <line x1="3" y1="18" x2="5" y2="16" strokeWidth="2.5" />
-  </svg>
-)
-
-// Scissors tool
-export const ScissorsIcon: ReactNode = (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={S}>
-    <circle cx="6" cy="5" r="2.5" />
-    <circle cx="6" cy="15" r="2.5" />
-    <line x1="8" y1="6.8" x2="17" y2="15" />
-    <line x1="8" y1="13.2" x2="17" y2="5" />
-  </svg>
-)
-
 export const TOOL_ICONS: Record<string, ReactNode> = {
   select: SelectIcon,
   line: LineIcon,
@@ -143,8 +124,6 @@ export const TOOL_ICONS: Record<string, ReactNode> = {
   eyedropper: EyedropperIcon,
   pencil: PencilIcon,
   measure: MeasureIcon,
-  scissors: ScissorsIcon,
-  knife: KnifeIcon,
   lasso: LassoIcon,
   'free-transform': FreeTransformIcon,
 }

@@ -9,8 +9,6 @@ import { registerDirectSelectTool } from './directSelectTool'
 import { registerEyedropperTool } from './eyedropperTool'
 import { registerPencilTool } from './pencilTool'
 import { registerMeasureTool } from './measureTool'
-import { registerScissorsTool } from './scissorsTool'
-import { registerKnifeTool } from './knifeTool'
 import { registerLassoTool } from './lassoTool'
 import { registerFreeTransformTool } from './freeTransformTool'
 import { setActiveTool } from './registry'
@@ -33,8 +31,6 @@ export function registerAllTools(
   registerEyedropperTool(getSvg, getDoc, getHistory)
   registerPencilTool(getSvg, getDoc, getHistory)
   registerMeasureTool(getSvg, getDoc, getHistory)
-  registerScissorsTool(getSvg, getDoc, getHistory)
-  registerKnifeTool(getSvg, getDoc, getHistory)
   registerLassoTool(getSvg, getDoc, getHistory)
   registerFreeTransformTool(getSvg, getDoc, getHistory)
 

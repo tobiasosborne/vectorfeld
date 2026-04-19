@@ -137,14 +137,18 @@ function applyParsedSvg(doc: DocumentModel, parsed: ParsedSvg): void {
   }
 
   // MuPDF emits content in PDF points; viewBox was converted to mm.
-  // Wrap each layer's content in a scale(pt→mm) group so content space matches viewBox units.
+  // Rather than wrap all content in a single <g> (which would make the layer
+  // have only one child and break per-element hit testing), prepend a scale
+  // to each top-level element's transform attribute. Each text/image/group
+  // remains a direct layer child and is individually selectable.
   const firstOverlay = doc.svg.querySelector('[data-role="grid-overlay"], [data-role="user-guides-overlay"], [data-role="guides-overlay"], [data-role="overlay"]')
+  const scalePrefix = `scale(${PT_TO_MM})`
   for (const layer of parsed.layers) {
     const imported = document.importNode(layer, true) as Element
-    const scaleG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
-    scaleG.setAttribute('transform', `scale(${PT_TO_MM})`)
-    while (imported.firstChild) scaleG.appendChild(imported.firstChild)
-    imported.appendChild(scaleG)
+    for (const child of Array.from(imported.children)) {
+      const existing = child.getAttribute('transform')
+      child.setAttribute('transform', existing ? `${scalePrefix} ${existing}` : scalePrefix)
+    }
     if (firstOverlay) {
       doc.svg.insertBefore(imported, firstOverlay)
     } else {

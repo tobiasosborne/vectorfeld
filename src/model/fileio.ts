@@ -3,7 +3,6 @@ import { syncIdCounter } from './document'
 import { clearSelection } from './selection'
 import { AddElementCommand } from './commands'
 import type { CommandHistory } from './commands'
-import { svgToTikz } from './tikzExport'
 import { jsPDF } from 'jspdf'
 import { svg2pdf } from 'svg2pdf.js'
 
@@ -203,22 +202,6 @@ export function exportPng(doc: DocumentModel, scale: number = 1, filename: strin
     }, 'image/png')
   }
   img.src = url
-}
-
-/**
- * Export the document as a TikZ file download.
- */
-export function exportTikz(doc: DocumentModel, filename: string = 'document.tex'): void {
-  const tikz = svgToTikz(doc.svg)
-  const blob = new Blob([tikz], { type: 'text/plain' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
 }
 
 /**
