@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { exportSvgString, parseSvgString } from './fileio'
+import { exportSvgString, parseSvgString, sanitizeSvgTree } from './fileio'
 import { createDocumentModel, resetIdCounter, generateId, syncIdCounter } from './document'
 import type { DocumentModel } from './document'
 
@@ -145,6 +145,18 @@ describe('parseSvgString', () => {
     expect(parsed.layers[0].querySelector('ellipse')).not.toBeNull()
   })
 
+  it('preserves <image> elements in flat mode (SVG round-trip of imported PDF)', () => {
+    const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 210 297">
+      <image x="10" y="10" width="50" height="50" xlink:href="data:image/png;base64,iVBORw0KGgo="/>
+      <text x="10" y="80">caption</text>
+    </svg>`
+    const parsed = parseSvgString(svgStr)
+    const layer = parsed.layers[0]
+    expect(layer.querySelector('image')).not.toBeNull()
+    expect(layer.querySelector('image')?.getAttribute('xlink:href')).toContain('data:image/png;base64')
+    expect(layer.querySelector('text')).not.toBeNull()
+  })
+
   it('ignores non-drawing elements (e.g. title, desc) in flat mode', () => {
     const svgStr = `<svg xmlns="http://www.w3.org/2000/svg">
       <title>My Drawing</title>
@@ -213,5 +225,93 @@ describe('round-trip export/import', () => {
     const rect = parsed.layers[0].querySelector('rect')!
     expect(rect.getAttribute('width')).toBe('100')
     expect(rect.getAttribute('fill')).toBe('#ff0000')
+  })
+})
+
+describe('sanitizeSvgTree', () => {
+  function parse(xml: string): Element {
+    const doc = new DOMParser().parseFromString(xml, 'image/svg+xml')
+    return doc.documentElement
+  }
+
+  it('removes <script> elements', () => {
+    const root = parse(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><rect/></svg>`)
+    sanitizeSvgTree(root)
+    expect(root.querySelector('script')).toBeNull()
+    expect(root.querySelector('rect')).not.toBeNull()
+  })
+
+  it('removes nested <script> inside <g>', () => {
+    const root = parse(`<svg xmlns="http://www.w3.org/2000/svg"><g><script>bad()</script><rect/></g></svg>`)
+    sanitizeSvgTree(root)
+    expect(root.querySelector('script')).toBeNull()
+    expect(root.querySelector('g rect')).not.toBeNull()
+  })
+
+  it('removes <foreignObject>', () => {
+    const root = parse(`<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><body xmlns="http://www.w3.org/1999/xhtml">nope</body></foreignObject><rect/></svg>`)
+    sanitizeSvgTree(root)
+    expect(root.querySelector('foreignObject')).toBeNull()
+    expect(root.querySelector('rect')).not.toBeNull()
+  })
+
+  it('strips on* event handler attributes', () => {
+    const root = parse(`<svg xmlns="http://www.w3.org/2000/svg"><rect onclick="x=1" onmouseover="y=2" fill="red"/></svg>`)
+    sanitizeSvgTree(root)
+    const rect = root.querySelector('rect')!
+    expect(rect.getAttribute('onclick')).toBeNull()
+    expect(rect.getAttribute('onmouseover')).toBeNull()
+    expect(rect.getAttribute('fill')).toBe('red')
+  })
+
+  it('strips javascript: hrefs on <a>', () => {
+    const root = parse(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><a href="javascript:alert(1)"><rect/></a></svg>`)
+    sanitizeSvgTree(root)
+    const a = root.querySelector('a')!
+    expect(a.getAttribute('href')).toBeNull()
+  })
+
+  it('strips javascript: xlink:href', () => {
+    const root = parse(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="javascript:evil()"/></svg>`)
+    sanitizeSvgTree(root)
+    const use = root.querySelector('use')!
+    expect(use.getAttribute('xlink:href')).toBeNull()
+  })
+
+  it('preserves safe href to an SVG element id', () => {
+    const root = parse(`<svg xmlns="http://www.w3.org/2000/svg"><use href="#my-gradient"/></svg>`)
+    sanitizeSvgTree(root)
+    const use = root.querySelector('use')!
+    expect(use.getAttribute('href')).toBe('#my-gradient')
+  })
+
+  it('preserves data:image base64 hrefs', () => {
+    const root = parse(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image xlink:href="data:image/png;base64,iVBORw0K"/></svg>`)
+    sanitizeSvgTree(root)
+    const img = root.querySelector('image')!
+    expect(img.getAttribute('xlink:href')).toContain('data:image/png;base64')
+  })
+
+  it('strips data:text/html hrefs', () => {
+    const root = parse(`<svg xmlns="http://www.w3.org/2000/svg"><use href="data:text/html,&lt;script&gt;alert(1)&lt;/script&gt;"/></svg>`)
+    sanitizeSvgTree(root)
+    const use = root.querySelector('use')!
+    expect(use.getAttribute('href')).toBeNull()
+  })
+
+  it('handles uppercase event handler variants (ONCLICK, OnClick)', () => {
+    const root = parse(`<svg xmlns="http://www.w3.org/2000/svg"><rect ONCLICK="x" OnMouseOver="y" fill="red"/></svg>`)
+    sanitizeSvgTree(root)
+    const rect = root.querySelector('rect')!
+    expect(rect.getAttributeNames().filter((n) => n.toLowerCase().startsWith('on'))).toHaveLength(0)
+    expect(rect.getAttribute('fill')).toBe('red')
+  })
+
+  it('parseSvgString applies sanitization before import', () => {
+    const parsed = parseSvgString(`<svg xmlns="http://www.w3.org/2000/svg"><rect onclick="bad()"/><script>x</script></svg>`)
+    const layer = parsed.layers[0]
+    expect(layer.querySelector('script')).toBeNull()
+    const rect = layer.querySelector('rect')
+    expect(rect?.getAttribute('onclick')).toBeNull()
   })
 })

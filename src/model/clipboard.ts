@@ -8,6 +8,7 @@ import type { CommandHistory } from './commands'
 import type { DocumentModel } from './document'
 import { generateId } from './document'
 import { computeTranslateAttrs } from './geometry'
+import { sanitizeSvgTree } from './fileio'
 import { getSelection, setSelection, clearSelection } from './selection'
 
 const PASTE_OFFSET = 5
@@ -43,6 +44,7 @@ export function pasteClipboard(clipboard: { current: string[] }, history: Comman
   for (const html of clipboard.current) {
     const temp = document.createElementNS('http://www.w3.org/2000/svg', 'g')
     temp.innerHTML = html
+    sanitizeSvgTree(temp)
     const original = temp.firstElementChild
     if (!original) continue
 

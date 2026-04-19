@@ -5,11 +5,11 @@
 
 import { ModifyAttributeCommand, CompoundCommand } from './commands'
 import type { CommandHistory } from './commands'
-import { computeTranslateAttrs } from './geometry'
+import { computeTranslateAttrsAll } from './geometry'
 import { getSelection, refreshOverlay } from './selection'
 
 /**
- * Move all selected elements by (dx, dy) using computeTranslateAttrs.
+ * Move all selected elements by (dx, dy) using computeTranslateAttrsAll.
  * Creates a compound command for undo support.
  */
 export function nudgeSelection(history: CommandHistory, dx: number, dy: number): void {
@@ -18,9 +18,8 @@ export function nudgeSelection(history: CommandHistory, dx: number, dy: number):
 
   const cmds: ModifyAttributeCommand[] = []
   for (const el of sel) {
-    const changes = computeTranslateAttrs(el, dx, dy)
-    for (const [attr, value] of changes) {
-      cmds.push(new ModifyAttributeCommand(el, attr, value))
+    for (const change of computeTranslateAttrsAll(el, dx, dy)) {
+      cmds.push(new ModifyAttributeCommand(change.el, change.attr, change.value))
     }
   }
 

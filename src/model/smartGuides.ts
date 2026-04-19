@@ -6,9 +6,9 @@
 import { transformedAABB } from './geometry'
 import { getGuideCandidates } from './guides'
 
-interface AlignCandidate {
-  value: number
-  axis: 'x' | 'y'
+interface Candidates {
+  x: number[]
+  y: number[]
 }
 
 interface SnapResult {
@@ -19,7 +19,7 @@ interface SnapResult {
 
 let enabled = true
 let guideGroup: SVGGElement | null = null
-let cachedCandidates: AlignCandidate[] | null = null
+let cachedCandidates: Candidates | null = null
 
 export function setSmartGuidesEnabled(v: boolean): void { enabled = v }
 export function getSmartGuidesEnabled(): boolean { return enabled }
@@ -36,9 +36,10 @@ export function clearCachedCandidates(): void {
   cachedCandidates = null
 }
 
-/** Collect alignment candidates from all non-dragged elements */
-function collectCandidates(svg: SVGSVGElement, exclude: Set<Element>): AlignCandidate[] {
-  const candidates: AlignCandidate[] = []
+/** Collect alignment candidates from all non-dragged elements, pre-split by axis. */
+function collectCandidates(svg: SVGSVGElement, exclude: Set<Element>): Candidates {
+  const x: number[] = []
+  const y: number[] = []
   const layers = svg.querySelectorAll('g[data-layer-name]')
   for (const layer of layers) {
     if (layer.getAttribute('data-locked') === 'true') continue
@@ -49,22 +50,16 @@ function collectCandidates(svg: SVGSVGElement, exclude: Set<Element>): AlignCand
         const bbox = (child as SVGGraphicsElement).getBBox()
         const transform = child.getAttribute('transform')
         const aabb = transformedAABB(bbox, transform)
-        // Left, center, right
-        candidates.push({ value: aabb.x, axis: 'x' })
-        candidates.push({ value: aabb.x + aabb.width / 2, axis: 'x' })
-        candidates.push({ value: aabb.x + aabb.width, axis: 'x' })
-        // Top, center, bottom
-        candidates.push({ value: aabb.y, axis: 'y' })
-        candidates.push({ value: aabb.y + aabb.height / 2, axis: 'y' })
-        candidates.push({ value: aabb.y + aabb.height, axis: 'y' })
+        x.push(aabb.x, aabb.x + aabb.width / 2, aabb.x + aabb.width)
+        y.push(aabb.y, aabb.y + aabb.height / 2, aabb.y + aabb.height)
       } catch { /* skip */ }
     }
   }
-  // Also include user placement guides as alignment candidates
   for (const gc of getGuideCandidates()) {
-    candidates.push(gc)
+    if (gc.axis === 'x') x.push(gc.value)
+    else y.push(gc.value)
   }
-  return candidates
+  return { x, y }
 }
 
 /**
@@ -79,12 +74,8 @@ export function computeSmartGuides(
   if (!enabled) return { dx: 0, dy: 0, guides: [] }
 
   // Use cached candidates if available (set at drag-start), else collect fresh
-  const candidates = cachedCandidates ?? collectCandidates(svg, new Set(draggedElements))
-  if (candidates.length === 0) return { dx: 0, dy: 0, guides: [] }
-
-  // Pre-split candidates by axis to avoid filtering inside inner loops
-  const xCandidates = candidates.filter(c => c.axis === 'x')
-  const yCandidates = candidates.filter(c => c.axis === 'y')
+  const { x: xCandidates, y: yCandidates } = cachedCandidates ?? collectCandidates(svg, new Set(draggedElements))
+  if (xCandidates.length === 0 && yCandidates.length === 0) return { dx: 0, dy: 0, guides: [] }
 
   // Get the AABB of dragged elements
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
@@ -111,22 +102,22 @@ export function computeSmartGuides(
 
   // Check X alignment
   for (const edge of draggedEdges.x) {
-    for (const c of xCandidates) {
-      const dist = Math.abs(edge - c.value)
+    for (const v of xCandidates) {
+      const dist = Math.abs(edge - v)
       if (dist < tolerance && dist < bestDistX) {
         bestDistX = dist
-        bestDx = c.value - edge
+        bestDx = v - edge
       }
     }
   }
 
   // Check Y alignment
   for (const edge of draggedEdges.y) {
-    for (const c of yCandidates) {
-      const dist = Math.abs(edge - c.value)
+    for (const v of yCandidates) {
+      const dist = Math.abs(edge - v)
       if (dist < tolerance && dist < bestDistY) {
         bestDistY = dist
-        bestDy = c.value - edge
+        bestDy = v - edge
       }
     }
   }
@@ -136,9 +127,9 @@ export function computeSmartGuides(
   if (bestDistX <= tolerance) {
     for (const edge of draggedEdges.x) {
       const snappedEdge = edge + bestDx
-      for (const c of xCandidates) {
-        if (Math.abs(snappedEdge - c.value) < 0.01) {
-          guides.push({ axis: 'x', value: c.value, min: vb.y, max: vb.y + vb.height })
+      for (const v of xCandidates) {
+        if (Math.abs(snappedEdge - v) < 0.01) {
+          guides.push({ axis: 'x', value: v, min: vb.y, max: vb.y + vb.height })
         }
       }
     }
@@ -146,9 +137,9 @@ export function computeSmartGuides(
   if (bestDistY <= tolerance) {
     for (const edge of draggedEdges.y) {
       const snappedEdge = edge + bestDy
-      for (const c of yCandidates) {
-        if (Math.abs(snappedEdge - c.value) < 0.01) {
-          guides.push({ axis: 'y', value: c.value, min: vb.x, max: vb.x + vb.width })
+      for (const v of yCandidates) {
+        if (Math.abs(snappedEdge - v) < 0.01) {
+          guides.push({ axis: 'y', value: v, min: vb.x, max: vb.x + vb.width })
         }
       }
     }

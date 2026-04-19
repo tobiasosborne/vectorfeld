@@ -16,7 +16,7 @@ import {
   parseMarkerType,
   ensureMarkerDef,
 } from './markers'
-import { transformedAABB } from './geometry'
+import { transformedAABB, computeTranslateAttrsAll } from './geometry'
 
 // ---------------------------------------------------------------------------
 // defaultStyle
@@ -438,5 +438,67 @@ describe('geometry — transformedAABB', () => {
     // Just verify it returns a valid bbox without crashing
     expect(result.width).toBeGreaterThan(0)
     expect(result.height).toBeGreaterThan(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// computeTranslateAttrsAll — tspan x-array propagation (MuPDF PDF text)
+// ---------------------------------------------------------------------------
+
+describe('computeTranslateAttrsAll', () => {
+  function makeText(xAttr: string | null, tspanX: string | null, tspanY: string | null): SVGTextElement {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text') as SVGTextElement
+    if (xAttr !== null) text.setAttribute('x', xAttr)
+    const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan')
+    if (tspanX !== null) tspan.setAttribute('x', tspanX)
+    if (tspanY !== null) tspan.setAttribute('y', tspanY)
+    tspan.textContent = 'hello'
+    text.appendChild(tspan)
+    svg.appendChild(text)
+    return text
+  }
+
+  it('shifts single-value tspan x and y attributes', () => {
+    const text = makeText(null, '10', '20')
+    const changes = computeTranslateAttrsAll(text, 5, 7)
+    const tspanChanges = changes.filter((c) => c.el.tagName === 'tspan')
+    expect(tspanChanges).toHaveLength(2)
+    expect(tspanChanges.find((c) => c.attr === 'x')?.value).toBe('15')
+    expect(tspanChanges.find((c) => c.attr === 'y')?.value).toBe('27')
+  })
+
+  it('shifts per-character tspan x-array element-wise', () => {
+    const text = makeText(null, '10 20 30 40', '5')
+    const changes = computeTranslateAttrsAll(text, 2, 0)
+    const xChange = changes.find((c) => c.el.tagName === 'tspan' && c.attr === 'x')
+    expect(xChange?.value).toBe('12 22 32 42')
+  })
+
+  it('preserves tspan x-array when tspan has no y attribute', () => {
+    const text = makeText(null, '100.5 200.25', null)
+    const changes = computeTranslateAttrsAll(text, 1.5, 0)
+    const xChange = changes.find((c) => c.el.tagName === 'tspan' && c.attr === 'x')
+    expect(xChange?.value).toBe('102 201.75')
+    const yChange = changes.find((c) => c.el.tagName === 'tspan' && c.attr === 'y')
+    expect(yChange).toBeUndefined()
+  })
+
+  it('ignores tspans without explicit x/y', () => {
+    const text = makeText(null, null, null)
+    const changes = computeTranslateAttrsAll(text, 5, 5)
+    const tspanChanges = changes.filter((c) => c.el.tagName === 'tspan')
+    expect(tspanChanges).toHaveLength(0)
+  })
+
+  it('returns only top-level changes for non-text elements', () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    rect.setAttribute('x', '10')
+    rect.setAttribute('y', '20')
+    svg.appendChild(rect)
+    const changes = computeTranslateAttrsAll(rect, 5, 5)
+    expect(changes.every((c) => c.el === rect)).toBe(true)
+    expect(changes).toHaveLength(2)
   })
 })

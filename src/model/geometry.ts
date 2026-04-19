@@ -51,6 +51,12 @@ export function getElementAABB(el: Element): BBox | null {
  * Apply delta translations to an element's position attributes.
  * Handles all element types including path and g (via translate transform).
  * Returns [attr, newValue] pairs for command creation.
+ *
+ * For <text> elements with <tspan> children carrying absolute x/y (including
+ * per-character x-arrays produced by MuPDF PDF import), the tspan updates
+ * are NOT returned here — use computeTranslateAttrsAll() to get the full
+ * per-descendant change list. Legacy callers that only touch the top element
+ * continue to work but will strand glyphs on PDF-imported text; migrate them.
  */
 export function computeTranslateAttrs(el: Element, dx: number, dy: number): Array<[string, string]> {
   const changes: Array<[string, string]> = []
@@ -113,6 +119,38 @@ export function computeTranslateAttrs(el: Element, dx: number, dy: number): Arra
     }
   }
   return changes
+}
+
+/**
+ * Like computeTranslateAttrs but also returns per-descendant changes for
+ * <text> elements whose <tspan> children carry absolute x/y arrays
+ * (MuPDF-imported text). Callers that need correct undo-able moves for
+ * imported PDF text should use this and create a ModifyAttributeCommand per
+ * entry.
+ */
+export interface ElementAttrChange {
+  el: Element
+  attr: string
+  value: string
+}
+
+export function computeTranslateAttrsAll(el: Element, dx: number, dy: number): ElementAttrChange[] {
+  const top = computeTranslateAttrs(el, dx, dy).map(([attr, value]) => ({ el, attr, value }))
+  if (el.tagName !== 'text') return top
+  const extra: ElementAttrChange[] = []
+  for (const ts of Array.from(el.querySelectorAll('tspan'))) {
+    const tx = ts.getAttribute('x')
+    if (tx !== null && tx.trim() !== '') {
+      const shifted = tx.trim().split(/\s+/).map((v) => String(parseFloat(v) + dx)).join(' ')
+      extra.push({ el: ts, attr: 'x', value: shifted })
+    }
+    const ty = ts.getAttribute('y')
+    if (ty !== null && ty.trim() !== '') {
+      const shifted = ty.trim().split(/\s+/).map((v) => String(parseFloat(v) + dy)).join(' ')
+      extra.push({ el: ts, attr: 'y', value: shifted })
+    }
+  }
+  return [...top, ...extra]
 }
 
 // ---------------------------------------------------------------------------

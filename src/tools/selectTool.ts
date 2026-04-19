@@ -42,6 +42,10 @@ interface DragState {
   startPositions: Map<Element, { attr: string; vals: Record<string, number> }>
   origTransforms: Map<Element, string | null>
   origPathDs: Map<Element, string>
+  /** Original <tspan> x/y attributes, keyed by the tspan element itself.
+   *  MuPDF PDF import produces <text> with per-character x-arrays on <tspan>;
+   *  moving the <text> requires shifting those arrays too. */
+  origTspanAttrs: Map<Element, { x: string | null; y: string | null }>
   scale: ScaleState | null
   rotate: RotateState | null
   marqueeRect: SVGRectElement | null
@@ -148,9 +152,38 @@ export function createSelectTool(
     startPositions: new Map(),
     origTransforms: new Map(),
     origPathDs: new Map(),
+    origTspanAttrs: new Map(),
     scale: null,
     rotate: null,
     marqueeRect: null,
+  }
+
+  /** Snapshot <tspan> x/y attributes for a <text> element (for later shift/commit) */
+  function snapshotTspans(el: Element) {
+    if (el.tagName !== 'text') return
+    for (const ts of Array.from(el.querySelectorAll('tspan'))) {
+      dragState.origTspanAttrs.set(ts, {
+        x: ts.getAttribute('x'),
+        y: ts.getAttribute('y'),
+      })
+    }
+  }
+
+  /** Shift each tspan's absolute x/y values by (dx, dy) from the snapshot */
+  function shiftTspansFor(el: Element, dx: number, dy: number) {
+    if (el.tagName !== 'text') return
+    for (const ts of Array.from(el.querySelectorAll('tspan'))) {
+      const orig = dragState.origTspanAttrs.get(ts)
+      if (!orig) continue
+      if (orig.x !== null && orig.x.trim() !== '') {
+        const shifted = orig.x.trim().split(/\s+/).map((v) => String(parseFloat(v) + dx)).join(' ')
+        ts.setAttribute('x', shifted)
+      }
+      if (orig.y !== null && orig.y.trim() !== '') {
+        const shifted = orig.y.trim().split(/\s+/).map((v) => String(parseFloat(v) + dy)).join(' ')
+        ts.setAttribute('y', shifted)
+      }
+    }
   }
 
   function getPositionAttrs(el: Element): { attr: string; vals: Record<string, number> } {
@@ -180,9 +213,13 @@ export function createSelectTool(
       el.setAttribute('y1', String(start.vals.y1 + dy))
       el.setAttribute('x2', String(start.vals.x2 + dx))
       el.setAttribute('y2', String(start.vals.y2 + dy))
-    } else if (tag === 'rect' || tag === 'text' || tag === 'image') {
+    } else if (tag === 'rect' || tag === 'image') {
       el.setAttribute('x', String(start.vals.x + dx))
       el.setAttribute('y', String(start.vals.y + dy))
+    } else if (tag === 'text') {
+      el.setAttribute('x', String(start.vals.x + dx))
+      el.setAttribute('y', String(start.vals.y + dy))
+      shiftTspansFor(el, dx, dy)
     } else if (tag === 'ellipse' || tag === 'circle') {
       el.setAttribute('cx', String(start.vals.cx + dx))
       el.setAttribute('cy', String(start.vals.cy + dy))
@@ -315,12 +352,28 @@ export function createSelectTool(
         }
       }
     }
+    // Commit <tspan> x/y changes (MuPDF PDF-imported text has per-char x-arrays)
+    for (const [ts, orig] of dragState.origTspanAttrs.entries()) {
+      const curX = ts.getAttribute('x')
+      if (curX !== orig.x) {
+        commands.push(new ModifyAttributeCommand(ts, 'x', curX ?? ''))
+        if (orig.x === null) ts.removeAttribute('x')
+        else ts.setAttribute('x', orig.x)
+      }
+      const curY = ts.getAttribute('y')
+      if (curY !== orig.y) {
+        commands.push(new ModifyAttributeCommand(ts, 'y', curY ?? ''))
+        if (orig.y === null) ts.removeAttribute('y')
+        else ts.setAttribute('y', orig.y)
+      }
+    }
     if (commands.length > 0) {
       getHistory().execute(new CompoundCommand(commands, description))
     }
     dragState.startPositions.clear()
     dragState.origTransforms.clear()
     dragState.origPathDs.clear()
+    dragState.origTspanAttrs.clear()
   }
 
   return {
@@ -337,6 +390,7 @@ export function createSelectTool(
       dragState.startPositions.clear()
       dragState.origTransforms.clear()
       dragState.origPathDs.clear()
+      dragState.origTspanAttrs.clear()
       dragState.rotate = null
       dragState.scale = null
       clearGuides()
@@ -460,6 +514,7 @@ export function createSelectTool(
             if (el.tagName === 'path') {
               dragState.origPathDs.set(el, el.getAttribute('d') || '')
             }
+            snapshotTspans(el)
           }
           // Cache smart guide candidates at drag-start for performance
           cacheSmartGuideCandidates(svg, new Set(getSelection()))

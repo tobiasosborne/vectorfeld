@@ -10,6 +10,62 @@ import { svg2pdf } from 'svg2pdf.js'
 /** Selector for editor-only overlays that should be stripped on export */
 const OVERLAY_SELECTOR = '[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"], [data-role="user-guides-overlay"], [data-role="wireframe"]'
 
+/** Tags that must never survive import — scripts, embedded HTML, remote loads. */
+const DANGEROUS_TAGS = new Set(['script', 'foreignObject', 'iframe', 'object', 'embed'])
+
+/** Href attributes to strip if value starts with javascript: or data:text/html */
+const HREF_ATTRS = ['href', 'xlink:href']
+
+/**
+ * Sanitize an imported SVG subtree in place. Strips:
+ *   - <script>, <foreignObject>, <iframe>, <object>, <embed> elements
+ *   - All on* event handler attributes (onclick, onload, onmouseover, …)
+ *   - href/xlink:href values starting with javascript: or data:text/html
+ *
+ * Called after DOMParser + before importNode for any user-supplied SVG
+ * (from <input type="file">, PDF import, or clipboard paste).
+ * Exported for testing and for clipboard paste reuse.
+ */
+export function sanitizeSvgTree(root: Element): void {
+  // First pass: remove dangerous elements (walk descendants, collect, then remove
+  // to avoid mutating a live NodeList during iteration).
+  const toRemove: Element[] = []
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT)
+  let node: Node | null = walker.currentNode
+  while (node) {
+    const el = node as Element
+    if (DANGEROUS_TAGS.has(el.tagName) || DANGEROUS_TAGS.has(el.tagName.toLowerCase())) {
+      toRemove.push(el)
+    }
+    node = walker.nextNode()
+  }
+  for (const el of toRemove) el.remove()
+
+  // Second pass: strip inline event handlers and dangerous href values.
+  const walker2 = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT)
+  let n: Node | null = walker2.currentNode
+  while (n) {
+    const el = n as Element
+    // Collect attribute names first — removeAttribute mutates the NamedNodeMap.
+    const attrsToRemove: string[] = []
+    for (const a of Array.from(el.attributes)) {
+      const name = a.name.toLowerCase()
+      if (name.startsWith('on')) {
+        attrsToRemove.push(a.name)
+        continue
+      }
+      if (HREF_ATTRS.includes(name)) {
+        const v = a.value.trim().toLowerCase()
+        if (v.startsWith('javascript:') || v.startsWith('data:text/html')) {
+          attrsToRemove.push(a.name)
+        }
+      }
+    }
+    for (const name of attrsToRemove) el.removeAttribute(name)
+    n = walker2.nextNode()
+  }
+}
+
 /**
  * Build a clean SVG string from the document, stripping editor overlays.
  * Includes XML declaration and ensures xmlns is present.
@@ -224,6 +280,7 @@ export function parseSvgString(xmlString: string): ParsedSvg {
   const parser = new DOMParser()
   const svgDoc = parser.parseFromString(xmlString, 'image/svg+xml')
   const importedSvg = svgDoc.documentElement
+  sanitizeSvgTree(importedSvg)
 
   const viewBox = importedSvg.getAttribute('viewBox')
 
@@ -252,7 +309,7 @@ export function parseSvgString(xmlString: string): ParsedSvg {
     // Create a synthetic layer wrapping flat drawing elements
     const layer = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'g')
     layer.setAttribute('data-layer-name', 'Layer 1')
-    const drawingTags = ['g', 'line', 'rect', 'ellipse', 'circle', 'path', 'text', 'polygon', 'polyline']
+    const drawingTags = ['g', 'line', 'rect', 'ellipse', 'circle', 'path', 'text', 'polygon', 'polyline', 'image']
     for (const child of children) {
       if (drawingTags.includes(child.tagName)) {
         layer.appendChild(child.cloneNode(true))
