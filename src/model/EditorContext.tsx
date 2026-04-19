@@ -10,10 +10,14 @@ import { toggleGridVisible, toggleGridSnap } from '../model/grid'
 import { copySelection, cutSelection, pasteClipboard, duplicateSelection } from './clipboard'
 import { nudgeSelection } from './nudge'
 import { bringForward, sendBackward, bringToFront, sendToBack } from './zOrder'
+import { DocumentState, captureActiveDocumentState, setActiveDocument } from './documentState'
 
 interface EditorContextValue {
   history: CommandHistory
   doc: DocumentModel | null
+  /** Per-document state bundle (selection, grid, guides, etc.).
+   *  Swappable via setActiveDocument() when implementing multi-document. */
+  state: DocumentState
   setSvg: (svg: SVGSVGElement) => void
 }
 
@@ -23,12 +27,24 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   const history = useMemo(() => new CommandHistory(), [])
   const docRef = useRef<DocumentModel | null>(null)
   const clipboardRef = useRef<string[]>([])
+  // On first mount, capture whatever singletons were already initialised at
+  // module-load time into a single DocumentState. Future multi-doc support
+  // will create additional DocumentStates and swap between them via
+  // setActiveDocument(); for now there is exactly one.
+  const stateRef = useRef<DocumentState | null>(null)
+  if (!stateRef.current) {
+    stateRef.current = captureActiveDocumentState()
+    setActiveDocument(stateRef.current)
+  }
 
   const value = useMemo<EditorContextValue>(
     () => ({
       history,
       get doc() {
         return docRef.current
+      },
+      get state() {
+        return stateRef.current!
       },
       setSvg(svg: SVGSVGElement) {
         docRef.current = createDocumentModel(svg)

@@ -17,23 +17,35 @@ interface SnapResult {
   guides: Array<{ axis: 'x' | 'y'; value: number; min: number; max: number }>
 }
 
-let enabled = true
-let guideGroup: SVGGElement | null = null
-let cachedCandidates: Candidates | null = null
+export class SmartGuidesState {
+  enabled = true
+  guideGroup: SVGGElement | null = null
+  cachedCandidates: Candidates | null = null
 
-export function setSmartGuidesEnabled(v: boolean): void { enabled = v }
-export function getSmartGuidesEnabled(): boolean { return enabled }
+  reset(): void {
+    this.enabled = true
+    this.guideGroup = null
+    this.cachedCandidates = null
+  }
+}
 
-export function setGuideGroup(g: SVGGElement): void { guideGroup = g }
+let active: SmartGuidesState = new SmartGuidesState()
+export function setActiveSmartGuidesState(s: SmartGuidesState): void { active = s }
+export function getActiveSmartGuidesState(): SmartGuidesState { return active }
+
+export function setSmartGuidesEnabled(v: boolean): void { active.enabled = v }
+export function getSmartGuidesEnabled(): boolean { return active.enabled }
+
+export function setGuideGroup(g: SVGGElement): void { active.guideGroup = g }
 
 /** Cache candidates at drag-start for performance (avoids getBBox per frame) */
 export function cacheSmartGuideCandidates(svg: SVGSVGElement, exclude: Set<Element>): void {
-  cachedCandidates = collectCandidates(svg, exclude)
+  active.cachedCandidates = collectCandidates(svg, exclude)
 }
 
 /** Clear cached candidates when drag ends */
 export function clearCachedCandidates(): void {
-  cachedCandidates = null
+  active.cachedCandidates = null
 }
 
 /** Collect alignment candidates from all non-dragged elements, pre-split by axis. */
@@ -71,10 +83,10 @@ export function computeSmartGuides(
   draggedElements: Element[],
   tolerance: number
 ): SnapResult {
-  if (!enabled) return { dx: 0, dy: 0, guides: [] }
+  if (!active.enabled) return { dx: 0, dy: 0, guides: [] }
 
   // Use cached candidates if available (set at drag-start), else collect fresh
-  const { x: xCandidates, y: yCandidates } = cachedCandidates ?? collectCandidates(svg, new Set(draggedElements))
+  const { x: xCandidates, y: yCandidates } = active.cachedCandidates ?? collectCandidates(svg, new Set(draggedElements))
   if (xCandidates.length === 0 && yCandidates.length === 0) return { dx: 0, dy: 0, guides: [] }
 
   // Get the AABB of dragged elements
@@ -150,15 +162,15 @@ export function computeSmartGuides(
 
 /** Render guide lines into the guide group */
 export function renderGuides(svg: SVGSVGElement, guides: SnapResult['guides']): void {
-  if (!guideGroup) return
-  while (guideGroup.firstChild) guideGroup.removeChild(guideGroup.firstChild)
+  const g0 = active.guideGroup
+  if (!g0) return
+  while (g0.firstChild) g0.removeChild(g0.firstChild)
 
   const vb = svg.viewBox.baseVal
   const sw = vb.width > 0 && svg.clientWidth > 0
     ? (vb.width / svg.clientWidth) * 0.5
     : 0.3
 
-  // Deduplicate guides by axis+value
   const seen = new Set<string>()
   for (const g of guides) {
     const key = `${g.axis}:${g.value.toFixed(2)}`
@@ -182,14 +194,15 @@ export function renderGuides(svg: SVGSVGElement, guides: SnapResult['guides']): 
     line.setAttribute('stroke-dasharray', `${sw * 4} ${sw * 2}`)
     line.setAttribute('data-role', 'overlay')
     line.setAttribute('pointer-events', 'none')
-    guideGroup.appendChild(line)
+    g0.appendChild(line)
   }
 }
 
 /** Clear all guide lines */
 export function clearGuides(): void {
-  if (!guideGroup) return
-  while (guideGroup.firstChild) guideGroup.removeChild(guideGroup.firstChild)
+  const g0 = active.guideGroup
+  if (!g0) return
+  while (g0.firstChild) g0.removeChild(g0.firstChild)
 }
 
 // ---------------------------------------------------------------------------

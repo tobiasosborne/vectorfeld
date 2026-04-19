@@ -16,40 +16,55 @@ const HANDLE_CURSORS: Record<HandlePosition, string> = {
 /** Screen pixels for handle square side length */
 const HANDLE_SCREEN_PX = 10
 
-let selectedElements: Element[] = []
-let listeners: Array<() => void> = []
-let overlayGroup: SVGGElement | null = null
+export class SelectionState {
+  selected: Element[] = []
+  listeners: Array<() => void> = []
+  overlayGroup: SVGGElement | null = null
+  /** RAF id used to coalesce overlay refreshes during drags. */
+  refreshRafId = 0
 
-function notify() {
-  listeners.forEach((fn) => fn())
+  notify(): void { this.listeners.forEach((fn) => fn()) }
+  reset(): void {
+    this.selected = []
+    this.listeners = []
+    this.overlayGroup = null
+    if (this.refreshRafId) {
+      cancelAnimationFrame(this.refreshRafId)
+      this.refreshRafId = 0
+    }
+  }
 }
 
+let active: SelectionState = new SelectionState()
+export function setActiveSelectionState(s: SelectionState): void { active = s }
+export function getActiveSelectionState(): SelectionState { return active }
+
 export function getSelection(): Element[] {
-  return [...selectedElements]
+  return [...active.selected]
 }
 
 export function setSelection(elements: Element[]): void {
-  selectedElements = [...elements]
+  active.selected = [...elements]
   updateOverlay()
-  notify()
+  active.notify()
 }
 
 export function addToSelection(el: Element): void {
-  if (!selectedElements.includes(el)) {
-    selectedElements.push(el)
+  if (!active.selected.includes(el)) {
+    active.selected.push(el)
     updateOverlay()
-    notify()
+    active.notify()
   }
 }
 
 export function removeFromSelection(el: Element): void {
-  selectedElements = selectedElements.filter((e) => e !== el)
+  active.selected = active.selected.filter((e) => e !== el)
   updateOverlay()
-  notify()
+  active.notify()
 }
 
 export function toggleSelection(el: Element): void {
-  if (selectedElements.includes(el)) {
+  if (active.selected.includes(el)) {
     removeFromSelection(el)
   } else {
     addToSelection(el)
@@ -57,24 +72,24 @@ export function toggleSelection(el: Element): void {
 }
 
 export function clearSelection(): void {
-  selectedElements = []
+  active.selected = []
   updateOverlay()
-  notify()
+  active.notify()
 }
 
 export function isSelected(el: Element): boolean {
-  return selectedElements.includes(el)
+  return active.selected.includes(el)
 }
 
 export function subscribeSelection(fn: () => void): () => void {
-  listeners.push(fn)
+  active.listeners.push(fn)
   return () => {
-    listeners = listeners.filter((l) => l !== fn)
+    active.listeners = active.listeners.filter((l) => l !== fn)
   }
 }
 
 export function setOverlayGroup(g: SVGGElement): void {
-  overlayGroup = g
+  active.overlayGroup = g
 }
 
 /** Transform a local-space bbox through a rotation to get the axis-aligned bounding box */
@@ -128,18 +143,16 @@ function handleCenters(
   ]
 }
 
-let refreshRafId = 0
-
 function updateOverlay(): void {
+  const overlayGroup = active.overlayGroup
   if (!overlayGroup) return
-  // Clear old overlay
   while (overlayGroup.firstChild) {
     overlayGroup.removeChild(overlayGroup.firstChild)
   }
 
+  const selectedElements = active.selected
   if (selectedElements.length === 0) return
 
-  // Draw per-element selection boxes (following element transform)
   for (const el of selectedElements) {
     try {
       const bbox = (el as SVGGraphicsElement).getBBox()
@@ -148,7 +161,6 @@ function updateOverlay(): void {
       rect.setAttribute('y', String(bbox.y))
       rect.setAttribute('width', String(bbox.width))
       rect.setAttribute('height', String(bbox.height))
-      // Apply element's transform so selection box follows rotation
       const transform = el.getAttribute('transform')
       if (transform) {
         rect.setAttribute('transform', transform)
@@ -172,8 +184,6 @@ function updateOverlay(): void {
   const half = hs / 2
   const strokeW = Math.max(hs / 6, 0.1)
 
-  // For a single rotated element, use OBB (oriented bounding box):
-  // place handles on the local bbox and apply the element's transform
   const singleRotated = selectedElements.length === 1
     ? selectedElements[0].getAttribute('transform')
     : null
@@ -182,7 +192,6 @@ function updateOverlay(): void {
   let handleTransform: string | null = null
 
   if (selectedElements.length === 1 && singleRotated) {
-    // Use local (un-transformed) bbox for OBB handles
     try {
       const bbox = (selectedElements[0] as SVGGraphicsElement).getBBox()
       handleBox = new DOMRect(bbox.x, bbox.y, bbox.width, bbox.height)
@@ -213,9 +222,8 @@ function updateOverlay(): void {
     overlayGroup.appendChild(handle)
   }
 
-  // Draw corner rotation zones (Illustrator-style: hover near corners to rotate)
   if (selectedElements.length === 1) {
-    const rotZoneSize = hs * 2  // invisible hit area outside each corner
+    const rotZoneSize = hs * 2
     const cornerPositions: [string, number, number][] = [
       ['nw', handleBox.x, handleBox.y],
       ['ne', handleBox.x + handleBox.width, handleBox.y],
@@ -223,7 +231,6 @@ function updateOverlay(): void {
       ['sw', handleBox.x, handleBox.y + handleBox.height],
     ]
 
-    // Custom rotation cursors — curved arrow SVGs for each corner
     const rotArrow = (rotate: number) =>
       `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><g transform='rotate(${rotate} 12 12)'><path d='M7 4a8 8 0 0 1 10 0' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round'/><path d='M17 4l-3-2M17 4l-2 3' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round'/></g></svg>`)}") 12 12, crosshair`
     const ROTATION_CURSORS: Record<string, string> = {
@@ -234,7 +241,6 @@ function updateOverlay(): void {
     }
 
     for (const [corner, cx, cy] of cornerPositions) {
-      // Offset the rotation zone outward from the corner
       const offX = corner.includes('w') ? -rotZoneSize : 0
       const offY = corner.includes('n') ? -rotZoneSize : 0
 
@@ -255,18 +261,18 @@ function updateOverlay(): void {
 
 /** RAF-coalesced overlay refresh for use during drags */
 export function refreshOverlay(): void {
-  if (refreshRafId) return
-  refreshRafId = requestAnimationFrame(() => {
-    refreshRafId = 0
+  if (active.refreshRafId) return
+  active.refreshRafId = requestAnimationFrame(() => {
+    active.refreshRafId = 0
     updateOverlay()
   })
 }
 
 /** Synchronous overlay rebuild — use for immediate visual feedback */
 export function refreshOverlaySync(): void {
-  if (refreshRafId) {
-    cancelAnimationFrame(refreshRafId)
-    refreshRafId = 0
+  if (active.refreshRafId) {
+    cancelAnimationFrame(active.refreshRafId)
+    active.refreshRafId = 0
   }
   updateOverlay()
 }

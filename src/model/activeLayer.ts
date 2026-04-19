@@ -1,27 +1,30 @@
 /**
  * Active layer tracking — which layer receives new elements.
- * Follows the pub-sub pattern from selection.ts.
  */
 
-let activeLayerElement: Element | null = null
-let listeners: Array<() => void> = []
+export class ActiveLayerState {
+  private element: Element | null = null
+  private listeners: Array<() => void> = []
 
-function notify() {
-  listeners.forEach((fn) => fn())
-}
-
-export function getActiveLayerElement(): Element | null {
-  return activeLayerElement
-}
-
-export function setActiveLayerElement(el: Element | null): void {
-  activeLayerElement = el
-  notify()
-}
-
-export function subscribeActiveLayer(fn: () => void): () => void {
-  listeners.push(fn)
-  return () => {
-    listeners = listeners.filter((l) => l !== fn)
+  get(): Element | null { return this.element }
+  set(el: Element | null): void {
+    this.element = el
+    this.listeners.forEach((fn) => fn())
+  }
+  subscribe(fn: () => void): () => void {
+    this.listeners.push(fn)
+    return () => { this.listeners = this.listeners.filter((l) => l !== fn) }
+  }
+  reset(): void {
+    this.element = null
+    this.listeners = []
   }
 }
+
+let active: ActiveLayerState = new ActiveLayerState()
+export function setActiveActiveLayerState(s: ActiveLayerState): void { active = s }
+export function getActiveActiveLayerState(): ActiveLayerState { return active }
+
+export function getActiveLayerElement(): Element | null { return active.get() }
+export function setActiveLayerElement(el: Element | null): void { active.set(el) }
+export function subscribeActiveLayer(fn: () => void): () => void { return active.subscribe(fn) }

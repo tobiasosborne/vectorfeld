@@ -1,7 +1,10 @@
 /**
  * Default style module — tracks the last-used stroke/fill/strokeWidth.
  * Drawing tools read from this instead of hardcoding values.
- * Follows the same pub-sub pattern as selection.ts.
+ *
+ * Backed by a DefaultStyleState instance that is swappable per document
+ * (see documentState.ts). The exported functions operate on the currently-
+ * active instance; tests and single-document flows continue to work unchanged.
  */
 
 export interface DefaultStyle {
@@ -10,30 +13,44 @@ export interface DefaultStyle {
   strokeWidth: string
 }
 
-let current: DefaultStyle = {
+const INITIAL: DefaultStyle = {
   stroke: '#000000',
   fill: 'none',
   strokeWidth: '1',
 }
 
-let listeners: Array<() => void> = []
+export class DefaultStyleState {
+  private current: DefaultStyle = { ...INITIAL }
+  private listeners: Array<() => void> = []
 
-function notify() {
-  listeners.forEach((fn) => fn())
-}
+  get(): DefaultStyle {
+    return { ...this.current }
+  }
 
-export function getDefaultStyle(): DefaultStyle {
-  return { ...current }
-}
+  set(style: Partial<DefaultStyle>): void {
+    this.current = { ...this.current, ...style }
+    this.listeners.forEach((fn) => fn())
+  }
 
-export function setDefaultStyle(style: Partial<DefaultStyle>): void {
-  current = { ...current, ...style }
-  notify()
-}
+  subscribe(fn: () => void): () => void {
+    this.listeners.push(fn)
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== fn)
+    }
+  }
 
-export function subscribeDefaultStyle(fn: () => void): () => void {
-  listeners.push(fn)
-  return () => {
-    listeners = listeners.filter((l) => l !== fn)
+  reset(): void {
+    this.current = { ...INITIAL }
+    this.listeners.forEach((fn) => fn())
   }
 }
+
+let active: DefaultStyleState = new DefaultStyleState()
+
+/** Swap the active state bundle. Used by documentState.ts when switching documents. */
+export function setActiveDefaultStyleState(s: DefaultStyleState): void { active = s }
+export function getActiveDefaultStyleState(): DefaultStyleState { return active }
+
+export function getDefaultStyle(): DefaultStyle { return active.get() }
+export function setDefaultStyle(style: Partial<DefaultStyle>): void { active.set(style) }
+export function subscribeDefaultStyle(fn: () => void): () => void { return active.subscribe(fn) }
