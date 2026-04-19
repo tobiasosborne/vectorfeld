@@ -18,12 +18,14 @@ export class MaskCommand implements Command {
   private maskEl: SVGMaskElement | null = null
   private originalParent: Element | null = null
   private originalNextSibling: Node | null = null
+  private doc: DocumentModel
+  private target: Element
+  private maskShape: Element
 
-  constructor(
-    private doc: DocumentModel,
-    private target: Element,
-    private maskShape: Element
-  ) {
+  constructor(doc: DocumentModel, target: Element, maskShape: Element) {
+    this.doc = doc
+    this.target = target
+    this.maskShape = maskShape
     this.maskId = generateId()
   }
 
@@ -58,11 +60,13 @@ export class ReleaseMaskCommand implements Command {
   private maskId = ''
   private maskEl: Element | null = null
   private restoredShape: Element | null = null
+  private doc: DocumentModel
+  private target: Element
 
-  constructor(
-    private doc: DocumentModel,
-    private target: Element
-  ) {}
+  constructor(doc: DocumentModel, target: Element) {
+    this.doc = doc
+    this.target = target
+  }
 
   execute(): void {
     const maskUrl = this.target.getAttribute('mask')

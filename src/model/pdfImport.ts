@@ -30,12 +30,13 @@ const PT_TO_MM = 25.4 / 72
  * Post-process SVG output from MuPDF's SVG device.
  * - Converts viewBox from points to millimeters
  * - Strips metadata elements (title, desc, metadata)
- * - Strips font-face style blocks (text is path outlines)
+ *
+ * With text=text mode the output contains real <text>/<tspan> elements
+ * with font-family/size/weight/style preserved, which is editable.
  */
 export function postProcessPdfSvg(svgString: string): string {
   let s = svgString
 
-  // Convert viewBox from pt to mm
   s = s.replace(/viewBox="([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)"/, (_, x, y, w, h) => {
     const mx = parseFloat(x) * PT_TO_MM
     const my = parseFloat(y) * PT_TO_MM
@@ -44,13 +45,9 @@ export function postProcessPdfSvg(svgString: string): string {
     return `viewBox="${mx.toFixed(2)} ${my.toFixed(2)} ${mw.toFixed(2)} ${mh.toFixed(2)}"`
   })
 
-  // Strip metadata elements
   s = s.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '')
   s = s.replace(/<desc[^>]*>[\s\S]*?<\/desc>/gi, '')
   s = s.replace(/<metadata[^>]*>[\s\S]*?<\/metadata>/gi, '')
-
-  // Strip font-face style blocks (PDF text rendered as outlines)
-  s = s.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
 
   return s
 }
@@ -67,9 +64,10 @@ async function renderPageToSvg(pdfData: ArrayBuffer, pageIndex = 0): Promise<str
   const page = doc.loadPage(pageIndex)
   const bounds = page.getBounds()
 
-  // Render page to SVG via DocumentWriter
+  // Render page to SVG via DocumentWriter.
+  // text=text → emit real <text>/<tspan> instead of glyph-as-path outlines.
   const buf = new m.Buffer()
-  const writer = new m.DocumentWriter(buf, 'svg', '')
+  const writer = new m.DocumentWriter(buf, 'svg', 'text=text')
   const device = writer.beginPage(bounds)
   page.run(device, m.Matrix.identity)
   writer.endPage()

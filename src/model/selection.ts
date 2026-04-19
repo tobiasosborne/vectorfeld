@@ -13,13 +13,8 @@ const HANDLE_CURSORS: Record<HandlePosition, string> = {
   w: 'ew-resize',
 }
 
-const HANDLE_POSITIONS: HandlePosition[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
-
 /** Screen pixels for handle square side length */
 const HANDLE_SCREEN_PX = 10
-
-/** Screen pixels for rotation handle distance above top-center */
-const ROTATION_HANDLE_OFFSET_PX = 20
 
 let selectedElements: Element[] = []
 let listeners: Array<() => void> = []

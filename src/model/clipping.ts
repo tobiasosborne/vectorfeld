@@ -6,7 +6,6 @@
 import type { DocumentModel } from './document'
 import { generateId } from './document'
 import type { CommandHistory, Command } from './commands'
-import { CompoundCommand } from './commands'
 
 /** Check if an element has a clip-path attribute */
 export function hasClipPath(el: Element): boolean {
@@ -23,12 +22,14 @@ export class ClipMaskCommand implements Command {
   private clipPathEl: SVGClipPathElement | null = null
   private originalParent: Element | null = null
   private originalNextSibling: Node | null = null
+  private doc: DocumentModel
+  private target: Element
+  private clipShape: Element
 
-  constructor(
-    private doc: DocumentModel,
-    private target: Element,
-    private clipShape: Element
-  ) {
+  constructor(doc: DocumentModel, target: Element, clipShape: Element) {
+    this.doc = doc
+    this.target = target
+    this.clipShape = clipShape
     this.clipPathId = generateId()
   }
 
@@ -80,11 +81,13 @@ export class ReleaseClipMaskCommand implements Command {
   private clipPathId: string = ''
   private clipPathEl: Element | null = null
   private restoredShape: Element | null = null
+  private doc: DocumentModel
+  private target: Element
 
-  constructor(
-    private doc: DocumentModel,
-    private target: Element
-  ) {}
+  constructor(doc: DocumentModel, target: Element) {
+    this.doc = doc
+    this.target = target
+  }
 
   execute(): void {
     const clipUrl = this.target.getAttribute('clip-path')

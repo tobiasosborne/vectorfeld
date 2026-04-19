@@ -6,13 +6,6 @@
 import { getElementAABB, computeTranslateAttrs } from './geometry'
 import type { BBox } from './geometry'
 
-/** Get position attributes for an element to compute deltas */
-function getPositionCenter(el: Element): { cx: number; cy: number } | null {
-  const aabb = getElementAABB(el)
-  if (!aabb) return null
-  return { cx: aabb.x + aabb.width / 2, cy: aabb.y + aabb.height / 2 }
-}
-
 export type AlignOp = 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom'
 
 /**

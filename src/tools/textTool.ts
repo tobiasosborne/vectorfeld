@@ -86,7 +86,7 @@ export function createTextTool(
     }
   }
 
-  function updateSelectionVisual(svg: SVGSVGElement) {
+  function updateSelectionVisual(_svg: SVGSVGElement) {
     if (!state.selectionRect) return
     if (!hasSelection()) {
       state.selectionRect.style.display = 'none'
@@ -120,7 +120,7 @@ export function createTextTool(
     updateSelectionVisual(svg)
   }
 
-  function startBlink(svg: SVGSVGElement) {
+  function startBlink(_svg: SVGSVGElement) {
     stopBlink()
     state.caretVisible = true
     if (state.caret) state.caret.style.display = ''

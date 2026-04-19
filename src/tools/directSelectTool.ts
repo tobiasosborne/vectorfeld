@@ -212,10 +212,6 @@ function anchorDocSize(svg: SVGSVGElement): number {
   return 8 * (vb.width / svg.clientWidth)
 }
 
-function dist(a: Point, b: Point): number {
-  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
-}
-
 const DIRECT_SELECT_TAGS = new Set(['path', 'rect', 'ellipse', 'circle', 'line'])
 
 function hitTestElement(svg: SVGSVGElement, screenX: number, screenY: number): Element | null {

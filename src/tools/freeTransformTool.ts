@@ -16,7 +16,7 @@ import { getSelection, refreshOverlay } from '../model/selection'
 import { CompoundCommand, ModifyAttributeCommand } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
-import { parseTransform, decomposeMatrix, applyMatrixToPoint, setSkew, parseSkew, multiplyMatrix, translateMatrix, rotateMatrix, scaleAroundMatrix, matrixToString, invertMatrix, type Matrix } from '../model/matrix'
+import { parseTransform, decomposeMatrix, applyMatrixToPoint, setSkew, parseSkew, multiplyMatrix, rotateMatrix, scaleAroundMatrix, matrixToString, invertMatrix, type Matrix } from '../model/matrix'
 import { scalePathD } from '../model/pathOps'
 
 type Pt = { x: number; y: number }
@@ -75,7 +75,7 @@ function nearestCornerDist(pt: Pt, bbox: { x: number; y: number; width: number; 
 
 export function createFreeTransformTool(
   getSvg: () => SVGSVGElement | null,
-  getDoc: () => DocumentModel | null,
+  _getDoc: () => DocumentModel | null,
   getHistory: () => CommandHistory
 ): ToolConfig {
   let state: TransformState | null = null
@@ -204,7 +204,6 @@ export function createFreeTransformTool(
           }
           refreshOverlay()
         } else if (state.mode === 'skew') {
-          const { center } = state
           const dx = pt.x - state.startMouse.x
           const dy = pt.y - state.startMouse.y
           const skewAngle = state.skewAxis === 'x'
@@ -262,7 +261,7 @@ function midpoint(a: Pt, b: Pt): Pt {
 function applyScale(
   el: Element,
   origAttrs: Map<string, string>,
-  bbox: { x: number; y: number; width: number; height: number },
+  _bbox: { x: number; y: number; width: number; height: number },
   anchor: Pt,
   sx: number, sy: number
 ) {

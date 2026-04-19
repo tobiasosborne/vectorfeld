@@ -18,11 +18,12 @@ describe('postProcessPdfSvg', () => {
     expect(result).toContain('<rect/>')
   })
 
-  it('strips font-face style blocks', () => {
-    const svg = '<svg viewBox="0 0 100 100"><style>@font-face { font-family: "test"; }</style><path d="M0 0"/></svg>'
+  it('preserves <text> elements (text=text mode)', () => {
+    const svg = '<svg viewBox="0 0 100 100"><text font-family="LMRoman10" font-size="12"><tspan x="10" y="20">hello</tspan></text></svg>'
     const result = postProcessPdfSvg(svg)
-    expect(result).not.toContain('<style')
-    expect(result).toContain('<path')
+    expect(result).toContain('<text')
+    expect(result).toContain('font-family="LMRoman10"')
+    expect(result).toContain('hello')
   })
 
   it('preserves path elements and structure', () => {

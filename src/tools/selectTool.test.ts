@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { createSelectTool, registerSelectTool } from './selectTool'
 import { createDocumentModel, resetIdCounter } from '../model/document'
 import { CommandHistory } from '../model/commands'
@@ -42,7 +42,7 @@ function mockScreenToDoc(svg: SVGSVGElement) {
     ({
       x: 0,
       y: 0,
-      matrixTransform(m: DOMMatrix) {
+      matrixTransform(this: { x: number; y: number }, m: DOMMatrix) {
         return {
           x: this.x * (m as unknown as { a: number }).a,
           y: this.y * (m as unknown as { d: number }).d,
@@ -213,7 +213,7 @@ describe('Select Tool', () => {
 
     it('selects topmost element when elements overlap', () => {
       const tool = makeTool()
-      const rect1 = addRect(svg, 10, 10, 50, 50, 'bottom')
+      addRect(svg, 10, 10, 50, 50, 'bottom')
       const rect2 = addRect(svg, 20, 20, 50, 50, 'top')
 
       // Click on overlap area: doc (40, 40)
@@ -286,7 +286,7 @@ describe('Select Tool', () => {
   describe('onDeactivate', () => {
     it('resets drag state on deactivation', () => {
       const tool = makeTool()
-      const rect = addRect(svg, 10, 10, 50, 50)
+      addRect(svg, 10, 10, 50, 50)
 
       // Start a move drag
       tool.handlers.onMouseDown!(mouseDown(133, 71))
@@ -359,7 +359,7 @@ describe('Select Tool', () => {
     it('selects elements within marquee bounds', () => {
       const tool = makeTool()
       const rect1 = addRect(svg, 10, 10, 20, 20, 'r1')
-      const rect2 = addRect(svg, 150, 150, 20, 20, 'r2')
+      addRect(svg, 150, 150, 20, 20, 'r2')
 
       // Drag marquee that encloses rect1 but not rect2
       // Enclose doc region (0, 0) to (40, 40)
@@ -380,7 +380,7 @@ describe('Select Tool', () => {
     it('does not select elements on a locked layer', () => {
       const tool = makeTool()
       const layer = svg.querySelector('g[data-layer-name]')!
-      const rect = addRect(svg, 10, 10, 50, 50)
+      addRect(svg, 10, 10, 50, 50)
 
       // Lock the layer
       layer.setAttribute('data-locked', 'true')
@@ -490,7 +490,6 @@ describe('Select Tool', () => {
     it('matrix composition for move: translate(dx,dy) * orig', () => {
       // Verify the math directly: translate(10, 5) * rotate(45, 50, 50)
       const orig = parseTransform('rotate(45, 50, 50)')
-      const moved = parseTransform('matrix(1, 0, 0, 1, 10, 5)')
       // Apply orig to a test point
       const p1 = applyMatrixToPoint(orig, 30, 30)
       // Apply translate then orig

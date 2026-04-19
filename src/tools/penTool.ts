@@ -102,7 +102,7 @@ export function createPenTool(
     state.anchorElements.push(rect)
   }
 
-  function clearHandleVisuals(svg: SVGSVGElement) {
+  function clearHandleVisuals(_svg: SVGSVGElement) {
     for (const el of state.handleElements) el.remove()
     state.handleElements = []
   }

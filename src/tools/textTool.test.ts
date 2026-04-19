@@ -28,7 +28,7 @@ function mockScreenToDoc(svg: SVGSVGElement) {
   svg.createSVGPoint = () =>
     ({
       x: 0, y: 0,
-      matrixTransform(m: DOMMatrix) {
+      matrixTransform(this: { x: number; y: number }, m: DOMMatrix) {
         return { x: this.x * (m as unknown as { a: number }).a, y: this.y * (m as unknown as { d: number }).d }
       },
     }) as unknown as SVGPoint

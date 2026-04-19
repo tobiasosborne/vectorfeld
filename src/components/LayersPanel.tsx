@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useEditor } from '../model/EditorContext'
-import { generateId } from '../model/document'
 import { AddElementCommand, RemoveElementCommand, ReorderElementCommand } from '../model/commands'
 import { setActiveLayerElement } from '../model/activeLayer'
 import { subscribeSelection } from '../model/selection'

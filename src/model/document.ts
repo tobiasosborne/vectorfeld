@@ -99,7 +99,7 @@ export function createDocumentModel(svg: SVGSVGElement): DocumentModel {
 
     getActiveLayer(): Element | null {
       const active = getActiveLayerElement()
-      if (active && active.parentElement === svg) return active
+      if (active && active.parentNode === svg) return active
       const layers = this.getLayerElements()
       return layers.length > 0 ? layers[0] : null
     },

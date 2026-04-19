@@ -22,15 +22,6 @@ function cubicPt(p0: Pt, p1: Pt, p2: Pt, p3: Pt, t: number): Pt {
   }
 }
 
-/** Tangent of a cubic Bézier at parameter t (unnormalized) */
-function cubicTangent(p0: Pt, p1: Pt, p2: Pt, p3: Pt, t: number): Pt {
-  const u = 1 - t
-  return {
-    x: 3 * u * u * (p1.x - p0.x) + 6 * u * t * (p2.x - p1.x) + 3 * t * t * (p3.x - p2.x),
-    y: 3 * u * u * (p1.y - p0.y) + 6 * u * t * (p2.y - p1.y) + 3 * t * t * (p3.y - p2.y),
-  }
-}
-
 /**
  * Sample the path into a polyline with outward normals.
  * Returns arrays of { point, normal } for each subpath.

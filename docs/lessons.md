@@ -51,3 +51,8 @@
 - `playwright-cli console error` shows only actual errors (not info/debug)
 - `mousewheel` args must be positive: `playwright-cli mousewheel 0 100` not `0 -300`
 - The chaos monkey script is at `/tmp/chaos-monkey.sh` — 20 phases, run after any major change
+
+## Subagent file-writing
+- The Explore subagent is read-only — it cannot Write/Edit files even when the prompt asks for output to a path
+- For tasks that must produce files (reports, refactors), use the general-purpose subagent OR plan to write the output yourself from the agent's response
+- When asked to delegate report-writing, prefer general-purpose; reserve Explore for "search and summarise back to me" tasks
