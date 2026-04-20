@@ -54,6 +54,50 @@ function postRender(pdf: ArrayBuffer, pageIndex: number): Promise<string> {
 const PT_TO_MM = 25.4 / 72
 
 /**
+ * Flatten MuPDF's top-level anonymous <g> wrapper and prepend `scale(s)` to
+ * each resulting top-level child's transform. MuPDF emits the whole page
+ * body as a single <g> with no semantic attributes; left intact, clicking
+ * any element selects the entire wrapper instead of the clicked glyph.
+ *
+ * If the layer's single child is an anonymous <g> (no data-layer-name, no
+ * id, no class), its children are promoted to direct layer children and
+ * the scale is composed with the wrapper's own transform. Otherwise the
+ * scale is applied per existing top-level child (no flattening).
+ *
+ * Pure (mutates the passed layer in place) — exported for testing.
+ */
+export function flattenAndScalePdfLayer(layer: Element, scale: number): void {
+  const scalePrefix = `scale(${scale})`
+  const wrapper = pdfContentWrapper(layer)
+
+  if (wrapper) {
+    const wrapperT = wrapper.getAttribute('transform') || ''
+    const prefix = wrapperT ? `${scalePrefix} ${wrapperT}` : scalePrefix
+    for (const gc of Array.from(wrapper.children)) {
+      const existing = gc.getAttribute('transform')
+      gc.setAttribute('transform', existing ? `${prefix} ${existing}` : prefix)
+      layer.appendChild(gc) // move up one level
+    }
+    wrapper.remove()
+  } else {
+    for (const child of Array.from(layer.children)) {
+      const existing = child.getAttribute('transform')
+      child.setAttribute('transform', existing ? `${scalePrefix} ${existing}` : scalePrefix)
+    }
+  }
+}
+
+function pdfContentWrapper(layer: Element): Element | null {
+  if (layer.childElementCount !== 1) return null
+  const only = layer.firstElementChild!
+  if (only.tagName.toLowerCase() !== 'g') return null
+  if (only.hasAttribute('data-layer-name')) return null
+  if (only.id) return null
+  if (only.hasAttribute('class')) return null
+  return only
+}
+
+/**
  * Post-process SVG output from MuPDF's SVG device.
  * - Converts viewBox from points to millimeters
  * - Strips metadata elements (title, desc, metadata)
@@ -144,19 +188,14 @@ function applyParsedSvg(doc: DocumentModel, parsed: ParsedSvg): void {
     }
   }
 
-  // MuPDF emits content in PDF points; viewBox was converted to mm.
-  // Rather than wrap all content in a single <g> (which would make the layer
-  // have only one child and break per-element hit testing), prepend a scale
-  // to each top-level element's transform attribute. Each text/image/group
-  // remains a direct layer child and is individually selectable.
+  // MuPDF emits content in PDF points wrapped in one anonymous <g>; viewBox
+  // was converted to mm. Flatten that wrapper and distribute the pt→mm scale
+  // across each resulting top-level element so every text/image/path remains
+  // an individually selectable layer child.
   const firstOverlay = doc.svg.querySelector('[data-role="grid-overlay"], [data-role="user-guides-overlay"], [data-role="guides-overlay"], [data-role="overlay"]')
-  const scalePrefix = `scale(${PT_TO_MM})`
   for (const layer of parsed.layers) {
     const imported = document.importNode(layer, true) as Element
-    for (const child of Array.from(imported.children)) {
-      const existing = child.getAttribute('transform')
-      child.setAttribute('transform', existing ? `${scalePrefix} ${existing}` : scalePrefix)
-    }
+    flattenAndScalePdfLayer(imported, PT_TO_MM)
     if (firstOverlay) {
       doc.svg.insertBefore(imported, firstOverlay)
     } else {
