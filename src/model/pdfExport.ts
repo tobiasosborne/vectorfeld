@@ -254,6 +254,45 @@ async function drawImage(el: Element, ctx: Ctx): Promise<void> {
   })
 }
 
+/**
+ * Drop characters the given font cannot encode (vectorfeld-ape).
+ *
+ * pdf-lib's StandardFonts.Helvetica uses WinAnsi encoding, which cannot
+ * represent characters outside Latin-1 plus a few extras. Word-generated
+ * PDFs commonly include U+25CA (◊) bullets, em-dashes, fancy quotes, etc.
+ * Naïve drawText throws on the first unencodable char and the entire
+ * Export PDF call fails. Per-element sanitization keeps the rest of the
+ * document exporting cleanly.
+ *
+ * Until we embed a Unicode TTF font (separate bead), we accept the loss
+ * and warn the user about which characters were dropped.
+ */
+function safeEncode(text: string, font: PDFFont, sourceLabel: string): string {
+  try {
+    font.encodeText(text)
+    return text
+  } catch {
+    let out = ''
+    const dropped: string[] = []
+    for (const ch of text) {
+      try {
+        font.encodeText(ch)
+        out += ch
+      } catch {
+        dropped.push(ch)
+      }
+    }
+    if (dropped.length > 0) {
+      const codepoints = dropped.map((c) => `U+${c.codePointAt(0)?.toString(16).toUpperCase().padStart(4, '0')}`).join(', ')
+      console.warn(
+        `[vectorfeld] Export PDF: dropped ${dropped.length} non-WinAnsi char(s) from "${sourceLabel}" (${codepoints}). ` +
+        `Embed a Unicode font to preserve these.`
+      )
+    }
+    return out
+  }
+}
+
 function drawText(el: Element, ctx: Ctx): void {
   const x = parseFloat(el.getAttribute('x') || '0')
   const y = parseFloat(el.getAttribute('y') || '0')
@@ -261,11 +300,14 @@ function drawText(el: Element, ctx: Ctx): void {
   const text = el.textContent || ''
   if (!text) return
 
+  const safe = safeEncode(text, ctx.helvetica, text.slice(0, 40))
+  if (!safe) return
+
   const fill = parseColor(el.getAttribute('fill')) ?? rgb(0, 0, 0)
   const { sx } = extractScale(ctx.matrix)
   const baseline = svgPtToPdf(x, y, ctx)
 
-  ctx.page.drawText(text, {
+  ctx.page.drawText(safe, {
     x: baseline.x,
     y: baseline.y,
     font: ctx.helvetica,

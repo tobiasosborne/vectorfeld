@@ -205,6 +205,29 @@ describe('SVG → PDF → SVG round-trip', () => {
     })
   })
 
+  describe('with non-WinAnsi characters in text (vectorfeld-ape)', () => {
+    // The noheader flyer uses U+25CA (◊) as a bullet glyph. Helvetica's WinAnsi
+    // encoding cannot represent it, so naïve drawText throws and the entire
+    // export fails. The fix substitutes/drops unencodable chars per element so
+    // the rest of the document still ships.
+    const DIAMOND_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+      <g data-layer-name="Layer 1">
+        <text x="10" y="20" font-family="Helvetica" font-size="6">◊ Bullet point</text>
+      </g>
+    </svg>`
+
+    it('does not throw when text contains non-WinAnsi characters', async () => {
+      await expect(exportSvgStringToPdfBytes(DIAMOND_SVG)).resolves.toBeInstanceOf(Uint8Array)
+    })
+
+    it('preserves the encodable parts of the text in the PDF', async () => {
+      const bytes = await exportSvgStringToPdfBytes(DIAMOND_SVG)
+      const items = await extractPdfTextItems(bytes)
+      const all = items.map((it) => it.str).join(' ')
+      expect(all).toContain('Bullet point')
+    })
+  })
+
   describe('with an embedded raster image', () => {
     // Tiny 2x2 red PNG (data URL).
     const TINY_PNG =
