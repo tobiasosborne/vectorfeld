@@ -73,7 +73,7 @@ Run `bd ready` for the live queue. As of 2026-04-19 (end of pivot session):
 3. **Plan mode** if 3+ steps or non-trivial. Use subagents liberally for research.
 4. **Before coding**: read `docs/stocktake/01-source-map.md` entry for the file you're touching.
 5. **Implement** with minimal blast radius. Don't add features that weren't asked for.
-6. **Test**: `npm test -- --run`. For UI changes: `experiments/pdf-roundtrip/verify-import.mjs` is a headed-Chromium end-to-end check that imports a PDF and verifies select + move. Use it or write a similar one.
+6. **Test**: `npm test -- --run`. For UI changes: `experiments/pdf-roundtrip/verify-import.mjs` is a headed-Chromium end-to-end check that imports a PDF and verifies select + move. Use it or write a similar one. For PDF-fidelity work: `test/roundtrip/` is the in-vitest golden-fixture harness — `helpers/normalizeSvg.ts` (semantic SVG diff), `helpers/renderPdf.ts` (raster diff via pdfjs-dist + node-canvas + pixelmatch), `helpers/pdfPipeline.ts` (PDF bytes → mm-scaled SVG, no Worker needed). Use these to drive red-green TDD on round-trip bugs.
 7. **Commit + push**: `git push` is the definition of "done". Include `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>` line.
 8. **Close the bead**: `bd close <id> --reason="<what you did>"`.
 
