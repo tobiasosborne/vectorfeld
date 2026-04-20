@@ -69,4 +69,128 @@ describe('SVG → PDF → SVG round-trip', () => {
       expect(secondIdx).toBeGreaterThan(firstIdx)
     })
   })
+
+  describe('with a stroked path', () => {
+    const PATH_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+      <g data-layer-name="Layer 1">
+        <path d="M 10,10 L 50,40 L 50,10 Z" stroke="#000000" fill="none" stroke-width="0.5"/>
+      </g>
+    </svg>`
+
+    beforeAll(async () => {
+      pdfBytes = await exportSvgStringToPdfBytes(PATH_SVG)
+      reimported = await pdfToSvg(pdfBytes)
+    })
+
+    it('a path element survives the round-trip', () => {
+      expect(reimported).toMatch(/<path[\s>]/i)
+    })
+  })
+
+  describe('with a rect', () => {
+    const RECT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+      <g data-layer-name="Layer 1">
+        <rect x="10" y="10" width="40" height="20" fill="#aabbcc"/>
+      </g>
+    </svg>`
+
+    beforeAll(async () => {
+      pdfBytes = await exportSvgStringToPdfBytes(RECT_SVG)
+      reimported = await pdfToSvg(pdfBytes)
+    })
+
+    it('the rect renders (as <path> from MuPDF) and survives', () => {
+      expect(reimported).toMatch(/<path[\s>]/i)
+    })
+  })
+
+  describe('with a line', () => {
+    const LINE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+      <g data-layer-name="Layer 1">
+        <line x1="10" y1="10" x2="50" y2="40" stroke="#000000" stroke-width="0.5"/>
+      </g>
+    </svg>`
+
+    beforeAll(async () => {
+      pdfBytes = await exportSvgStringToPdfBytes(LINE_SVG)
+      reimported = await pdfToSvg(pdfBytes)
+    })
+
+    it('renders something path-like and survives', () => {
+      expect(reimported).toMatch(/<path[\s>]/i)
+    })
+  })
+
+  describe('with an ellipse', () => {
+    const ELLIPSE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+      <g data-layer-name="Layer 1">
+        <ellipse cx="50" cy="25" rx="20" ry="10" fill="#abcdef"/>
+      </g>
+    </svg>`
+
+    beforeAll(async () => {
+      pdfBytes = await exportSvgStringToPdfBytes(ELLIPSE_SVG)
+      reimported = await pdfToSvg(pdfBytes)
+    })
+
+    it('renders something path-like and survives', () => {
+      expect(reimported).toMatch(/<path[\s>]/i)
+    })
+  })
+
+  describe('with a circle', () => {
+    const CIRCLE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+      <g data-layer-name="Layer 1">
+        <circle cx="50" cy="25" r="10" fill="#fedcba"/>
+      </g>
+    </svg>`
+
+    beforeAll(async () => {
+      pdfBytes = await exportSvgStringToPdfBytes(CIRCLE_SVG)
+      reimported = await pdfToSvg(pdfBytes)
+    })
+
+    it('renders something path-like and survives', () => {
+      expect(reimported).toMatch(/<path[\s>]/i)
+    })
+  })
+
+  describe('with a translated <g>', () => {
+    const G_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+      <g data-layer-name="Layer 1">
+        <g transform="translate(20, 5)">
+          <text x="10" y="15" font-family="Helvetica" font-size="6">Inside group</text>
+        </g>
+      </g>
+    </svg>`
+
+    beforeAll(async () => {
+      pdfBytes = await exportSvgStringToPdfBytes(G_SVG)
+      reimported = await pdfToSvg(pdfBytes)
+    })
+
+    it('text inside a translated group survives', () => {
+      expect(reimported).toContain('Inside group')
+    })
+  })
+
+  describe('with an embedded raster image', () => {
+    // Tiny 2x2 red PNG (data URL).
+    const TINY_PNG =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAGElEQVR4nGP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=='
+    const IMG_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+      <g data-layer-name="Layer 1">
+        <image x="10" y="10" width="30" height="20" href="${TINY_PNG}"/>
+      </g>
+    </svg>`
+
+    beforeAll(async () => {
+      pdfBytes = await exportSvgStringToPdfBytes(IMG_SVG)
+      reimported = await pdfToSvg(pdfBytes)
+    })
+
+    it('the image survives the round-trip', () => {
+      expect(reimported).toMatch(/<image[\s>]/i)
+    })
+  })
 })

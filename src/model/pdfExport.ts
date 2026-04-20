@@ -20,6 +20,7 @@
  */
 
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from 'pdf-lib'
+import { parsePathD, commandsToD, type PathCommand } from './pathOps'
 
 const MM_TO_PT = 72 / 25.4
 
@@ -65,6 +66,156 @@ function parseColor(s: string | null): ReturnType<typeof rgb> | undefined {
   return undefined
 }
 
+/**
+ * Transform a path d-string from SVG (mm, top-left origin) to PDF (pt,
+ * bottom-left origin). Applies x' = x*MM_TO_PT, y' = pageHeightPt - y*MM_TO_PT
+ * to every coordinate point in every M/L/C/Z command. Z has no points so
+ * passes through unchanged.
+ */
+function transformPathD(d: string, pageHeightPt: number): string {
+  const cmds = parsePathD(d)
+  const out: PathCommand[] = cmds.map((c) => ({
+    type: c.type,
+    points: c.points.map((p) => ({
+      x: p.x * MM_TO_PT,
+      y: pageHeightPt - p.y * MM_TO_PT,
+    })),
+  }))
+  return commandsToD(out)
+}
+
+function drawPath(el: Element, ctx: Ctx): void {
+  const d = el.getAttribute('d')
+  if (!d) return
+  const transformedD = transformPathD(d, ctx.pageHeightPt)
+  const fill = parseColor(el.getAttribute('fill'))
+  const stroke = parseColor(el.getAttribute('stroke'))
+  const strokeWidthAttr = el.getAttribute('stroke-width')
+  const strokeWidth = strokeWidthAttr ? parseFloat(strokeWidthAttr) * MM_TO_PT : 1
+
+  ctx.page.drawSvgPath(transformedD, {
+    x: 0,
+    y: 0,
+    color: fill,
+    borderColor: stroke,
+    borderWidth: stroke ? strokeWidth : 0,
+  })
+}
+
+function drawRect(el: Element, ctx: Ctx): void {
+  const x = parseFloat(el.getAttribute('x') || '0')
+  const y = parseFloat(el.getAttribute('y') || '0')
+  const w = parseFloat(el.getAttribute('width') || '0')
+  const h = parseFloat(el.getAttribute('height') || '0')
+  if (w <= 0 || h <= 0) return
+  const fill = parseColor(el.getAttribute('fill'))
+  const stroke = parseColor(el.getAttribute('stroke'))
+  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0') * MM_TO_PT
+  const wPt = w * MM_TO_PT
+  const hPt = h * MM_TO_PT
+  // pdf-lib drawRectangle: x,y is BOTTOM-LEFT in PDF coords. SVG x,y is TOP-LEFT.
+  ctx.page.drawRectangle({
+    x: x * MM_TO_PT,
+    y: ctx.pageHeightPt - y * MM_TO_PT - hPt,
+    width: wPt,
+    height: hPt,
+    color: fill,
+    borderColor: stroke,
+    borderWidth: stroke ? strokeWidth : 0,
+  })
+}
+
+function drawLine(el: Element, ctx: Ctx): void {
+  const x1 = parseFloat(el.getAttribute('x1') || '0')
+  const y1 = parseFloat(el.getAttribute('y1') || '0')
+  const x2 = parseFloat(el.getAttribute('x2') || '0')
+  const y2 = parseFloat(el.getAttribute('y2') || '0')
+  const stroke = parseColor(el.getAttribute('stroke')) ?? rgb(0, 0, 0)
+  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0.25') * MM_TO_PT
+  ctx.page.drawLine({
+    start: { x: x1 * MM_TO_PT, y: ctx.pageHeightPt - y1 * MM_TO_PT },
+    end: { x: x2 * MM_TO_PT, y: ctx.pageHeightPt - y2 * MM_TO_PT },
+    color: stroke,
+    thickness: strokeWidth,
+  })
+}
+
+function drawEllipseEl(el: Element, ctx: Ctx): void {
+  const cx = parseFloat(el.getAttribute('cx') || '0')
+  const cy = parseFloat(el.getAttribute('cy') || '0')
+  const rx = parseFloat(el.getAttribute('rx') || '0')
+  const ry = parseFloat(el.getAttribute('ry') || '0')
+  if (rx <= 0 || ry <= 0) return
+  const fill = parseColor(el.getAttribute('fill'))
+  const stroke = parseColor(el.getAttribute('stroke'))
+  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0') * MM_TO_PT
+  ctx.page.drawEllipse({
+    x: cx * MM_TO_PT,
+    y: ctx.pageHeightPt - cy * MM_TO_PT,
+    xScale: rx * MM_TO_PT,
+    yScale: ry * MM_TO_PT,
+    color: fill,
+    borderColor: stroke,
+    borderWidth: stroke ? strokeWidth : 0,
+  })
+}
+
+function drawCircleEl(el: Element, ctx: Ctx): void {
+  const cx = parseFloat(el.getAttribute('cx') || '0')
+  const cy = parseFloat(el.getAttribute('cy') || '0')
+  const r = parseFloat(el.getAttribute('r') || '0')
+  if (r <= 0) return
+  const fill = parseColor(el.getAttribute('fill'))
+  const stroke = parseColor(el.getAttribute('stroke'))
+  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0') * MM_TO_PT
+  ctx.page.drawCircle({
+    x: cx * MM_TO_PT,
+    y: ctx.pageHeightPt - cy * MM_TO_PT,
+    size: r * MM_TO_PT,
+    color: fill,
+    borderColor: stroke,
+    borderWidth: stroke ? strokeWidth : 0,
+  })
+}
+
+function decodeDataUrl(href: string): { mime: string; bytes: Uint8Array } | null {
+  const m = href.match(/^data:([^;]+);base64,(.+)$/)
+  if (!m) return null
+  const mime = m[1].toLowerCase()
+  // atob is available in browser + jsdom + Node 16+.
+  const binary = atob(m[2])
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return { mime, bytes }
+}
+
+async function drawImage(el: Element, ctx: Ctx): Promise<void> {
+  const x = parseFloat(el.getAttribute('x') || '0')
+  const y = parseFloat(el.getAttribute('y') || '0')
+  const w = parseFloat(el.getAttribute('width') || '0')
+  const h = parseFloat(el.getAttribute('height') || '0')
+  const href = el.getAttribute('href') || el.getAttribute('xlink:href')
+  if (!href || w <= 0 || h <= 0) return
+  const decoded = decodeDataUrl(href)
+  if (!decoded) return // remote URLs not supported in this MVP — they would require network access
+  let img
+  try {
+    img = decoded.mime === 'image/jpeg' || decoded.mime === 'image/jpg'
+      ? await ctx.pdf.embedJpg(decoded.bytes)
+      : await ctx.pdf.embedPng(decoded.bytes)
+  } catch {
+    return
+  }
+  const wPt = w * MM_TO_PT
+  const hPt = h * MM_TO_PT
+  ctx.page.drawImage(img, {
+    x: x * MM_TO_PT,
+    y: ctx.pageHeightPt - y * MM_TO_PT - hPt,
+    width: wPt,
+    height: hPt,
+  })
+}
+
 function drawText(el: Element, ctx: Ctx): void {
   const x = parseFloat(el.getAttribute('x') || '0')
   const y = parseFloat(el.getAttribute('y') || '0')
@@ -86,15 +237,34 @@ function drawText(el: Element, ctx: Ctx): void {
   })
 }
 
-function walk(el: Element, ctx: Ctx): void {
+async function walk(el: Element, ctx: Ctx): Promise<void> {
   const tag = el.tagName.toLowerCase()
-  if (tag === 'text') {
-    drawText(el, ctx)
-    return
+  switch (tag) {
+    case 'text':
+      drawText(el, ctx)
+      return
+    case 'path':
+      drawPath(el, ctx)
+      return
+    case 'rect':
+      drawRect(el, ctx)
+      return
+    case 'line':
+      drawLine(el, ctx)
+      return
+    case 'ellipse':
+      drawEllipseEl(el, ctx)
+      return
+    case 'circle':
+      drawCircleEl(el, ctx)
+      return
+    case 'image':
+      await drawImage(el, ctx)
+      return
   }
   // Recurse into containers (<g>, <svg>, layers, etc.).
   for (const child of Array.from(el.children)) {
-    walk(child, ctx)
+    await walk(child, ctx)
   }
 }
 
@@ -112,7 +282,7 @@ export async function svgStringToPdfBytes(svgString: string): Promise<Uint8Array
   const helvetica = await pdf.embedFont(StandardFonts.Helvetica)
 
   const ctx: Ctx = { pdf, page, helvetica, pageHeightPt: heightPt }
-  walk(svg, ctx)
+  await walk(svg, ctx)
 
   return pdf.save()
 }
