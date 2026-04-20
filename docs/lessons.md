@@ -45,6 +45,10 @@
 - bd v0.58+ auto-starts Dolt if installed at `~/.local/bin/dolt`
 - Use `/home/tobias/.local/bin/bd` (not just `bd`) if PATH has old version
 - Old JSONL backup may have schema incompatibilities with newer bd versions — fresh `bd init` is safer than `--from-jsonl`
+- **On a fresh device / after clearing bd state, check `.beads/interactions.jsonl` before declaring pivot-session work lost.** `.beads/issues.jsonl` is a snapshot that only updates on `bd export`, but `.beads/interactions.jsonl` is an append-only audit log that bd updates on every field change. If the previous session committed interactions.jsonl but forgot to re-export issues.jsonl, the audit trail preserves closures even though `bd ready` shows a stale state. Read it before recreating beads from scratch.
+
+## Git stash hygiene
+- **Never `git stash drop` without reading the stash contents first.** `git stash show -p stash@{0}` takes five seconds. Dropped stashes become unreachable objects that `git filter-repo`, `git gc`, and similar commands will permanently delete. At least one session has lost `.beads/sync_base.jsonl` + `package-lock.json` deltas this way.
 
 ## Playwright-cli
 - Install: `npm install -g @playwright/cli` then `playwright-cli install` (downloads chromium)
