@@ -10,6 +10,7 @@ import type { DocumentModel } from './document'
 import { syncIdCounter } from './document'
 import { clearSelection } from './selection'
 import { parseSvgString, type ParsedSvg } from './fileio'
+import { analyzeImportedSvg } from './importAnalysis'
 import RenderWorker from './pdfRender.worker.ts?worker'
 
 // ── Worker management ──────────────────────────────────────────────────
@@ -166,6 +167,25 @@ export async function importPdf(doc: DocumentModel): Promise<void> {
 }
 
 /**
+ * Annotate a layer with text-coverage diagnostics + a mostlyOutlined flag.
+ * UI consumers (LayersPanel) read `data-mostly-outlined="true"` to render a
+ * "text not editable" warning badge. Logs a console.warn when triggered so
+ * developer-mode users see the signal too.
+ */
+function tagLayerWithImportAnalysis(layer: Element, source: string): void {
+  const r = analyzeImportedSvg(layer)
+  layer.setAttribute('data-text-chars', String(r.textChars))
+  layer.setAttribute('data-path-count', String(r.pathCount))
+  if (r.mostlyOutlined) {
+    layer.setAttribute('data-mostly-outlined', 'true')
+    console.warn(
+      `[vectorfeld] PDF "${source}" looks mostly outlined: ${r.pathCount} paths vs only ${r.textChars} editable text chars. ` +
+      `Text content was likely outlined to paths at PDF generation time and cannot be edited as text.`
+    )
+  }
+}
+
+/**
  * Strip a `.pdf` extension and clamp filename length so it fits Layers panel UX.
  * Exported for testing.
  */
@@ -231,6 +251,7 @@ export function applyParsedAsBackgroundLayer(doc: DocumentModel, parsed: ParsedS
     const imported = document.importNode(layer, true) as Element
     flattenAndScalePdfLayer(imported, PT_TO_MM)
     imported.setAttribute('data-layer-name', layerName)
+    tagLayerWithImportAnalysis(imported, filename)
     if (insertBefore) {
       doc.svg.insertBefore(imported, insertBefore)
     } else {
@@ -275,6 +296,7 @@ function applyParsedSvg(doc: DocumentModel, parsed: ParsedSvg): void {
   for (const layer of parsed.layers) {
     const imported = document.importNode(layer, true) as Element
     flattenAndScalePdfLayer(imported, PT_TO_MM)
+    tagLayerWithImportAnalysis(imported, '(imported PDF)')
     if (firstOverlay) {
       doc.svg.insertBefore(imported, firstOverlay)
     } else {

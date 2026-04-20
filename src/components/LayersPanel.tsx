@@ -9,6 +9,11 @@ interface LayerInfo {
   name: string
   visible: boolean
   locked: boolean
+  /** Set on PDF imports whose source had its text outlined to paths
+   *  (vectorfeld-cd2). Renders a warning glyph + tooltip in the panel. */
+  mostlyOutlined: boolean
+  textChars: number
+  pathCount: number
 }
 
 export function LayersPanel() {
@@ -25,6 +30,9 @@ export function LayersPanel() {
         name: el.getAttribute('data-layer-name') || 'Unnamed',
         visible: (el as SVGElement).style.display !== 'none',
         locked: el.getAttribute('data-locked') === 'true',
+        mostlyOutlined: el.getAttribute('data-mostly-outlined') === 'true',
+        textChars: parseInt(el.getAttribute('data-text-chars') || '0', 10),
+        pathCount: parseInt(el.getAttribute('data-path-count') || '0', 10),
       }))
     )
   }, [editor.doc])
@@ -146,6 +154,14 @@ export function LayersPanel() {
               {layer.locked ? '\u{1F512}' : '\u{1F513}'}
             </button>
             <span className="flex-1 truncate select-none">{layer.name}</span>
+            {layer.mostlyOutlined && (
+              <span
+                className="text-amber-600 select-none"
+                title={`This PDF has ${layer.pathCount} paths and only ${layer.textChars} editable text characters. The text was outlined to paths at PDF generation time and cannot be edited as text.`}
+              >
+                &#9888;
+              </span>
+            )}
             <button
               onClick={(e) => { e.stopPropagation(); moveLayerUp(idx) }}
               className={`w-4 text-center ${idx === 0 ? 'text-chrome-200' : 'text-chrome-400 hover:text-chrome-700'}`}

@@ -222,4 +222,37 @@ describe('applyParsedAsBackgroundLayer', () => {
 
     expect(doc.getLayerElements().some(l => l.getAttribute('data-layer-name') === 'Background')).toBe(true)
   })
+
+  describe('mostly-outlined warning (vectorfeld-cd2)', () => {
+    function manyPaths(n: number): string {
+      return Array.from({ length: n }, () => '<path d="M0 0 L1 1"/>').join('')
+    }
+
+    it('tags the imported layer with data-mostly-outlined="true" when content is path-heavy', () => {
+      const doc = makeDoc()
+      applyParsedAsBackgroundLayer(doc, fakeParsed(manyPaths(50)), 'flyer.pdf')
+
+      const layer = doc.getLayerElements().find(l => l.getAttribute('data-layer-name') === 'flyer')!
+      expect(layer.getAttribute('data-mostly-outlined')).toBe('true')
+    })
+
+    it('does NOT tag the layer when content has plenty of editable text', () => {
+      const doc = makeDoc()
+      const textHeavy = '<text>' + 'x'.repeat(500) + '</text>' + manyPaths(10)
+      applyParsedAsBackgroundLayer(doc, fakeParsed(textHeavy), 'normal.pdf')
+
+      const layer = doc.getLayerElements().find(l => l.getAttribute('data-layer-name') === 'normal')!
+      expect(layer.getAttribute('data-mostly-outlined')).toBeNull()
+    })
+
+    it('records the text-char count on the layer for diagnostics', () => {
+      const doc = makeDoc()
+      const content = '<text>hello</text>' + manyPaths(50)
+      applyParsedAsBackgroundLayer(doc, fakeParsed(content), 'flyer.pdf')
+
+      const layer = doc.getLayerElements().find(l => l.getAttribute('data-layer-name') === 'flyer')!
+      expect(layer.getAttribute('data-text-chars')).toBe('5')
+      expect(layer.getAttribute('data-path-count')).toBe('50')
+    })
+  })
 })
