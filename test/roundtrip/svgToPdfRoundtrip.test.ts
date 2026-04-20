@@ -174,6 +174,37 @@ describe('SVG → PDF → SVG round-trip', () => {
       expect(reimported).toContain('Inside group')
     })
 
+    it('transform attribute on a LEAF element (not just on <g>) is applied', async () => {
+      // MuPDF's flatten step puts transform="scale(pt→mm)" directly on each
+      // text/path/image rather than wrapping them in a group. The walker must
+      // apply transforms on leaves too, otherwise every imported PDF renders
+      // at ~3× scale at wrong positions.
+      const noT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+        <g data-layer-name="L1">
+          <text x="20" y="20" font-family="Helvetica" font-size="6">Marker</text>
+        </g>
+      </svg>`
+      const leafT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+        <g data-layer-name="L1">
+          <text x="40" y="40" font-family="Helvetica" font-size="12" transform="scale(0.5)">Marker</text>
+        </g>
+      </svg>`
+      // scale(0.5) should map (40,40) → (20,20) and font-size 12 → 6.
+      // So leafT should render the marker at the same effective position
+      // and size as noT.
+      const aBytes = await exportSvgStringToPdfBytes(noT)
+      const bBytes = await exportSvgStringToPdfBytes(leafT)
+      const aItems = await extractPdfTextItems(aBytes)
+      const bItems = await extractPdfTextItems(bBytes)
+      const aMarker = aItems.find((it) => it.str.includes('Marker'))
+      const bMarker = bItems.find((it) => it.str.includes('Marker'))
+      expect(aMarker).toBeDefined()
+      expect(bMarker).toBeDefined()
+      if (!aMarker || !bMarker) return
+      expect(bMarker.x).toBeCloseTo(aMarker.x, 0)
+      expect(bMarker.y).toBeCloseTo(aMarker.y, 0)
+    })
+
     it('translate(dx, dy) actually shifts text x position by dx', async () => {
       // Same text, with vs without an enclosing translate(30, 0). Inspect
       // PDF text positions via pdfjs-dist; the translated case should sit
@@ -202,6 +233,72 @@ describe('SVG → PDF → SVG round-trip', () => {
       const dxPt = bMarker.x - aMarker.x
       const expectedPt = 30 * (72 / 25.4) // 30mm in pt
       expect(dxPt).toBeCloseTo(expectedPt, 0)
+    })
+  })
+
+  describe('with text positioned via <tspan> children (MuPDF emission style)', () => {
+    // MuPDF's text=text mode emits text as <text transform=...><tspan x=... y=...>...</tspan></text>
+    // with the position on the tspan, NOT on the text element. Without tspan-aware
+    // drawing the entire imported PDF collapses every text to (0, 0) which renders
+    // at the wrong place after the parent's transform composition.
+
+    it('uses the tspan x/y when the text element has no direct x/y', async () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+        <g data-layer-name="L1">
+          <text font-family="Helvetica" font-size="6"><tspan x="20" y="10">Marker</tspan></text>
+        </g>
+      </svg>`
+      const bytes = await exportSvgStringToPdfBytes(svg)
+      const items = await extractPdfTextItems(bytes)
+      const marker = items.find((it) => it.str.includes('Marker'))
+      expect(marker).toBeDefined()
+      if (!marker) return
+      // tspan at (20mm, 10mm) → x=20mm→56.7pt, y=pageHeight-10mm→pageHeight-28.3pt
+      expect(marker.x).toBeCloseTo(20 * (72 / 25.4), 0)
+    })
+
+    it('reproduces MuPDF emission post-flatten: scale + translate + tspan negative y', async () => {
+      // Full MuPDF pipeline: viewBox in mm, content transform is
+      // scale(pt→mm) ∘ translate(Y by pageHeight_pt). The pt→mm scale comes
+      // from flattenAndScalePdfLayer; the matrix is what MuPDF emits to
+      // reposition glyphs from PDF (Y-up) to SVG (Y-down) coords.
+      const PT_TO_MM = 25.4 / 72
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${(595.32 * PT_TO_MM).toFixed(2)} ${(841.92 * PT_TO_MM).toFixed(2)}">
+        <g data-layer-name="L1">
+          <text transform="scale(${PT_TO_MM}) matrix(1 0 -0 1 0 841.92)" font-size="12" font-family="Helvetica">
+            <tspan x="100" y="-800">Heading</tspan>
+          </text>
+        </g>
+      </svg>`
+      const bytes = await exportSvgStringToPdfBytes(svg)
+      const items = await extractPdfTextItems(bytes)
+      const h = items.find((it) => it.str.includes('Heading'))
+      expect(h).toBeDefined()
+      if (!h) return
+      // tspan(100, -800) → matrix → (100, 41.92) → scale(0.353) → (35.3, 14.8) mm
+      // → PDF pt: (100, pageHeight_pt - 41.92) = (100, ~800)
+      expect(h.x).toBeCloseTo(100, 0)
+      expect(h.y).toBeCloseTo(800, 0)
+    })
+
+    it('renders multiple tspans inside one text element', async () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50">
+        <g data-layer-name="L1">
+          <text font-family="Helvetica" font-size="6">
+            <tspan x="10" y="20">Alpha</tspan>
+            <tspan x="60" y="30">Beta</tspan>
+          </text>
+        </g>
+      </svg>`
+      const bytes = await exportSvgStringToPdfBytes(svg)
+      const items = await extractPdfTextItems(bytes)
+      const a = items.find((it) => it.str.includes('Alpha'))
+      const b = items.find((it) => it.str.includes('Beta'))
+      expect(a).toBeDefined()
+      expect(b).toBeDefined()
+      if (!a || !b) return
+      // Both tspans should appear at distinct positions.
+      expect(b.x).toBeGreaterThan(a.x)
     })
   })
 

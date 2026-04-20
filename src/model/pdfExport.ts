@@ -293,62 +293,102 @@ function safeEncode(text: string, font: PDFFont, sourceLabel: string): string {
   }
 }
 
-function drawText(el: Element, ctx: Ctx): void {
-  const x = parseFloat(el.getAttribute('x') || '0')
-  const y = parseFloat(el.getAttribute('y') || '0')
-  const fontSize = parseFloat(el.getAttribute('font-size') || '12')
-  const text = el.textContent || ''
-  if (!text) return
-
+/** Draw a single text run at the given SVG-space position. Used for both
+ *  the direct-text-content path and the per-tspan path. */
+function drawTextRun(
+  text: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  fill: ReturnType<typeof rgb> | undefined,
+  ctx: Ctx
+): void {
   const safe = safeEncode(text, ctx.helvetica, text.slice(0, 40))
   if (!safe) return
-
-  const fill = parseColor(el.getAttribute('fill')) ?? rgb(0, 0, 0)
   const { sx } = extractScale(ctx.matrix)
   const baseline = svgPtToPdf(x, y, ctx)
-
   ctx.page.drawText(safe, {
     x: baseline.x,
     y: baseline.y,
     font: ctx.helvetica,
     size: fontSize * sx * MM_TO_PT,
-    color: fill,
+    color: fill ?? rgb(0, 0, 0),
   })
 }
 
+function drawText(el: Element, ctx: Ctx): void {
+  // SVG text positioning has two equivalent forms:
+  //   (a) <text x=".." y="..">content</text>
+  //   (b) <text><tspan x=".." y="..">content</tspan>...</text>
+  // Form (b) is what MuPDF emits for every imported PDF — the position is
+  // on the tspan, not on the <text>. Without tspan-aware drawing every
+  // imported PDF collapses every text element to (0, 0).
+  const fontSize = parseFloat(el.getAttribute('font-size') || '12')
+  const fill = parseColor(el.getAttribute('fill'))
+  const elX = parseFloat(el.getAttribute('x') || '0')
+  const elY = parseFloat(el.getAttribute('y') || '0')
+
+  const tspans = Array.from(el.children).filter((c) => c.tagName.toLowerCase() === 'tspan')
+  if (tspans.length === 0) {
+    const content = el.textContent || ''
+    if (content) drawTextRun(content, elX, elY, fontSize, fill, ctx)
+    return
+  }
+
+  for (const tspan of tspans) {
+    const content = tspan.textContent || ''
+    if (!content) continue
+    // x/y can be a single number or a space-separated per-character list. We
+    // honour only the first value and let pdf-lib lay out the rest of the
+    // run — full per-glyph positioning is out of MVP scope.
+    const xAttr = tspan.getAttribute('x') ?? String(elX)
+    const yAttr = tspan.getAttribute('y') ?? String(elY)
+    const x = parseFloat(xAttr.trim().split(/\s+/)[0])
+    const y = parseFloat(yAttr.trim().split(/\s+/)[0])
+    const tspanSize = parseFloat(tspan.getAttribute('font-size') || String(fontSize))
+    const tspanFill = parseColor(tspan.getAttribute('fill')) ?? fill
+    drawTextRun(content, x, y, tspanSize, tspanFill, ctx)
+  }
+}
+
 async function walk(el: Element, ctx: Ctx): Promise<void> {
+  // Apply this element's own transform attribute BEFORE drawing or recursing.
+  // This must happen for leaves too (text/path/rect/…) — MuPDF's flatten step
+  // puts transform="scale(pt→mm)" directly on each leaf rather than wrapping
+  // them in a group, so leaf-transform handling is load-bearing for any
+  // imported PDF.
+  const transformAttr = el.getAttribute('transform')
+  const localCtx: Ctx = transformAttr
+    ? { ...ctx, matrix: multiplyMatrix(ctx.matrix, parseTransform(transformAttr)) }
+    : ctx
+
   const tag = el.tagName.toLowerCase()
   switch (tag) {
     case 'text':
-      drawText(el, ctx)
+      drawText(el, localCtx)
       return
     case 'path':
-      drawPath(el, ctx)
+      drawPath(el, localCtx)
       return
     case 'rect':
-      drawRect(el, ctx)
+      drawRect(el, localCtx)
       return
     case 'line':
-      drawLine(el, ctx)
+      drawLine(el, localCtx)
       return
     case 'ellipse':
-      drawEllipseEl(el, ctx)
+      drawEllipseEl(el, localCtx)
       return
     case 'circle':
-      drawCircleEl(el, ctx)
+      drawCircleEl(el, localCtx)
       return
     case 'image':
-      await drawImage(el, ctx)
+      await drawImage(el, localCtx)
       return
   }
-  // Containers: compose their transform attribute (if any) with the
-  // ancestor matrix, then recurse.
-  const transformAttr = el.getAttribute('transform')
-  const childCtx: Ctx = transformAttr
-    ? { ...ctx, matrix: multiplyMatrix(ctx.matrix, parseTransform(transformAttr)) }
-    : ctx
+  // Containers (svg, g, …): recurse with the composed matrix.
   for (const child of Array.from(el.children)) {
-    await walk(child, childCtx)
+    await walk(child, localCtx)
   }
 }
 

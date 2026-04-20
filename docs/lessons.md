@@ -56,6 +56,14 @@
 - `mousewheel` args must be positive: `playwright-cli mousewheel 0 100` not `0 -300`
 - The chaos monkey script is at `/tmp/chaos-monkey.sh` — 20 phases, run after any major change
 
+## Synthetic-test blindspot for SVG export
+
+- The pdf-lib SVG→PDF engine (vectorfeld-9s9) shipped passing all synthetic-fixture tests but failed on every real PDF import (vectorfeld-dns). Two structural bugs were missed:
+  1. **`walk()` only applied transforms on container `<g>` elements**, ignoring `transform=` attrs on leaf elements (`<text>`, `<path>`, `<rect>`, …). Synthetic tests always wrap content in `<g transform=...>`, but **MuPDF's flatten step puts `transform="scale(pt→mm)"` directly on each leaf** to keep them as individually-selectable layer children. Result: every imported PDF rendered ~3× too large at the wrong position.
+  2. **`drawText` only read `x`/`y` from the `<text>` element itself**, ignoring positions on `<tspan>` children. Synthetic tests use `<text x= y=>content</text>`. **MuPDF emits `<text transform=…><tspan x= y=>char</tspan>…</text>`** — position is on the tspan. Without tspan-aware drawing, every imported text collapsed to (0, 0) and ended up at the bottom-left.
+- **Lesson:** for any SVG-consuming code, **the unit-test fixtures must include the emission shape of every upstream tool you intend to consume**, not just the textbook SVG forms. For us that means: a fixture whose structure mirrors MuPDF's actual output (leaf-level transforms + tspan-positioned glyphs). Run `experiments/probe-mupdf-svg.mjs`-style spike scripts when adding a new SVG consumer to see what producers actually emit.
+- **Detection method that worked:** real-user composite-via-playwright + screenshot the exported PDF in headed Chromium. Visual inspection caught what 17 green synthetic tests missed.
+
 ## Subagent file-writing
 - The Explore subagent is read-only — it cannot Write/Edit files even when the prompt asks for output to a path
 - For tasks that must produce files (reports, refactors), use the general-purpose subagent OR plan to write the output yourself from the agent's response
