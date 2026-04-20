@@ -5,6 +5,7 @@ import { AddElementCommand } from './commands'
 import type { CommandHistory } from './commands'
 import { jsPDF } from 'jspdf'
 import { svg2pdf } from 'svg2pdf.js'
+import { svgStringToPdfBytes } from './pdfExport'
 
 /** Selector for editor-only overlays that should be stripped on export */
 const OVERLAY_SELECTOR = '[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"], [data-role="user-guides-overlay"], [data-role="wireframe"]'
@@ -108,6 +109,16 @@ export function exportSvg(doc: DocumentModel, filename: string = 'document.svg')
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+/**
+ * Render an SVG string to PDF bytes using the pdf-lib engine.
+ * Pure: no DOM mutation, no download trigger. Drives round-trip tests
+ * (test/roundtrip/) and is the path forward for production exportPdf
+ * once feature parity with the svg2pdf engine lands.
+ */
+export async function exportSvgStringToPdfBytes(svgString: string): Promise<Uint8Array> {
+  return svgStringToPdfBytes(svgString)
 }
 
 /**
