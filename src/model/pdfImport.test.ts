@@ -1,5 +1,35 @@
 import { describe, it, expect } from 'vitest'
-import { postProcessPdfSvg, flattenAndScalePdfLayer } from './pdfImport'
+import { postProcessPdfSvg, flattenAndScalePdfLayer, applyParsedAsBackgroundLayer, sanitizeLayerNameFromFile } from './pdfImport'
+import { createDocumentModel } from './document'
+import type { ParsedSvg } from './fileio'
+
+function makeDoc(): ReturnType<typeof createDocumentModel> {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('viewBox', '0 0 210 297')
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs')
+  svg.appendChild(defs)
+  const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  layer.setAttribute('data-layer-name', 'Layer 1')
+  svg.appendChild(layer)
+  const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  overlay.setAttribute('data-role', 'overlay')
+  svg.appendChild(overlay)
+  return createDocumentModel(svg)
+}
+
+function fakeParsed(children: string): ParsedSvg {
+  const doc = new DOMParser().parseFromString(
+    `<svg xmlns="http://www.w3.org/2000/svg"><g>${children}</g></svg>`,
+    'image/svg+xml',
+  )
+  // parseSvgString would synthesize a Layer 1 wrapper since there's no data-layer-name;
+  // emulate that here.
+  const synthetic = doc.createElementNS('http://www.w3.org/2000/svg', 'g')
+  synthetic.setAttribute('data-layer-name', 'Layer 1')
+  const wrapper = doc.documentElement.firstElementChild!
+  synthetic.appendChild(wrapper)
+  return { viewBox: '0 0 595 842', defs: [], layers: [synthetic] }
+}
 
 function layerFromHtml(inner: string): Element {
   const doc = new DOMParser().parseFromString(
@@ -116,5 +146,80 @@ describe('flattenAndScalePdfLayer', () => {
     const layer = layerFromHtml('')
     flattenAndScalePdfLayer(layer, 1)
     expect(layer.childElementCount).toBe(0)
+  })
+})
+
+describe('sanitizeLayerNameFromFile', () => {
+  it('strips trailing .pdf (case-insensitive)', () => {
+    expect(sanitizeLayerNameFromFile('Report.pdf')).toBe('Report')
+    expect(sanitizeLayerNameFromFile('Report.PDF')).toBe('Report')
+  })
+
+  it('truncates long names with ellipsis', () => {
+    const long = 'a'.repeat(60) + '.pdf'
+    const result = sanitizeLayerNameFromFile(long)
+    expect(result.length).toBeLessThanOrEqual(40)
+    expect(result.endsWith('...')).toBe(true)
+  })
+
+  it('falls back to Background for empty/whitespace', () => {
+    expect(sanitizeLayerNameFromFile('.pdf')).toBe('Background')
+    expect(sanitizeLayerNameFromFile('  .pdf')).toBe('Background')
+  })
+})
+
+describe('applyParsedAsBackgroundLayer', () => {
+  it('inserts the new layer BEFORE existing content layers (bottom of z-stack)', () => {
+    const doc = makeDoc()
+    const before = doc.getLayerElements()
+    expect(before.length).toBe(1)
+    expect(before[0].getAttribute('data-layer-name')).toBe('Layer 1')
+
+    applyParsedAsBackgroundLayer(doc, fakeParsed('<path d="M0 0"/>'), 'Flyer.pdf')
+
+    const after = doc.getLayerElements()
+    expect(after.length).toBe(2)
+    // The NEW layer is the bottom one (rendered first = behind).
+    expect(after[0].getAttribute('data-layer-name')).toBe('Flyer')
+    expect(after[1].getAttribute('data-layer-name')).toBe('Layer 1')
+  })
+
+  it('does not clear existing layers or their children', () => {
+    const doc = makeDoc()
+    const firstLayer = doc.getLayerElements()[0]
+    const existingRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    firstLayer.appendChild(existingRect)
+
+    applyParsedAsBackgroundLayer(doc, fakeParsed('<path d="M0 0"/>'), 'Flyer.pdf')
+
+    const layerAfter = doc.getLayerElements().find(l => l.getAttribute('data-layer-name') === 'Layer 1')
+    expect(layerAfter).toBeTruthy()
+    expect(layerAfter!.querySelector('rect')).toBe(existingRect)
+  })
+
+  it('does not change the document viewBox', () => {
+    const doc = makeDoc()
+    expect(doc.svg.getAttribute('viewBox')).toBe('0 0 210 297')
+
+    applyParsedAsBackgroundLayer(doc, fakeParsed('<path d="M0 0"/>'), 'Flyer.pdf')
+
+    expect(doc.svg.getAttribute('viewBox')).toBe('0 0 210 297')
+  })
+
+  it('applies pt→mm scale to the imported content (via flatten helper)', () => {
+    const doc = makeDoc()
+    applyParsedAsBackgroundLayer(doc, fakeParsed('<path d="M0 0"/>'), 'Flyer.pdf')
+
+    const newLayer = doc.getLayerElements().find(l => l.getAttribute('data-layer-name') === 'Flyer')!
+    const path = newLayer.querySelector('path')!
+    // flattenAndScalePdfLayer prepends scale(PT_TO_MM) — ≈ scale(0.35277...)
+    expect(path.getAttribute('transform')).toMatch(/^scale\(0\.35/)
+  })
+
+  it('falls back to Background when filename has no stem', () => {
+    const doc = makeDoc()
+    applyParsedAsBackgroundLayer(doc, fakeParsed('<path d="M0 0"/>'), '.pdf')
+
+    expect(doc.getLayerElements().some(l => l.getAttribute('data-layer-name') === 'Background')).toBe(true)
   })
 })

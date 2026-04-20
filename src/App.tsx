@@ -20,7 +20,7 @@ import { getSelection, subscribeSelection, refreshOverlay, clearSelection } from
 import { ModifyAttributeCommand, CompoundCommand, AddElementCommand, RemoveElementCommand, ReorderElementCommand } from './model/commands'
 import { elementToPathD, extractStyleAttrs } from './model/shapeToPath'
 import { joinPaths } from './model/pathOps'
-import { importPdf } from './model/pdfImport'
+import { importPdf, importPdfAsBackgroundLayer } from './model/pdfImport'
 import { bringForward, sendBackward, bringToFront, sendToBack } from './model/zOrder'
 import { HRuler, VRuler } from './components/Ruler'
 import { ContextMenu } from './components/ContextMenu'
@@ -144,6 +144,7 @@ function AppContent() {
       items: [
         { label: 'Open SVG...', shortcut: '', action: () => editor.doc && importSvg(editor.doc) },
         { label: 'Open PDF...', shortcut: '', action: () => editor.doc && importPdf(editor.doc) },
+        { label: 'Open PDF as Background Layer...', shortcut: '', action: () => editor.doc && importPdfAsBackgroundLayer(editor.doc) },
         { label: 'Place Image...', shortcut: '', action: () => editor.doc && placeImage(editor.doc, editor.history) },
         { separator: true, label: '' },
         { label: 'Export SVG', shortcut: '', action: () => editor.doc && exportSvg(editor.doc) },

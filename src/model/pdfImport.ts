@@ -166,6 +166,85 @@ export async function importPdf(doc: DocumentModel): Promise<void> {
 }
 
 /**
+ * Strip a `.pdf` extension and clamp filename length so it fits Layers panel UX.
+ * Exported for testing.
+ */
+export function sanitizeLayerNameFromFile(filename: string): string {
+  const base = filename.replace(/\.pdf$/i, '').trim()
+  if (!base) return 'Background'
+  return base.length > 40 ? base.slice(0, 37) + '...' : base
+}
+
+/**
+ * Import a PDF file as a *background layer* in the active document.
+ * Unlike importPdf, this does not clear existing layers or replace the
+ * viewBox: the new PDF content lands in its own layer at the bottom of
+ * the z-stack (rendered first, behind everything). Layer name is derived
+ * from the file name. Defs are appended alongside existing defs.
+ */
+export async function importPdfAsBackgroundLayer(doc: DocumentModel): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.pdf,application/pdf'
+    input.addEventListener('cancel', () => resolve())
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) { resolve(); return }
+      try {
+        const arrayBuffer = await file.arrayBuffer()
+        const rawSvg = await renderPageToSvg(arrayBuffer)
+        const processedSvg = postProcessPdfSvg(rawSvg)
+        const parsed = parseSvgString(processedSvg)
+        applyParsedAsBackgroundLayer(doc, parsed, file.name)
+        resolve()
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error(String(err)))
+      }
+    }
+    input.click()
+  })
+}
+
+/**
+ * Insert parsed PDF content as a new bottom-most layer without touching
+ * viewBox, existing layers, or selection. Exported for testing.
+ */
+export function applyParsedAsBackgroundLayer(doc: DocumentModel, parsed: ParsedSvg, filename: string): void {
+  if (parsed.defs.length > 0) {
+    const docDefs = doc.getDefs()
+    for (const child of parsed.defs) {
+      docDefs.appendChild(document.importNode(child, true))
+    }
+  }
+
+  const layerName = sanitizeLayerNameFromFile(filename)
+  // Insert BEFORE the first existing content layer so the new layer is
+  // rendered first (= behind everything). If there are no existing layers
+  // yet, fall back to inserting before the overlay group.
+  const existingLayers = doc.getLayerElements()
+  const insertBefore =
+    existingLayers[0] ??
+    doc.svg.querySelector('[data-role="grid-overlay"], [data-role="user-guides-overlay"], [data-role="guides-overlay"], [data-role="overlay"]')
+
+  for (const layer of parsed.layers) {
+    const imported = document.importNode(layer, true) as Element
+    flattenAndScalePdfLayer(imported, PT_TO_MM)
+    imported.setAttribute('data-layer-name', layerName)
+    if (insertBefore) {
+      doc.svg.insertBefore(imported, insertBefore)
+    } else {
+      doc.svg.appendChild(imported)
+    }
+  }
+
+  syncIdCounter(doc.svg)
+  // Fire selection notification LAST so the LayersPanel (which subscribes
+  // to selection changes) sees the new layer on its refresh pass.
+  clearSelection()
+}
+
+/**
  * Apply parsed SVG to the document model.
  * Mirrors the pattern from fileio.ts.
  */
