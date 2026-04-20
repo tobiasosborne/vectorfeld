@@ -53,7 +53,7 @@ export function MenuBar({ menus }: MenuBarProps) {
                   <button
                     key={i}
                     disabled={item.disabled}
-                    className={`w-full text-left px-3 py-1 text-xs flex justify-between items-center ${item.disabled ? 'text-chrome-300 cursor-default' : 'hover:bg-accent/10'}`}
+                    className={`w-full text-left px-3 py-1 text-xs flex justify-between items-center gap-4 whitespace-nowrap ${item.disabled ? 'text-chrome-300 cursor-default' : 'hover:bg-accent/10'}`}
                     onClick={() => {
                       if (item.disabled) return
                       item.action?.()
@@ -62,7 +62,7 @@ export function MenuBar({ menus }: MenuBarProps) {
                   >
                     <span>{item.label}</span>
                     {item.shortcut && (
-                      <span className={`ml-4 ${item.disabled ? 'text-chrome-300' : 'text-chrome-400'}`}>{item.shortcut}</span>
+                      <span className={`${item.disabled ? 'text-chrome-300' : 'text-chrome-400'}`}>{item.shortcut}</span>
                     )}
                   </button>
                 )

@@ -21,6 +21,7 @@ import { ModifyAttributeCommand, CompoundCommand, AddElementCommand, RemoveEleme
 import { elementToPathD, extractStyleAttrs } from './model/shapeToPath'
 import { joinPaths } from './model/pathOps'
 import { importPdf } from './model/pdfImport'
+import { bringForward, sendBackward, bringToFront, sendToBack } from './model/zOrder'
 import { HRuler, VRuler } from './components/Ruler'
 import { ContextMenu } from './components/ContextMenu'
 import type { ContextMenuItem } from './components/ContextMenu'
@@ -184,6 +185,11 @@ function AppContent() {
       items: [
         { label: 'Flip Horizontal', shortcut: '', disabled: selCount === 0, action: () => applyReflect(computeReflectH) },
         { label: 'Flip Vertical', shortcut: '', disabled: selCount === 0, action: () => applyReflect(computeReflectV) },
+        { separator: true, label: '' },
+        { label: 'Bring to Front', shortcut: 'Ctrl+Shift+]', disabled: selCount === 0, action: () => editor.history && bringToFront(editor.history) },
+        { label: 'Bring Forward', shortcut: 'Ctrl+]', disabled: selCount === 0, action: () => editor.history && bringForward(editor.history) },
+        { label: 'Send Backward', shortcut: 'Ctrl+[', disabled: selCount === 0, action: () => editor.history && sendBackward(editor.history) },
+        { label: 'Send to Back', shortcut: 'Ctrl+Shift+[', disabled: selCount === 0, action: () => editor.history && sendToBack(editor.history) },
         { separator: true, label: '' },
         { label: 'Convert to Path', shortcut: '', disabled: selCount === 0, action: () => {
           const sel = getSelection()
