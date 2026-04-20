@@ -3,8 +3,6 @@ import { syncIdCounter } from './document'
 import { clearSelection } from './selection'
 import { AddElementCommand } from './commands'
 import type { CommandHistory } from './commands'
-import { jsPDF } from 'jspdf'
-import { svg2pdf } from 'svg2pdf.js'
 import { svgStringToPdfBytes } from './pdfExport'
 
 /** Selector for editor-only overlays that should be stripped on export */
@@ -123,43 +121,32 @@ export async function exportSvgStringToPdfBytes(svgString: string): Promise<Uint
 
 /**
  * Export the document as a PDF file download.
- * Uses svg2pdf.js for client-side SVG-to-PDF conversion.
+ * Uses the pdf-lib engine in src/model/pdfExport.ts so embedded fonts and
+ * glyph positioning round-trip cleanly (vectorfeld-9s9). Replaces the
+ * earlier svg2pdf.js + jsPDF pipeline which substituted glyph metrics from
+ * its bundled fonts and visibly garbled body text.
  */
 export async function exportPdf(doc: DocumentModel, filename: string = 'document.pdf'): Promise<void> {
-  // Clone and clean SVG
   const svgClone = doc.svg.cloneNode(true) as SVGSVGElement
   for (const el of svgClone.querySelectorAll(OVERLAY_SELECTOR)) {
     el.remove()
   }
-
-  // Parse viewBox for dimensions
-  const vb = doc.svg.viewBox.baseVal
-  const width = vb.width || 210
-  const height = vb.height || 297
-
-  // Set explicit dimensions on clone for svg2pdf
-  svgClone.setAttribute('width', String(width))
-  svgClone.setAttribute('height', String(height))
-
-  // Create PDF with matching dimensions (mm)
-  const orientation = width > height ? 'landscape' : 'portrait'
-  const pdf = new jsPDF({
-    orientation,
-    unit: 'mm',
-    format: [width, height],
-  })
-
-  // Temporarily add to DOM for measurement (svg2pdf needs this)
-  svgClone.style.position = 'absolute'
-  svgClone.style.left = '-9999px'
-  document.body.appendChild(svgClone)
-
-  try {
-    await svg2pdf(svgClone, pdf, { x: 0, y: 0, width, height })
-    pdf.save(filename)
-  } finally {
-    document.body.removeChild(svgClone)
+  if (!svgClone.getAttribute('xmlns')) {
+    svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
   }
+
+  const svgString = new XMLSerializer().serializeToString(svgClone)
+  const pdfBytes = await svgStringToPdfBytes(svgString)
+
+  const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 /**

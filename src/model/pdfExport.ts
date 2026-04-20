@@ -21,6 +21,13 @@
 
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from 'pdf-lib'
 import { parsePathD, commandsToD, type PathCommand } from './pathOps'
+import {
+  applyMatrixToPoint,
+  identityMatrix,
+  multiplyMatrix,
+  parseTransform,
+  type Matrix,
+} from './matrix'
 
 const MM_TO_PT = 72 / 25.4
 
@@ -29,6 +36,28 @@ interface Ctx {
   page: ReturnType<PDFDocument['addPage']>
   helvetica: PDFFont
   pageHeightPt: number
+  /** Cumulative SVG-space transform from ancestor <g> elements. */
+  matrix: Matrix
+}
+
+/** Map an SVG-space (x, y) (in mm) through ctx.matrix and convert to PDF pt
+ *  with Y-axis flip. */
+function svgPtToPdf(x: number, y: number, ctx: Ctx): { x: number; y: number } {
+  const t = applyMatrixToPoint(ctx.matrix, x, y)
+  return {
+    x: t.x * MM_TO_PT,
+    y: ctx.pageHeightPt - t.y * MM_TO_PT,
+  }
+}
+
+/** Extract uniform-ish x/y scale factors from an affine matrix. Useful for
+ *  scaling element dimensions (width/height, font-size, stroke-width) under
+ *  a parent <g transform>. For rotation-only transforms returns {1, 1}. */
+function extractScale(m: Matrix): { sx: number; sy: number } {
+  return {
+    sx: Math.sqrt(m[0] * m[0] + m[1] * m[1]),
+    sy: Math.sqrt(m[2] * m[2] + m[3] * m[3]),
+  }
 }
 
 interface ViewBox {
@@ -67,19 +96,15 @@ function parseColor(s: string | null): ReturnType<typeof rgb> | undefined {
 }
 
 /**
- * Transform a path d-string from SVG (mm, top-left origin) to PDF (pt,
- * bottom-left origin). Applies x' = x*MM_TO_PT, y' = pageHeightPt - y*MM_TO_PT
- * to every coordinate point in every M/L/C/Z command. Z has no points so
- * passes through unchanged.
+ * Transform a path d-string from SVG (mm, top-left origin, possibly under a
+ * parent matrix) to PDF (pt, bottom-left origin). Applies ctx.matrix to each
+ * point, then x*MM_TO_PT and pageHeightPt - y*MM_TO_PT.
  */
-function transformPathD(d: string, pageHeightPt: number): string {
+function transformPathD(d: string, ctx: Ctx): string {
   const cmds = parsePathD(d)
   const out: PathCommand[] = cmds.map((c) => ({
     type: c.type,
-    points: c.points.map((p) => ({
-      x: p.x * MM_TO_PT,
-      y: pageHeightPt - p.y * MM_TO_PT,
-    })),
+    points: c.points.map((p) => svgPtToPdf(p.x, p.y, ctx)),
   }))
   return commandsToD(out)
 }
@@ -87,11 +112,12 @@ function transformPathD(d: string, pageHeightPt: number): string {
 function drawPath(el: Element, ctx: Ctx): void {
   const d = el.getAttribute('d')
   if (!d) return
-  const transformedD = transformPathD(d, ctx.pageHeightPt)
+  const transformedD = transformPathD(d, ctx)
   const fill = parseColor(el.getAttribute('fill'))
   const stroke = parseColor(el.getAttribute('stroke'))
   const strokeWidthAttr = el.getAttribute('stroke-width')
-  const strokeWidth = strokeWidthAttr ? parseFloat(strokeWidthAttr) * MM_TO_PT : 1
+  const { sx } = extractScale(ctx.matrix)
+  const strokeWidth = strokeWidthAttr ? parseFloat(strokeWidthAttr) * sx * MM_TO_PT : 1
 
   ctx.page.drawSvgPath(transformedD, {
     x: 0,
@@ -110,13 +136,16 @@ function drawRect(el: Element, ctx: Ctx): void {
   if (w <= 0 || h <= 0) return
   const fill = parseColor(el.getAttribute('fill'))
   const stroke = parseColor(el.getAttribute('stroke'))
-  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0') * MM_TO_PT
-  const wPt = w * MM_TO_PT
-  const hPt = h * MM_TO_PT
+  const { sx, sy } = extractScale(ctx.matrix)
+  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0') * sx * MM_TO_PT
+  const wPt = w * sx * MM_TO_PT
+  const hPt = h * sy * MM_TO_PT
   // pdf-lib drawRectangle: x,y is BOTTOM-LEFT in PDF coords. SVG x,y is TOP-LEFT.
+  // Apply matrix to top-left corner; then convert to PDF and subtract scaled height.
+  const tl = svgPtToPdf(x, y, ctx)
   ctx.page.drawRectangle({
-    x: x * MM_TO_PT,
-    y: ctx.pageHeightPt - y * MM_TO_PT - hPt,
+    x: tl.x,
+    y: tl.y - hPt,
     width: wPt,
     height: hPt,
     color: fill,
@@ -131,10 +160,13 @@ function drawLine(el: Element, ctx: Ctx): void {
   const x2 = parseFloat(el.getAttribute('x2') || '0')
   const y2 = parseFloat(el.getAttribute('y2') || '0')
   const stroke = parseColor(el.getAttribute('stroke')) ?? rgb(0, 0, 0)
-  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0.25') * MM_TO_PT
+  const { sx } = extractScale(ctx.matrix)
+  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0.25') * sx * MM_TO_PT
+  const a = svgPtToPdf(x1, y1, ctx)
+  const b = svgPtToPdf(x2, y2, ctx)
   ctx.page.drawLine({
-    start: { x: x1 * MM_TO_PT, y: ctx.pageHeightPt - y1 * MM_TO_PT },
-    end: { x: x2 * MM_TO_PT, y: ctx.pageHeightPt - y2 * MM_TO_PT },
+    start: { x: a.x, y: a.y },
+    end: { x: b.x, y: b.y },
     color: stroke,
     thickness: strokeWidth,
   })
@@ -148,12 +180,14 @@ function drawEllipseEl(el: Element, ctx: Ctx): void {
   if (rx <= 0 || ry <= 0) return
   const fill = parseColor(el.getAttribute('fill'))
   const stroke = parseColor(el.getAttribute('stroke'))
-  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0') * MM_TO_PT
+  const { sx, sy } = extractScale(ctx.matrix)
+  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0') * sx * MM_TO_PT
+  const c = svgPtToPdf(cx, cy, ctx)
   ctx.page.drawEllipse({
-    x: cx * MM_TO_PT,
-    y: ctx.pageHeightPt - cy * MM_TO_PT,
-    xScale: rx * MM_TO_PT,
-    yScale: ry * MM_TO_PT,
+    x: c.x,
+    y: c.y,
+    xScale: rx * sx * MM_TO_PT,
+    yScale: ry * sy * MM_TO_PT,
     color: fill,
     borderColor: stroke,
     borderWidth: stroke ? strokeWidth : 0,
@@ -167,11 +201,13 @@ function drawCircleEl(el: Element, ctx: Ctx): void {
   if (r <= 0) return
   const fill = parseColor(el.getAttribute('fill'))
   const stroke = parseColor(el.getAttribute('stroke'))
-  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0') * MM_TO_PT
+  const { sx } = extractScale(ctx.matrix)
+  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0') * sx * MM_TO_PT
+  const c = svgPtToPdf(cx, cy, ctx)
   ctx.page.drawCircle({
-    x: cx * MM_TO_PT,
-    y: ctx.pageHeightPt - cy * MM_TO_PT,
-    size: r * MM_TO_PT,
+    x: c.x,
+    y: c.y,
+    size: r * sx * MM_TO_PT,
     color: fill,
     borderColor: stroke,
     borderWidth: stroke ? strokeWidth : 0,
@@ -206,11 +242,13 @@ async function drawImage(el: Element, ctx: Ctx): Promise<void> {
   } catch {
     return
   }
-  const wPt = w * MM_TO_PT
-  const hPt = h * MM_TO_PT
+  const { sx, sy } = extractScale(ctx.matrix)
+  const wPt = w * sx * MM_TO_PT
+  const hPt = h * sy * MM_TO_PT
+  const tl = svgPtToPdf(x, y, ctx)
   ctx.page.drawImage(img, {
-    x: x * MM_TO_PT,
-    y: ctx.pageHeightPt - y * MM_TO_PT - hPt,
+    x: tl.x,
+    y: tl.y - hPt,
     width: wPt,
     height: hPt,
   })
@@ -224,15 +262,14 @@ function drawText(el: Element, ctx: Ctx): void {
   if (!text) return
 
   const fill = parseColor(el.getAttribute('fill')) ?? rgb(0, 0, 0)
-  const xPt = x * MM_TO_PT
-  // pdf-lib drawText y is the baseline; flip from SVG top-origin to PDF bottom-origin.
-  const yPt = ctx.pageHeightPt - y * MM_TO_PT
+  const { sx } = extractScale(ctx.matrix)
+  const baseline = svgPtToPdf(x, y, ctx)
 
   ctx.page.drawText(text, {
-    x: xPt,
-    y: yPt,
+    x: baseline.x,
+    y: baseline.y,
     font: ctx.helvetica,
-    size: fontSize * MM_TO_PT,
+    size: fontSize * sx * MM_TO_PT,
     color: fill,
   })
 }
@@ -262,9 +299,14 @@ async function walk(el: Element, ctx: Ctx): Promise<void> {
       await drawImage(el, ctx)
       return
   }
-  // Recurse into containers (<g>, <svg>, layers, etc.).
+  // Containers: compose their transform attribute (if any) with the
+  // ancestor matrix, then recurse.
+  const transformAttr = el.getAttribute('transform')
+  const childCtx: Ctx = transformAttr
+    ? { ...ctx, matrix: multiplyMatrix(ctx.matrix, parseTransform(transformAttr)) }
+    : ctx
   for (const child of Array.from(el.children)) {
-    await walk(child, ctx)
+    await walk(child, childCtx)
   }
 }
 
@@ -281,7 +323,7 @@ export async function svgStringToPdfBytes(svgString: string): Promise<Uint8Array
   const page = pdf.addPage([widthPt, heightPt])
   const helvetica = await pdf.embedFont(StandardFonts.Helvetica)
 
-  const ctx: Ctx = { pdf, page, helvetica, pageHeightPt: heightPt }
+  const ctx: Ctx = { pdf, page, helvetica, pageHeightPt: heightPt, matrix: identityMatrix() }
   await walk(svg, ctx)
 
   return pdf.save()

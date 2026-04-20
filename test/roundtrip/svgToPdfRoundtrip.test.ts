@@ -13,6 +13,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { exportSvgStringToPdfBytes } from '../../src/model/fileio'
 import { pdfToSvg } from './helpers/pdfPipeline'
+import { extractPdfTextItems } from './helpers/pdfText'
 
 const SIMPLE_TEXT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
   <g data-layer-name="Layer 1">
@@ -169,8 +170,38 @@ describe('SVG → PDF → SVG round-trip', () => {
       reimported = await pdfToSvg(pdfBytes)
     })
 
-    it('text inside a translated group survives', () => {
+    it('text inside a translated group survives the round-trip', () => {
       expect(reimported).toContain('Inside group')
+    })
+
+    it('translate(dx, dy) actually shifts text x position by dx', async () => {
+      // Same text, with vs without an enclosing translate(30, 0). Inspect
+      // PDF text positions via pdfjs-dist; the translated case should sit
+      // 30mm further right (= 30 * 72/25.4 ≈ 85 pt further in PDF coords).
+      const noT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+        <g data-layer-name="Layer 1">
+          <text x="10" y="20" font-family="Helvetica" font-size="6">Marker</text>
+        </g>
+      </svg>`
+      const withT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+        <g data-layer-name="Layer 1">
+          <g transform="translate(30, 0)">
+            <text x="10" y="20" font-family="Helvetica" font-size="6">Marker</text>
+          </g>
+        </g>
+      </svg>`
+      const aBytes = await exportSvgStringToPdfBytes(noT)
+      const bBytes = await exportSvgStringToPdfBytes(withT)
+      const aItems = await extractPdfTextItems(aBytes)
+      const bItems = await extractPdfTextItems(bBytes)
+      const aMarker = aItems.find((it) => it.str.includes('Marker'))
+      const bMarker = bItems.find((it) => it.str.includes('Marker'))
+      expect(aMarker).toBeDefined()
+      expect(bMarker).toBeDefined()
+      if (!aMarker || !bMarker) return
+      const dxPt = bMarker.x - aMarker.x
+      const expectedPt = 30 * (72 / 25.4) // 30mm in pt
+      expect(dxPt).toBeCloseTo(expectedPt, 0)
     })
   })
 
