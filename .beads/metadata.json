@@ -1,6 +1,7 @@
 {
   "database": "dolt",
   "backend": "dolt",
-  "dolt_mode": "server",
-  "dolt_database": "vectorfeld"
+  "dolt_mode": "embedded",
+  "dolt_database": "vectorfeld",
+  "project_id": "e3039d66-ed4b-4629-9000-bbe50805dd69"
 }
