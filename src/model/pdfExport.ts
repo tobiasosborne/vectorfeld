@@ -20,6 +20,7 @@
  */
 
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from 'pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
 import { parsePathD, commandsToD, type PathCommand } from './pathOps'
 import {
   applyMatrixToPoint,
@@ -31,13 +32,71 @@ import {
 
 const MM_TO_PT = 72 / 25.4
 
+/**
+ * Raw font-file bytes supplied by the caller. pdf-lib needs these because
+ * StandardFonts.Helvetica doesn't match source PDF fonts (Calibri, Playfair
+ * Display, …) in either glyph shape or metrics, which was the root cause of
+ * visibly-wrong composites. The caller loads these in the appropriate
+ * environment (fetch+?url in the browser; fs.readFileSync in tests).
+ *
+ * Missing entries fall back to the sans family; missing sans falls back to
+ * StandardFonts.Helvetica so existing callers keep working unchanged.
+ */
+export interface FontBytes {
+  sansRegular?: Uint8Array
+  sansItalic?: Uint8Array
+  sansBold?: Uint8Array
+  serifRegular?: Uint8Array
+  serifItalic?: Uint8Array
+}
+
+interface EmbeddedFonts {
+  sansRegular: PDFFont
+  sansItalic: PDFFont
+  sansBold: PDFFont
+  serifRegular: PDFFont
+  serifItalic: PDFFont
+}
+
 interface Ctx {
   pdf: PDFDocument
   page: ReturnType<PDFDocument['addPage']>
-  helvetica: PDFFont
+  /** Source-font-aware font set. All five slots are filled (falling back
+   *  through sansRegular → helvetica) so the drawer never has to branch. */
+  fonts: EmbeddedFonts
   pageHeightPt: number
   /** Cumulative SVG-space transform from ancestor <g> elements. */
   matrix: Matrix
+}
+
+/**
+ * Pick the best embedded font for the given font-family attribute. Source
+ * PDFs commonly name fonts that aren't on the host machine (Calibri from
+ * Word-generated PDFs, Playfair Display from designer tools). Since we
+ * can't embed the actual subset, we map by family TYPE (serif/sans) and
+ * STYLE (italic/bold) to a close-metric open alternative.
+ */
+function pickFont(
+  fonts: EmbeddedFonts,
+  fontFamily: string | null,
+  fontStyle: string | null,
+  fontWeight: string | null
+): PDFFont {
+  const family = (fontFamily || '').toLowerCase()
+  const italic = (fontStyle || '').toLowerCase().includes('italic')
+    || /italic|oblique/.test(family)
+  const bold = (fontWeight || '').toLowerCase().includes('bold')
+    || /bold/.test(family)
+    || parseInt(fontWeight || '0', 10) >= 600
+  // Rough serif detector: covers Playfair, Times, Georgia, Cambria, Garamond,
+  // and anything that literally contains "serif".
+  const isSerif = /serif|playfair|times|georgia|cambria|garamond|minion|book ?antiqua/.test(family)
+
+  if (isSerif && italic) return fonts.serifItalic
+  if (isSerif) return fonts.serifRegular
+  if (italic) return fonts.sansItalic
+  if (bold) return fonts.sansBold
+  return fonts.sansRegular
 }
 
 /** Map an SVG-space (x, y) (in mm) through ctx.matrix and convert to PDF pt
@@ -310,16 +369,17 @@ function drawTextRun(
   y: number,
   fontSize: number,
   fill: ReturnType<typeof rgb> | undefined,
+  font: PDFFont,
   ctx: Ctx
 ): void {
-  const safe = safeEncode(text, ctx.helvetica, text.slice(0, 40))
+  const safe = safeEncode(text, font, text.slice(0, 40))
   if (!safe) return
   const { sx } = extractScale(ctx.matrix)
   const baseline = svgPtToPdf(x, y, ctx)
   ctx.page.drawText(safe, {
     x: baseline.x,
     y: baseline.y,
-    font: ctx.helvetica,
+    font,
     size: fontSize * sx * MM_TO_PT,
     color: fill ?? rgb(0, 0, 0),
   })
@@ -336,11 +396,17 @@ function drawText(el: Element, ctx: Ctx): void {
   const fill = parseColor(el.getAttribute('fill'))
   const elX = parseFloat(el.getAttribute('x') || '0')
   const elY = parseFloat(el.getAttribute('y') || '0')
+  const elFamily = el.getAttribute('font-family')
+  const elStyle = el.getAttribute('font-style')
+  const elWeight = el.getAttribute('font-weight')
 
   const tspans = Array.from(el.children).filter((c) => c.tagName.toLowerCase() === 'tspan')
   if (tspans.length === 0) {
     const content = el.textContent || ''
-    if (content) drawTextRun(content, elX, elY, fontSize, fill, ctx)
+    if (content) {
+      const font = pickFont(ctx.fonts, elFamily, elStyle, elWeight)
+      drawTextRun(content, elX, elY, fontSize, fill, font, ctx)
+    }
     return
   }
 
@@ -350,17 +416,23 @@ function drawText(el: Element, ctx: Ctx): void {
     // x/y on a <tspan> may be a single number OR a space-separated per-
     // character list (SVG 1.1 §10.4). MuPDF's text=text mode emits the
     // per-char form for ~40% of tspans to preserve the source font's
-    // glyph spacing — critical because our export embeds only Helvetica,
-    // whose advances don't match Calibri/etc. (vectorfeld-dcx).
+    // glyph spacing — critical because our embedded fonts (Carlito etc.)
+    // can't perfectly match the source font's advances (vectorfeld-dcx).
     const xAttr = tspan.getAttribute('x') ?? String(elX)
     const yAttr = tspan.getAttribute('y') ?? String(elY)
     const xArr = xAttr.trim().split(/\s+/).map(parseFloat)
     const yArr = yAttr.trim().split(/\s+/).map(parseFloat)
     const tspanSize = parseFloat(tspan.getAttribute('font-size') || String(fontSize))
     const tspanFill = parseColor(tspan.getAttribute('fill')) ?? fill
+    // font-family can be set on <text> OR <tspan> (MuPDF puts it on <text>).
+    // Inherit and override at tspan level.
+    const family = tspan.getAttribute('font-family') ?? elFamily
+    const style = tspan.getAttribute('font-style') ?? elStyle
+    const weight = tspan.getAttribute('font-weight') ?? elWeight
+    const font = pickFont(ctx.fonts, family, style, weight)
 
     if (xArr.length <= 1 && yArr.length <= 1) {
-      drawTextRun(content, xArr[0], yArr[0], tspanSize, tspanFill, ctx)
+      drawTextRun(content, xArr[0], yArr[0], tspanSize, tspanFill, font, ctx)
       continue
     }
 
@@ -375,7 +447,7 @@ function drawText(el: Element, ctx: Ctx): void {
     for (let i = 0; i < chars.length; i++) {
       const cx = i < xArr.length ? xArr[i] : lastX
       const cy = i < yArr.length ? yArr[i] : lastY
-      drawTextRun(chars[i], cx, cy, tspanSize, tspanFill, ctx)
+      drawTextRun(chars[i], cx, cy, tspanSize, tspanFill, font, ctx)
     }
   }
 }
@@ -421,7 +493,48 @@ async function walk(el: Element, ctx: Ctx): Promise<void> {
   }
 }
 
-export async function svgStringToPdfBytes(svgString: string): Promise<Uint8Array> {
+/**
+ * Embed the caller-provided font bytes (if any) and fall back to
+ * StandardFonts.Helvetica for missing slots. All five slots in the returned
+ * EmbeddedFonts are filled so draw code never has to null-check.
+ */
+async function embedFonts(pdf: PDFDocument, fonts?: FontBytes): Promise<EmbeddedFonts> {
+  const anyBytes = fonts && Object.values(fonts).some((b) => b instanceof Uint8Array)
+  if (anyBytes) {
+    pdf.registerFontkit(fontkit)
+  }
+  const helvetica = await pdf.embedFont(StandardFonts.Helvetica)
+  const embed = async (bytes?: Uint8Array): Promise<PDFFont> => {
+    if (!bytes) return helvetica
+    try {
+      // subset=false so every glyph is embedded — we issue many per-char
+      // drawText calls for MuPDF tspans with per-char x-arrays, and the
+      // subset machinery doesn't always pick up the glyphs cleanly across
+      // those separate runs.
+      return await pdf.embedFont(bytes, { subset: false })
+    } catch (err) {
+      console.warn('[vectorfeld] failed to embed custom font; falling back to Helvetica', err)
+      return helvetica
+    }
+  }
+  const sansRegular = await embed(fonts?.sansRegular)
+  return {
+    sansRegular,
+    sansItalic: await embed(fonts?.sansItalic ?? fonts?.sansRegular),
+    sansBold: await embed(fonts?.sansBold ?? fonts?.sansRegular),
+    serifRegular: await embed(fonts?.serifRegular ?? fonts?.sansRegular),
+    serifItalic: await embed(fonts?.serifItalic ?? fonts?.serifRegular ?? fonts?.sansItalic ?? fonts?.sansRegular),
+  }
+}
+
+export interface SvgToPdfOptions {
+  fonts?: FontBytes
+}
+
+export async function svgStringToPdfBytes(
+  svgString: string,
+  opts: SvgToPdfOptions = {}
+): Promise<Uint8Array> {
   const parser = new DOMParser()
   const doc = parser.parseFromString(svgString, 'image/svg+xml')
   const svg = doc.documentElement
@@ -432,9 +545,9 @@ export async function svgStringToPdfBytes(svgString: string): Promise<Uint8Array
 
   const pdf = await PDFDocument.create()
   const page = pdf.addPage([widthPt, heightPt])
-  const helvetica = await pdf.embedFont(StandardFonts.Helvetica)
+  const fonts = await embedFonts(pdf, opts.fonts)
 
-  const ctx: Ctx = { pdf, page, helvetica, pageHeightPt: heightPt, matrix: identityMatrix() }
+  const ctx: Ctx = { pdf, page, fonts, pageHeightPt: heightPt, matrix: identityMatrix() }
   await walk(svg, ctx)
 
   return pdf.save()

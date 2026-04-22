@@ -3,7 +3,35 @@ import { syncIdCounter } from './document'
 import { clearSelection } from './selection'
 import { AddElementCommand } from './commands'
 import type { CommandHistory } from './commands'
-import { svgStringToPdfBytes } from './pdfExport'
+import { svgStringToPdfBytes, type FontBytes } from './pdfExport'
+
+// Carlito (Calibri-metric-compatible open clone) for sans, Liberation Serif
+// as a Playfair-Display-compatible fallback for serif. Vite resolves the
+// ?url import to a build-time URL; we fetch+arrayBuffer to get raw bytes
+// which pdf-lib's embedFont consumes directly.
+import carlitoRegularUrl from '../fonts/Carlito-Regular.ttf?url'
+import carlitoItalicUrl from '../fonts/Carlito-Italic.ttf?url'
+import carlitoBoldUrl from '../fonts/Carlito-Bold.ttf?url'
+import serifRegularUrl from '../fonts/LiberationSerif-Regular.ttf?url'
+import serifItalicUrl from '../fonts/LiberationSerif-Italic.ttf?url'
+
+let cachedFontBytes: FontBytes | null = null
+async function loadFontsForExport(): Promise<FontBytes> {
+  if (cachedFontBytes) return cachedFontBytes
+  const fetchBytes = async (url: string): Promise<Uint8Array> => {
+    const resp = await fetch(url)
+    return new Uint8Array(await resp.arrayBuffer())
+  }
+  const [sansRegular, sansItalic, sansBold, serifRegular, serifItalic] = await Promise.all([
+    fetchBytes(carlitoRegularUrl),
+    fetchBytes(carlitoItalicUrl),
+    fetchBytes(carlitoBoldUrl),
+    fetchBytes(serifRegularUrl),
+    fetchBytes(serifItalicUrl),
+  ])
+  cachedFontBytes = { sansRegular, sansItalic, sansBold, serifRegular, serifItalic }
+  return cachedFontBytes
+}
 
 /** Selector for editor-only overlays that should be stripped on export */
 const OVERLAY_SELECTOR = '[data-role="overlay"], [data-role="preview"], [data-role="grid-overlay"], [data-role="guides-overlay"], [data-role="user-guides-overlay"], [data-role="wireframe"]'
@@ -136,7 +164,12 @@ export async function exportPdf(doc: DocumentModel, filename: string = 'document
   }
 
   const svgString = new XMLSerializer().serializeToString(svgClone)
-  const pdfBytes = await svgStringToPdfBytes(svgString)
+  // Load Carlito + Liberation Serif so imported PDF fonts (Calibri, Playfair
+  // Display, etc.) round-trip with near-correct metrics rather than being
+  // substituted with Helvetica (wrong shape AND wrong widths → visible
+  // kerning errors).
+  const fonts = await loadFontsForExport()
+  const pdfBytes = await svgStringToPdfBytes(svgString, { fonts })
 
   const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' })
   const url = URL.createObjectURL(blob)
