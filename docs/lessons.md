@@ -64,6 +64,20 @@
 - **Lesson:** for any SVG-consuming code, **the unit-test fixtures must include the emission shape of every upstream tool you intend to consume**, not just the textbook SVG forms. For us that means: a fixture whose structure mirrors MuPDF's actual output (leaf-level transforms + tspan-positioned glyphs). Run `experiments/probe-mupdf-svg.mjs`-style spike scripts when adding a new SVG consumer to see what producers actually emit.
 - **Detection method that worked:** real-user composite-via-playwright + screenshot the exported PDF in headed Chromium. Visual inspection caught what 17 green synthetic tests missed.
 
+## pdf-lib drawSvgPath double-Y-flip
+
+- `page.drawSvgPath(d, { x, y, ... })` applies an **internal Y-flip** to convert SVG-convention (y-down from anchor) into PDF coordinates. If you also pre-flip your d-string via `pageHeightPt - y`, the result is a double-flip and every path renders above the page (invisible).
+- Symptom that caught this: after importing a PDF with MuPDF, the 216 vector paths for the flyer's bird logo + blue border frame were **completely missing** from the exported PDF, even though `constructPath` ops were present (just at negative Y).
+- Detection: no synthetic test caught this because existing path tests only asserted `<path[\s>]/i.test(reimported)` — "a path element exists somewhere". Added a real position test (`test/roundtrip/svgToPdfRoundtrip.test.ts`) that re-imports via `pdfToSvg` and checks at least one path command point lies inside the page viewBox.
+- Fix pattern for mixed API shapes: `drawRectangle`/`drawText`/`drawLine`/`drawEllipse` take PDF coords directly (bottom-up), but `drawSvgPath` takes SVG coords and flips internally. **When mixing these in one engine, pre-flipping applies to the first group only**. Pass `y: pageHeightPt` to `drawSvgPath` to anchor SVG origin at the page's top-left; pass PDF-space coordinates for the others.
+
+## Vite dev server staleness when dogfooding headed Chromium
+
+- After landing code, **re-verifying via playwright + headed Chromium against `localhost:5173` can serve STALE CODE** if the dev server has been running for a long time (>an hour, or after a background-task lifecycle event). Vite's HMR usually keeps things fresh but not always — especially when asset imports (`?url`) change.
+- Symptom that burned time: a PDF export test produced visibly broken output for 10+ minutes while the code *looked* right and isolated stress tests passed cleanly. Eventually found the dev server process was dead (HTTP 000) and playwright was hitting a stale cached build in a zombie state.
+- Rule: before diagnosing a headed-Chromium failure, **curl localhost:5173 and confirm 200**; if in doubt, kill and restart `npm run dev` with `nohup ... &` so it survives the agent session. Check `ps aux | grep vite`.
+- Verification shortcut: also render the exported PDF via `pdftoppm -r 100 -png` (CLI, no Vite). If Chromium shows garbage but pdftoppm shows correct output, the PDF is fine and Chromium has a rendering quirk. If BOTH show garbage, the PDF itself is wrong. If pdftoppm succeeds on the CURRENT file but Chromium failed earlier, the file changed (stale fetch).
+
 ## Subagent file-writing
 - The Explore subagent is read-only — it cannot Write/Edit files even when the prompt asks for output to a path
 - For tasks that must produce files (reports, refactors), use the general-purpose subagent OR plan to write the output yourself from the agent's response
