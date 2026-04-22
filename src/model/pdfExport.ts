@@ -338,16 +338,36 @@ function drawText(el: Element, ctx: Ctx): void {
   for (const tspan of tspans) {
     const content = tspan.textContent || ''
     if (!content) continue
-    // x/y can be a single number or a space-separated per-character list. We
-    // honour only the first value and let pdf-lib lay out the rest of the
-    // run — full per-glyph positioning is out of MVP scope.
+    // x/y on a <tspan> may be a single number OR a space-separated per-
+    // character list (SVG 1.1 §10.4). MuPDF's text=text mode emits the
+    // per-char form for ~40% of tspans to preserve the source font's
+    // glyph spacing — critical because our export embeds only Helvetica,
+    // whose advances don't match Calibri/etc. (vectorfeld-dcx).
     const xAttr = tspan.getAttribute('x') ?? String(elX)
     const yAttr = tspan.getAttribute('y') ?? String(elY)
-    const x = parseFloat(xAttr.trim().split(/\s+/)[0])
-    const y = parseFloat(yAttr.trim().split(/\s+/)[0])
+    const xArr = xAttr.trim().split(/\s+/).map(parseFloat)
+    const yArr = yAttr.trim().split(/\s+/).map(parseFloat)
     const tspanSize = parseFloat(tspan.getAttribute('font-size') || String(fontSize))
     const tspanFill = parseColor(tspan.getAttribute('fill')) ?? fill
-    drawTextRun(content, x, y, tspanSize, tspanFill, ctx)
+
+    if (xArr.length <= 1 && yArr.length <= 1) {
+      drawTextRun(content, xArr[0], yArr[0], tspanSize, tspanFill, ctx)
+      continue
+    }
+
+    // Per-character path: walk the content as code points so surrogate
+    // pairs stay together. When the array is shorter than the text, reuse
+    // the last array value for the remaining chars (pragmatic choice; the
+    // SVG-spec alternative is font-advance layout, but that's exactly
+    // what re-introduces the wrong-metric problem we're fixing).
+    const chars = Array.from(content)
+    const lastX = xArr[xArr.length - 1]
+    const lastY = yArr[yArr.length - 1]
+    for (let i = 0; i < chars.length; i++) {
+      const cx = i < xArr.length ? xArr[i] : lastX
+      const cy = i < yArr.length ? yArr[i] : lastY
+      drawTextRun(chars[i], cx, cy, tspanSize, tspanFill, ctx)
+    }
   }
 }
 

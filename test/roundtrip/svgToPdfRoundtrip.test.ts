@@ -300,6 +300,65 @@ describe('SVG → PDF → SVG round-trip', () => {
       // Both tspans should appear at distinct positions.
       expect(b.x).toBeGreaterThan(a.x)
     })
+
+    // vectorfeld-dcx: MuPDF emits tspans with PER-CHARACTER x-arrays like
+    //   <tspan x="93.1 106.5 115.4 ... 502.0" y="-629">Kurzfristige Hilfe</tspan>
+    // for spacing control. Before fix, we read only the first x and let
+    // pdf-lib lay out the rest with Helvetica metrics that don't match the
+    // source font's — so every multi-char tspan collapses to the first x plus
+    // a Helvetica-advance run that's visibly wrong (words run together).
+    it('per-char x-array: last character lands at its specified x position', async () => {
+      // 4-char tspan whose last char is explicitly at x=100mm. Without per-char
+      // handling, all four chars pack into ~10mm + helvetica-advances ≈ 12mm.
+      // With per-char handling, the last char ('d') sits near x=100mm.
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50">
+        <g data-layer-name="L1">
+          <text font-family="Helvetica" font-size="6"><tspan x="10 40 70 100" y="20">abcd</tspan></text>
+        </g>
+      </svg>`
+      const bytes = await exportSvgStringToPdfBytes(svg)
+      const items = await extractPdfTextItems(bytes)
+      const mm2pt = 72 / 25.4
+      const maxX = Math.max(...items.map((i) => i.x))
+      // Rightmost text content should be near 100mm (= ~283.5 pt), not near
+      // 10mm (= ~28.3 pt). Tolerance of a few pt covers glyph-origin offset.
+      expect(maxX).toBeCloseTo(100 * mm2pt, 0)
+    })
+
+    it('per-char x-array: each character goes to its own x (at least 2 distinct items)', async () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50">
+        <g data-layer-name="L1">
+          <text font-family="Helvetica" font-size="6"><tspan x="10 40 70 100" y="20">abcd</tspan></text>
+        </g>
+      </svg>`
+      const bytes = await exportSvgStringToPdfBytes(svg)
+      const items = await extractPdfTextItems(bytes)
+      // After fix, the chars end up as multiple items (we issue one drawText
+      // per char). Count items whose x is past the mid-point of the span.
+      const mm2pt = 72 / 25.4
+      const rightHalf = items.filter((i) => i.x > 55 * mm2pt)
+      // Before fix: 0 items on the right. After: at least 2 (chars 'c' and 'd').
+      expect(rightHalf.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('x-array shorter than text reuses last value for remaining chars (SVG spec)', async () => {
+      // Per SVG 1.1 §10.4: "If there are more characters than x values, the
+      // remaining characters are positioned according to the font's advance."
+      // We interpret conservatively: remaining chars after the array share
+      // the last explicit x (clamped). This covers MuPDF's 1:1 emission and
+      // keeps synthetic fixtures that pass fewer x values sensible.
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50">
+        <g data-layer-name="L1">
+          <text font-family="Helvetica" font-size="6"><tspan x="10 50" y="20">abcd</tspan></text>
+        </g>
+      </svg>`
+      const bytes = await exportSvgStringToPdfBytes(svg)
+      const items = await extractPdfTextItems(bytes)
+      // At minimum, the text should not all collapse at x=10mm; some content
+      // must appear past x=40mm.
+      const mm2pt = 72 / 25.4
+      expect(items.some((i) => i.x > 40 * mm2pt)).toBe(true)
+    })
   })
 
   describe('with non-WinAnsi characters in text (vectorfeld-ape)', () => {
