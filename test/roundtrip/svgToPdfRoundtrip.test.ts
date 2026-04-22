@@ -86,6 +86,37 @@ describe('SVG → PDF → SVG round-trip', () => {
     it('a path element survives the round-trip', () => {
       expect(reimported).toMatch(/<path[\s>]/i)
     })
+
+    // vectorfeld-dcx follow-up: the "a path exists" test above missed a
+    // double-Y-flip in drawPath that made every path land above the page
+    // (off-screen). Confirm the re-imported path has points inside the
+    // page area. Uses parsePathD to correctly track current-point across
+    // H/V/L/C commands (naïve number-splitting doesn't).
+    it('a path renders inside the PDF page bounds (not off-screen)', async () => {
+      const PATH_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+        <g data-layer-name="Layer 1">
+          <path d="M 10,10 L 50,40 L 50,10 Z" stroke="#000000" fill="#abcdef" stroke-width="0.5"/>
+        </g>
+      </svg>`
+      const bytes = await exportSvgStringToPdfBytes(PATH_SVG)
+      const svgStr = await pdfToSvg(bytes)
+      // Re-imported viewBox gives us the page area. Pick the coloured path
+      // (fill=#abcdef) to avoid framing artefacts, then assert at least one
+      // command point falls inside the page bounds.
+      const { parsePathD } = await import('../../src/model/pathOps')
+      const vbMatch = svgStr.match(/viewBox="([^"]+)"/)
+      expect(vbMatch).not.toBeNull()
+      if (!vbMatch) return
+      const [, , pageW, pageH] = vbMatch[1].split(/\s+/).map(Number)
+      const pathMatch = svgStr.match(/<path[^>]*fill="[^"]*(?:abcdef|ABCDEF)"[^>]*\sd="([^"]+)"/)
+        ?? svgStr.match(/<path[^>]*\sd="([^"]+)"[^>]*fill="[^"]*(?:abcdef|ABCDEF)"/)
+      expect(pathMatch).not.toBeNull()
+      if (!pathMatch) return
+      const cmds = parsePathD(pathMatch[1])
+      const pts = cmds.flatMap((c) => c.points)
+      const onPage = pts.some((p) => p.x >= 0 && p.x <= pageW && p.y >= 0 && p.y <= pageH)
+      expect(onPage).toBe(true)
+    })
   })
 
   describe('with a rect', () => {

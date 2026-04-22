@@ -96,15 +96,20 @@ function parseColor(s: string | null): ReturnType<typeof rgb> | undefined {
 }
 
 /**
- * Transform a path d-string from SVG (mm, top-left origin, possibly under a
- * parent matrix) to PDF (pt, bottom-left origin). Applies ctx.matrix to each
- * point, then x*MM_TO_PT and pageHeightPt - y*MM_TO_PT.
+ * Transform a path d-string from SVG-space (mm, top-left origin, possibly
+ * under ctx.matrix) to PDF-space pt with top-left origin — i.e. x and y both
+ * scaled mm→pt, but NO Y-axis flip. pdf-lib's drawSvgPath applies its own
+ * internal Y-flip (it takes SVG-convention input and flips), so if we
+ * pre-flip here the content lands off-page at negative Y.
  */
 function transformPathD(d: string, ctx: Ctx): string {
   const cmds = parsePathD(d)
   const out: PathCommand[] = cmds.map((c) => ({
     type: c.type,
-    points: c.points.map((p) => svgPtToPdf(p.x, p.y, ctx)),
+    points: c.points.map((p) => {
+      const t = applyMatrixToPoint(ctx.matrix, p.x, p.y)
+      return { x: t.x * MM_TO_PT, y: t.y * MM_TO_PT }
+    }),
   }))
   return commandsToD(out)
 }
@@ -119,9 +124,13 @@ function drawPath(el: Element, ctx: Ctx): void {
   const { sx } = extractScale(ctx.matrix)
   const strokeWidth = strokeWidthAttr ? parseFloat(strokeWidthAttr) * sx * MM_TO_PT : 1
 
+  // drawSvgPath expects SVG-convention coords (y-down from the anchor point).
+  // We pass (x=0, y=pageHeightPt) so that SVG origin lands at the PDF page's
+  // top-left, and drawSvgPath's internal y-flip makes content fill downward
+  // across the page.
   ctx.page.drawSvgPath(transformedD, {
     x: 0,
-    y: 0,
+    y: ctx.pageHeightPt,
     color: fill,
     borderColor: stroke,
     borderWidth: stroke ? strokeWidth : 0,
