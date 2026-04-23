@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, useEffect } from 'react'
 import { MenuBar } from './components/MenuBar'
-import { ToolStrip } from './components/ToolStrip'
+import { LeftRail } from './components/LeftRail'
 import { LayersPanel } from './components/LayersPanel'
 import { Canvas } from './components/Canvas'
 import type { CanvasState, DocumentDimensions } from './components/Canvas'
@@ -330,7 +330,7 @@ function AppContent() {
           gap: 4,
         }}
       >
-        <ToolStrip />
+        <LeftRail />
       </Panel>
 
       {/* Layers shell — floats between the rail and the canvas. Gets merged into the Inspector in 3e. */}
