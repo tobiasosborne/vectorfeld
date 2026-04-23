@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from 'react'
-import { MenuBar } from './components/MenuBar'
+import { TopBar } from './components/TopBar'
 import { LeftRail } from './components/LeftRail'
 import { LayersPanel } from './components/LayersPanel'
 import { Canvas } from './components/Canvas'
@@ -64,6 +64,17 @@ function AppContent() {
     update()
     return subscribeSelection(update)
   }, [])
+
+  // TopBar: single-doc tab stub. Active name stays "Untitled" until
+  // PDF/SVG imports surface a filename (vectorfeld-4w7 lights that up).
+  // Dirty = history has an undoable command.
+  const activeDocName = 'Untitled'
+  const [dirty, setDirty] = useState(editor.history.canUndo)
+  useEffect(() => {
+    const update = () => setDirty(editor.history.canUndo)
+    update()
+    return editor.history.subscribe(update)
+  }, [editor.history])
 
   // Track canvas container size for rulers
   useEffect(() => {
@@ -281,7 +292,8 @@ function AppContent() {
         </div>
       </div>
 
-      {/* TopBar — floating card, holds the MenuBar for now (TopBar rewrite in 3b) */}
+      {/* TopBar — floating card with brand, menus, single-doc tab stub, Export PDF.
+          overflow:visible is load-bearing so menu dropdowns can extend below the bar. */}
       <Panel
         data-testid="topbar"
         style={{
@@ -294,12 +306,15 @@ function AppContent() {
           display: 'flex',
           alignItems: 'center',
           padding: '0 8px',
-          overflow: 'hidden',
+          overflow: 'visible',
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <MenuBar menus={menus} />
-        </div>
+        <TopBar
+          menus={menus}
+          activeDocName={activeDocName}
+          dirty={dirty}
+          onExportPdf={() => editor.doc && exportPdf(editor.doc)}
+        />
       </Panel>
       {/* Temporary: keep ControlBar docked below TopBar until 3e folds its X/Y/W/H fields into the Inspector Frame section */}
       <div
