@@ -1,19 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --color-chrome-50: #fafafa;
-  --color-chrome-100: #f5f5f5;
-  --color-chrome-200: #e5e5e5;
-  --color-chrome-300: #d4d4d4;
-  --color-chrome-400: #a3a3a3;
-  --color-chrome-500: #737373;
-  --color-chrome-600: #525252;
-  --color-chrome-700: #404040;
-  --color-chrome-800: #262626;
-  --color-chrome-900: #171717;
-  --color-accent: #2563eb;
-  --color-accent-light: #3b82f6;
-  --color-canvas-bg: #e5e5e5;
+  --color-bg: oklch(96% 0.01 80);
+  --color-canvas-tint: oklch(94% 0.018 75);
+  --color-panel: rgba(255, 253, 249, 0.78);
+  --color-panel-solid: oklch(98% 0.005 80);
+  --color-border: rgba(60, 40, 20, 0.08);
+  --color-border-strong: rgba(60, 40, 20, 0.14);
+  --color-text: oklch(24% 0.02 70);
+  --color-muted: oklch(52% 0.02 70);
+  --color-faint: oklch(68% 0.02 70);
+  --color-accent: oklch(64% 0.18 35);
+  --color-accent-tint: oklch(94% 0.04 35);
+  --color-accent-text: oklch(44% 0.17 35);
+  --blur-panel: saturate(1.2) blur(18px);
+  --radius-panel: 14px;
+  --shadow-panel: 0 10px 30px -16px rgba(60,40,20,0.14);
   --color-artboard: #ffffff;
 }
 
@@ -22,5 +24,7 @@ body {
   overflow: hidden;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-bg);
   -webkit-font-smoothing: antialiased;
 }
