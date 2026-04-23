@@ -42,7 +42,13 @@ function LayerThumb({ kind }: { kind: string }) {
   return <div style={base} />
 }
 
-export function LayersPanel() {
+interface LayersPanelProps {
+  /** Skip the internal Layers/Pages tab header — caller (Inspector)
+   *  provides its own. */
+  embedded?: boolean
+}
+
+export function LayersPanel({ embedded = false }: LayersPanelProps = {}) {
   const editor = useEditor()
   const [layers, setLayers] = useState<LayerInfo[]>([])
   const [activeLayerIdx, setActiveLayerIdx] = useState(0)
@@ -133,36 +139,38 @@ export function LayersPanel() {
         fontSize: 12,
       }}
     >
-      {/* Header: Layers / Pages tabs + add */}
-      <div style={{ padding: '12px 14px 8px', display: 'flex', gap: 2, alignItems: 'center' }}>
-        {(['Layers', 'Pages'] as const).map((s, i) => (
+      {/* Header: Layers / Pages tabs + add (omitted when embedded — Inspector provides its own header) */}
+      {!embedded && (
+        <div style={{ padding: '12px 14px 8px', display: 'flex', gap: 2, alignItems: 'center' }}>
+          {(['Layers', 'Pages'] as const).map((s, i) => (
+            <button
+              key={s}
+              data-role={i === 0 ? 'layers-tab' : 'pages-tab'}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 999,
+                border: 0,
+                fontSize: 11.5,
+                background: i === 0 ? 'var(--color-panel-solid)' : 'transparent',
+                boxShadow: i === 0 ? '0 0 0 1px var(--color-border)' : 'none',
+                color: i === 0 ? 'var(--color-text)' : 'var(--color-muted)',
+                fontWeight: i === 0 ? 500 : 400,
+                cursor: 'default',
+              }}
+            >
+              {s}
+            </button>
+          ))}
+          <div style={{ flex: 1 }} />
           <button
-            key={s}
-            data-role={i === 0 ? 'layers-tab' : 'pages-tab'}
-            style={{
-              padding: '4px 10px',
-              borderRadius: 999,
-              border: 0,
-              fontSize: 11.5,
-              background: i === 0 ? 'var(--color-panel-solid)' : 'transparent',
-              boxShadow: i === 0 ? '0 0 0 1px var(--color-border)' : 'none',
-              color: i === 0 ? 'var(--color-text)' : 'var(--color-muted)',
-              fontWeight: i === 0 ? 500 : 400,
-              cursor: 'default',
-            }}
+            onClick={addLayer}
+            title="Add layer"
+            style={{ color: 'var(--color-faint)', border: 0, background: 'transparent', fontSize: 14, cursor: 'default' }}
           >
-            {s}
+            +
           </button>
-        ))}
-        <div style={{ flex: 1 }} />
-        <button
-          onClick={addLayer}
-          title="Add layer"
-          style={{ color: 'var(--color-faint)', border: 0, background: 'transparent', fontSize: 14, cursor: 'default' }}
-        >
-          +
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* Rows */}
       <div style={{ flex: 1, overflow: 'auto', padding: '0 6px 10px' }}>

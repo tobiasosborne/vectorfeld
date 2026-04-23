@@ -12,14 +12,19 @@ describe('Atrium floating-panel layout', () => {
     expect(root.style.background).toContain('radial-gradient')
   })
 
-  it('renders five named floating Panels (topbar, leftrail, layers-shell, inspector, statusbar)', () => {
+  it('renders four named floating Panels (topbar, leftrail, inspector, statusbar)', () => {
     const { container } = render(<App />)
-    for (const testid of ['topbar', 'leftrail', 'layers-shell', 'inspector', 'statusbar']) {
+    for (const testid of ['topbar', 'leftrail', 'inspector', 'statusbar']) {
       const el = container.querySelector(`[data-testid="${testid}"]`) as HTMLElement
       expect(el, `missing panel ${testid}`).not.toBeNull()
       expect(el.getAttribute('data-role'), `${testid} must be a Panel`).toBe('panel')
       expect(el.style.position, `${testid} must be absolute-positioned`).toBe('absolute')
     }
+  })
+
+  it('no longer renders a standalone layers-shell Panel (merged into Inspector in 3e)', () => {
+    const { container } = render(<App />)
+    expect(container.querySelector('[data-testid="layers-shell"]')).toBeNull()
   })
 
   it('positions TopBar at top:12/left:12/right:12 h:44', () => {

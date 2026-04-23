@@ -96,7 +96,13 @@ function PropertyInput({ label, value, onChange }: { label: string; value: strin
   )
 }
 
-export function PropertiesPanel() {
+interface PropertiesPanelProps {
+  /** When true, skips the outer Tailwind card + "Properties" header —
+   *  caller provides its own chrome (e.g. InspectorPanel). */
+  embedded?: boolean
+}
+
+export function PropertiesPanel({ embedded = false }: PropertiesPanelProps = {}) {
   const { history, doc } = useEditor()
   const [selection, setSelectionState] = useState<Element[]>([])
   const [lockAspect, setLockAspect] = useState(false)
@@ -133,13 +139,19 @@ export function PropertiesPanel() {
   const el = selection.length === 1 ? selection[0] : null
   const tag = el?.tagName
 
+  const outerClass = embedded
+    ? 'flex flex-col flex-1 min-h-0'
+    : 'w-56 bg-chrome-50 border-l border-chrome-300 flex flex-col'
+
   return (
-    <div className="w-56 bg-chrome-50 border-l border-chrome-300 flex flex-col">
-      <div className="h-8 bg-chrome-100 border-b border-chrome-200 flex items-center px-2">
-        <span className="text-xs font-medium text-chrome-600 select-none">Properties</span>
-      </div>
-      <div className="flex-1 overflow-y-auto p-2 space-y-3">
-        {selection.length === 0 && (
+    <div className={outerClass}>
+      {!embedded && (
+        <div className="h-8 bg-chrome-100 border-b border-chrome-200 flex items-center px-2">
+          <span className="text-xs font-medium text-chrome-600 select-none">Properties</span>
+        </div>
+      )}
+      <div className={embedded ? 'flex-1 overflow-y-auto space-y-3' : 'flex-1 overflow-y-auto p-2 space-y-3'}>
+        {selection.length === 0 && !embedded && (
           <p className="text-xs text-chrome-400">No selection</p>
         )}
         {selection.length > 1 && (

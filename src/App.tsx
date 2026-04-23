@@ -1,12 +1,10 @@
 import { useCallback, useRef, useState, useEffect } from 'react'
 import { TopBar } from './components/TopBar'
 import { LeftRail } from './components/LeftRail'
-import { LayersPanel } from './components/LayersPanel'
 import { Canvas } from './components/Canvas'
 import type { CanvasState, DocumentDimensions } from './components/Canvas'
-import { PropertiesPanel } from './components/PropertiesPanel'
+import { InspectorPanel } from './components/InspectorPanel'
 import { StatusBar } from './components/StatusBar'
-import { ControlBar } from './components/ControlBar'
 import { ArtboardDialog } from './components/ArtboardDialog'
 import { Panel } from './components/Panel'
 import { EditorProvider, useEditor } from './model/EditorContext'
@@ -316,20 +314,6 @@ function AppContent() {
           onExportPdf={() => editor.doc && exportPdf(editor.doc)}
         />
       </Panel>
-      {/* Temporary: keep ControlBar docked below TopBar until 3e folds its X/Y/W/H fields into the Inspector Frame section */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 66,
-          left: 82,
-          right: 306,
-          height: 28,
-          zIndex: 3,
-        }}
-      >
-        <ControlBar />
-      </div>
-
       {/* LeftRail — tool palette */}
       <Panel
         data-testid="leftrail"
@@ -348,25 +332,7 @@ function AppContent() {
         <LeftRail />
       </Panel>
 
-      {/* Layers shell — floats between the rail and the canvas. Gets merged into the Inspector in 3e. */}
-      <Panel
-        data-testid="layers-shell"
-        style={{
-          position: 'absolute',
-          left: 82,
-          top: 100,
-          width: 240,
-          bottom: 60,
-          zIndex: 3,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
-      >
-        <LayersPanel />
-      </Panel>
-
-      {/* Inspector — right side. Holds PropertiesPanel in phase 2; phase 3e rewrites and absorbs Layers. */}
+      {/* Inspector — selection header + Frame + Style + merged Layers tab */}
       <Panel
         data-testid="inspector"
         style={{
@@ -381,7 +347,7 @@ function AppContent() {
           overflow: 'hidden',
         }}
       >
-        <PropertiesPanel />
+        <InspectorPanel />
       </Panel>
 
       {/* StatusBar — floating pill at bottom */}

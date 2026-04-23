@@ -116,16 +116,16 @@ export function ControlBar() {
 
   if (selection.length === 0) {
     return (
-      <div className="h-7 bg-chrome-100 border-b border-chrome-200 flex items-center px-3">
-        <span className="text-[10px] text-chrome-400">No selection</span>
+      <div className="h-7 flex items-center px-1 text-[10px]" style={{ color: 'var(--color-faint)' }}>
+        —
       </div>
     )
   }
 
   if (selection.length > 1) {
     return (
-      <div className="h-7 bg-chrome-100 border-b border-chrome-200 flex items-center px-3">
-        <span className="text-[10px] text-chrome-500">{selection.length} objects selected</span>
+      <div className="h-7 flex items-center px-1 text-[10px]" style={{ color: 'var(--color-muted)' }}>
+        <span>{selection.length} objects</span>
       </div>
     )
   }

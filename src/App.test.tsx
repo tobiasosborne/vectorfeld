@@ -7,8 +7,11 @@ describe('App', () => {
     const { container } = render(<App />)
     // Brand mark replaced the "vectorfeld" text in the Atrium redesign
     expect(container.querySelector('[data-role="brand"]')).toBeInTheDocument()
-    expect(screen.getByText('Layers')).toBeInTheDocument()
-    expect(screen.getByText('Properties')).toBeInTheDocument()
+    // Inspector section headings
+    expect(screen.getByText('Frame')).toBeInTheDocument()
+    expect(screen.getByText('Style')).toBeInTheDocument()
+    // Inspector merged Layers tab
+    expect(container.querySelector('[data-role="inspector-layers-tab"]')).toBeInTheDocument()
   })
 
   it('has the app container element', () => {
