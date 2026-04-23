@@ -484,3 +484,127 @@ Short session. No production code changed. Oriented on the project state, then s
 ### Next work unchanged
 
 Top of queue: `vectorfeld-byq` (live `mupdf.PDFDocument` handle in `DocumentState`), pending bd restore.
+
+---
+
+## Session log — 2026-04-23 (Atrium UI redesign — full ship)
+
+Owner handed over `design/vectorfeld.zip` — the Claude Design output from the 2026-04-22 drop. Went through it, carved a 15-bead plan, landed every phase in one autonomous session via red-green TDD with headed-Chromium dogfood between rewrites. End state: the 1998 Java Swing chrome is gone. The app is Atrium.
+
+### What shipped
+
+**Tokens + primitives (phase 0)**
+- `src/index.css` — swapped `@theme` from chrome-* + #2563eb to the full Atrium oklch palette (15 tokens including `--color-panel` translucent, `--blur-panel` backdrop filter, `--radius-panel` 14, `--shadow-panel` soft drop).
+- `src/theme/atrium.ts` — 4 palettes (`defaultAtrium` ships; `birrenSage`, `birrenPeach`, `sodiumVapor` reserved for a future theme switcher).
+- `src/components/Panel.tsx` — 40-LOC floating-card wrapper; used by every chrome surface.
+
+**Icon system (phase 1)**
+- `src/components/IconGlyph.tsx` — ported 28-glyph `ICONS` dictionary + `IconGlyph` renderer verbatim from `design/unpacked/.../icons.jsx`. Single geometry, three rendering systems (hairline 1.25px default, duotone 1px + tinted fill, stamped 1.6px + registration dot). Fail-soft `?` for unknown names.
+- `src/components/iconKeyForTool.ts` — alias map between registered tool names and ICONS keys (`rectangle→rect`, `eraser→erase`, `direct-select→directSelect`, `measure→ruler`, `free-transform→scale`).
+- Retired `src/components/icons.tsx` (−129 LOC of mixed-stroke inline SVG).
+
+**Layout + chrome (phases 2–3)**
+- Gutted `App.tsx:237-322` JSX — replaced docked flex+grid with absolutely-positioned floating Panels over a radial-gradient canvas root.
+- `src/components/LeftRail.tsx` — 9-slot rail (select, directSelect, pen, brush*, text, rect, knife*, eyedropper, erase). `*` disabled + "Coming soon" tooltip (design keys preserved even without backing tools). Overflow `⋯` button surfaces the 6 keyboard-only tools. Accent-tint pill marks the active slot.
+- `src/components/TopBar.tsx` — brand mark + File/Edit/View/Object menu words + single-doc tab stub with dirty dot + inert Split stub + coral-gradient Export PDF button.
+- `src/components/StatusBar.tsx` — floating pill with saved dot, page nav (inert stub), cursor X/Y in mm, zoom −/+.
+- `src/components/InspectorPanel.tsx` — selection header + Frame section (mounts ControlBar) + Style section (mounts PropertiesPanel with new `embedded` prop) + merged Layers/Pages tab strip at 42% height (Pages is an inert stub until `vectorfeld-4w7`).
+- `src/components/LayersPanel.tsx` — row restyle (30px rows, kind thumb, accent-tint selection, ⚠ mostly-outlined badge preserved); gains `embedded` prop to suppress its internal tabs when inside InspectorPanel.
+- `src/components/Ruler.tsx` — 14px thin, transparent bg, tick colors from `getComputedStyle` on CSS vars (no hard-coded hex).
+- `FillStrokeWidget`, `ColorPicker`, `ContextMenu`, `ArtboardDialog` — all four restyled to Atrium Panel treatment. ArtboardDialog now has a backdrop blur and a coral-gradient Apply button.
+
+**Fonts (phase 4)**
+- `src/fonts/web/` — Inter (400/500/600) + JetBrains Mono (400) bundled as woff2. ~422 KB. No Google Fonts CDN → Tauri CSP untouched. Playfair Display deliberately skipped; hero empty-state text falls back to Georgia.
+
+**Dogfood (phase 5)**
+- `temp/atrium-dogfood.mjs` — re-runnable acceptance gate. 4 gates: empty state + rail, draw rect + Inspector populates, File menu opens, real-PDF compositing regression. ALL PASS.
+- `temp/composite-via-playwright.mjs` — updated to disambiguate the new "Export PDF" button / menu-item collision via `.last()`.
+
+### Real bugs caught by headed-Chromium dogfood (and fixed)
+
+1. **TopBar overflow:hidden clipped the File-menu dropdown** (3b). The menu was in the DOM per eval but invisible in screenshots. Only surfaced when I actually clicked File. Fixed to `overflow: visible`. No synthetic test could have caught it.
+2. **LeftRail subscribe-after-notify race** (5a). Accent pill was missing on fresh page load because `Canvas` mounts first and fires `setActiveTool('select')` BEFORE `LeftRail`'s useEffect subscribes — initial notification lost. Every manual test had me clicking a tool right after load (masking the bug). Automated gate caught it. Fix: subscribe-and-sync pattern — re-read `getActiveToolName()` inside the useEffect after subscribing.
+
+Both are exactly the kind of bug the persistent-memory rule about headed-Chromium dogfood is designed to catch.
+
+### Beads closed this session (15)
+
+Epic `vectorfeld-luk` + 15 sub-beads, all closed via red-green TDD:
+
+| ID | Title |
+|---|---|
+| `vectorfeld-2i2` | Atrium 0a: oklch theme tokens in index.css |
+| `vectorfeld-e5c` | Atrium 0b: theme/atrium.ts palette module |
+| `vectorfeld-85d` | Atrium 0c: Panel wrapper component |
+| `vectorfeld-1z5` | Atrium 1a: IconGlyph + ICONS dictionary |
+| `vectorfeld-4tf` | Atrium 1b: iconKeyForTool alias map |
+| `vectorfeld-jt3` | Atrium 1c: retire old icons.tsx |
+| `vectorfeld-cfw` | Atrium 2: layout restructure — floating panels |
+| `vectorfeld-byh` | Atrium 3a: LeftRail component |
+| `vectorfeld-ey0` | Atrium 3b: TopBar component |
+| `vectorfeld-hv8` | Atrium 3c: StatusBar restyle |
+| `vectorfeld-6co` | Atrium 3d: LayersPanel row restyle |
+| `vectorfeld-gke` | Atrium 3e: InspectorPanel + merged Layers tab |
+| `vectorfeld-2gf` | Atrium 3f: Ruler repalette + thinning |
+| `vectorfeld-pz3` | Atrium 3g: FillStrokeWidget / ColorPicker / ContextMenu / ArtboardDialog |
+| `vectorfeld-9ci` | Atrium 4: bundle Inter + JetBrains Mono locally |
+| `vectorfeld-u6i` / `-csl` | Atrium 5a/5b: dogfood script + regression |
+
+### Commits on `main` this session
+
+```
+4aaec2c  Add atrium-dogfood.mjs + update composite-via-playwright.mjs (force-add)
+035f49b  Atrium 5a + 5b: dogfood gates + regression
+543c73c  Atrium 4: bundle Inter + JetBrains Mono locally
+e3521c6  Atrium 3g: Fill/Color/Context/Artboard restyle
+ed2b5c8  Atrium 3f: Ruler repalette + thinning
+5f5e056  Atrium 3e: InspectorPanel + merged Layers tab
+01b2074  Atrium 3d: LayersPanel row restyle
+e8f0518  Atrium 3c: StatusBar restyle
+0c4d9d9  Atrium 3b: TopBar with brand, tabs stub, Export PDF
+492a3ed  Atrium 3a: LeftRail — 9-slot design roster
+269e22d  Atrium 2: layout restructure — floating panels
+995a982  Atrium 1c: retire old icons.tsx
+32b7db8  Atrium 1b: iconKeyForTool alias map
+c054d62  Atrium 1a: IconGlyph + 28-glyph ICONS dictionary
+eab6f93  Atrium 0c: Panel wrapper component
+0acc4d7  Atrium 0b: palette module with 4 themes
+11ac8ea  Atrium 0a: swap index.css @theme to oklch palette
+```
+
+17 commits (+1 worklog). Starting point `cc1d88a` (prior-session design-drop stage), ending `4aaec2c`.
+
+### Tests
+
+512 → **600 green** across 49 files. +88 new Atrium tests covering tokens, palettes, Panel wrapper, IconGlyph, iconKeyForTool, layout Panels, LeftRail roster + active + disabled-stubs, TopBar brand/tabs/export, StatusBar slots, LayersPanel tabs + active row, InspectorPanel structure.
+
+### Bundle
+
++422 KB woff2 fonts (Inter x3 + JetBrains Mono). Main chunk size unchanged. MuPDF JS + WASM unchanged.
+
+### Screenshots
+
+Full photo essay in `docs/redesign-atrium/`:
+- `01-phase-0-1-halfway.png` — tokens + icons swapped, layout still old
+- `02-phase-2-floating.png` — floating Panels land
+- `03-phase-3a-leftrail.png` / `03b-leftrail-rect-active.png` — rail + accent pill
+- `04-phase-3b-topbar.png` / `04b-topbar-file-menu.png` — top bar + menu dropdown
+- `05-phase-3c-statusbar.png` — status pill
+- `06-phase-3d-layers.png` — Layers row treatment
+- `07-phase-3e-inspector.png` / `07b-inspector-with-selection.png` — Inspector empty + populated
+- `08-phase-3f-rulers.png` — thin Atrium rulers
+- `09-phase-3g-artboard.png` — ArtboardDialog over blurred backdrop
+- `10-phase-4-fonts.png` — Inter rendering throughout
+- `dogfood-{1..4}.png` — the 4 gates from the automated script
+
+### Known follow-ups (NOT blocking)
+
+- Frame pills from ControlBar wrap awkwardly at 286px Inspector width — mild UI polish, not functional.
+- Add-layer "+" button is gone from the embedded LayersPanel header (Inspector owns the tab strip). File a small follow-up bead if missed; users can right-click-menu or use View (not yet wired) meanwhile.
+- Zoom +/- StatusBar buttons are not yet wired to the actual Canvas (they're inert). Mousewheel zoom still works. Easy wiring, low priority.
+
+### Next work
+
+Back to the PDF-graft architecture track. Top of `bd ready` remains `vectorfeld-byq` (live `mupdf.PDFDocument` handle in `DocumentState`) → `8v3` (source-element tags) → `5gk` (command-level overlay classification) → `wjj` (graft engine) → `u7r` (wire) → `6d0` (byte-diff test). See `scripts/spike/*.mjs` for the proven-out architecture.
+
+Lower priority but unblocked: `vectorfeld-4w7` (multi-doc tabs) would light up the tab strip and the Split button I stubbed. `vectorfeld-2ss` (Paste in Place) is a 30-min bead.
