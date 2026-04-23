@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getAllTools, getActiveToolName, setActiveTool, subscribe } from '../tools/registry'
-import { TOOL_ICONS } from './icons'
+import { IconGlyph, type IconName } from './IconGlyph'
+import { iconKeyForTool } from './iconKeyForTool'
 import { FillStrokeWidget } from './FillStrokeWidget'
 
 /** Tools hidden from the sidebar but still invokable via keyboard shortcut.
@@ -39,7 +40,7 @@ export function ToolStrip() {
           }`}
           title={`${tool.name} (${tool.shortcut.toUpperCase()})`}
         >
-          {TOOL_ICONS[tool.name] || tool.icon}
+          <IconGlyph name={iconKeyForTool(tool.name) as IconName} size={20} />
         </button>
       ))}
       <div className="mt-auto pb-1">
