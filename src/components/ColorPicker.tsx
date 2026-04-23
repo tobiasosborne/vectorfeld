@@ -45,8 +45,10 @@ export function ColorPicker({ value, onChange, allowNone = true }: ColorPickerPr
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="w-6 h-6 border border-chrome-300 cursor-pointer"
+        className="w-6 h-6 cursor-pointer"
         style={{
+          border: '1px solid var(--color-border-strong)',
+          borderRadius: 4,
           backgroundColor: value === 'none' ? 'transparent' : value,
           backgroundImage: value === 'none'
             ? 'linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%)'
@@ -57,14 +59,34 @@ export function ColorPicker({ value, onChange, allowNone = true }: ColorPickerPr
         title={value}
       />
       {open && (
-        <div className="absolute top-7 left-0 z-50 bg-white border border-chrome-300 p-2 shadow-lg w-44">
-          <div className="grid grid-cols-6 gap-1 mb-2">
+        <div
+          data-role="panel"
+          style={{
+            position: 'absolute',
+            top: 30,
+            left: 0,
+            zIndex: 50,
+            background: 'var(--color-panel-solid)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 10,
+            padding: 10,
+            boxShadow: '0 10px 30px -8px rgba(60,40,20,0.18)',
+            width: 200,
+          }}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4, marginBottom: 8 }}>
             {PRESET_COLORS.map((color) => (
               <button
                 key={color}
                 onClick={() => { onChange(color); setOpen(false) }}
-                className="w-5 h-5 border border-chrome-200 cursor-pointer"
-                style={{ backgroundColor: color }}
+                style={{
+                  width: 22,
+                  height: 22,
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 4,
+                  backgroundColor: color,
+                  cursor: 'default',
+                }}
                 title={color}
               />
             ))}
@@ -72,23 +94,49 @@ export function ColorPicker({ value, onChange, allowNone = true }: ColorPickerPr
           {allowNone && (
             <button
               onClick={() => { onChange('none'); setOpen(false) }}
-              className="text-xs text-chrome-500 hover:text-chrome-800 mb-1 block"
+              style={{
+                fontSize: 11,
+                color: 'var(--color-muted)',
+                background: 'transparent',
+                border: 0,
+                marginBottom: 4,
+                padding: '2px 0',
+                cursor: 'default',
+                display: 'block',
+              }}
             >
               None (transparent)
             </button>
           )}
-          <div className="flex gap-1">
+          <div style={{ display: 'flex', gap: 4 }}>
             <input
               type="text"
               value={hexInput}
               onChange={(e) => setHexInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleHexSubmit()}
-              className="flex-1 border border-chrome-300 px-1 py-0.5 text-xs font-mono"
               placeholder="#000000"
+              style={{
+                flex: 1,
+                border: '1px solid var(--color-border)',
+                borderRadius: 6,
+                background: 'var(--color-panel-solid)',
+                padding: '3px 6px',
+                fontSize: 11,
+                fontFamily: 'ui-monospace, JetBrains Mono, monospace',
+                color: 'var(--color-text)',
+              }}
             />
             <button
               onClick={handleHexSubmit}
-              className="px-1 py-0.5 text-xs bg-chrome-100 border border-chrome-300"
+              style={{
+                padding: '3px 10px',
+                fontSize: 11,
+                background: 'var(--color-accent-tint)',
+                color: 'var(--color-accent-text)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 6,
+                cursor: 'default',
+              }}
             >
               OK
             </button>

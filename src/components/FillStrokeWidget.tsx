@@ -32,8 +32,9 @@ export function FillStrokeWidget() {
       </button>
       {/* Fill square (back, larger) */}
       <div
-        className="absolute top-2 left-2 w-6 h-6 border border-chrome-400 rounded-sm cursor-pointer"
+        className="absolute top-2 left-2 w-6 h-6 rounded-sm cursor-pointer"
         style={{
+          border: '1px solid var(--color-border-strong)',
           backgroundColor: fillColor,
           backgroundImage: style.fill === 'none'
             ? 'linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%)'
@@ -45,9 +46,9 @@ export function FillStrokeWidget() {
       />
       {/* Stroke square (front, overlapping top-left) */}
       <div
-        className="absolute top-0 left-0 w-6 h-6 border-2 rounded-sm cursor-pointer"
+        className="absolute top-0 left-0 w-6 h-6 rounded-sm cursor-pointer"
         style={{
-          borderColor: strokeColor,
+          border: `2px solid ${strokeColor}`,
           backgroundColor: 'transparent',
           backgroundImage: style.stroke === 'none'
             ? 'linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%)'
@@ -60,7 +61,8 @@ export function FillStrokeWidget() {
       {/* Swap arrow (top-right) */}
       <button
         onClick={swap}
-        className="absolute top-0 right-0 w-4 h-4 flex items-center justify-center text-chrome-500 hover:text-chrome-800"
+        className="absolute top-0 right-0 w-4 h-4 flex items-center justify-center"
+        style={{ color: 'var(--color-faint)' }}
         title="Swap fill & stroke"
       >
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">

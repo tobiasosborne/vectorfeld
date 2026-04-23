@@ -37,31 +37,73 @@ export function ArtboardDialog({ dimensions, onApply, onClose }: ArtboardDialogP
     setHeight(width)
   }
 
-  return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" data-testid="artboard-dialog">
-      <div className="bg-white border border-chrome-300 p-4 w-72 shadow-lg">
-        <h3 className="text-sm font-medium mb-3 text-chrome-800">Document Setup</h3>
+  const inputStyle = {
+    width: '100%',
+    border: '1px solid var(--color-border)',
+    borderRadius: 6,
+    padding: '6px 8px',
+    fontSize: 13,
+    fontFamily: 'ui-monospace, JetBrains Mono, monospace',
+    background: 'var(--color-panel-solid)',
+    color: 'var(--color-text)',
+  }
+  const presetBtnStyle = {
+    padding: '4px 10px',
+    fontSize: 11.5,
+    border: '1px solid var(--color-border)',
+    borderRadius: 999,
+    background: 'var(--color-panel-solid)',
+    color: 'var(--color-text)',
+    cursor: 'default',
+  }
 
-        <div className="flex gap-2 mb-3 flex-wrap">
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(20, 14, 8, 0.22)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 50,
+      }}
+      data-testid="artboard-dialog"
+    >
+      <div
+        data-role="panel"
+        style={{
+          background: 'var(--color-panel-solid)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 14,
+          padding: 20,
+          width: 320,
+          boxShadow: '0 30px 60px -20px rgba(60,40,20,0.3)',
+        }}
+      >
+        <h3 style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text)', margin: '0 0 14px' }}>Document Setup</h3>
+
+        <div style={{ display: 'flex', gap: 4, marginBottom: 14, flexWrap: 'wrap' }}>
           {PRESETS.map((p) => (
             <button
               key={p.name}
               onClick={() => handlePreset(p)}
-              className="px-2 py-0.5 text-xs border border-chrome-300 bg-chrome-50 hover:bg-chrome-200"
+              style={presetBtnStyle}
             >
               {p.name}
             </button>
           ))}
         </div>
 
-        <div className="flex gap-2 items-end mb-3">
-          <label className="flex-1">
-            <span className="text-xs text-chrome-500 block mb-0.5">Width (mm)</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'end', marginBottom: 14 }}>
+          <label style={{ flex: 1 }}>
+            <span style={{ fontSize: 10, letterSpacing: 0.14, textTransform: 'uppercase', color: 'var(--color-faint)', display: 'block', marginBottom: 4 }}>Width (mm)</span>
             <input
               type="number"
               value={width}
               onChange={(e) => setWidth(e.target.value)}
-              className="w-full border border-chrome-300 px-1.5 py-0.5 text-sm font-mono"
+              style={inputStyle}
               min="1"
               step="0.1"
               data-testid="artboard-width"
@@ -69,18 +111,18 @@ export function ArtboardDialog({ dimensions, onApply, onClose }: ArtboardDialogP
           </label>
           <button
             onClick={handleSwapOrientation}
-            className="px-2 py-0.5 text-xs border border-chrome-300 bg-chrome-50 hover:bg-chrome-200 mb-0.5"
             title="Swap orientation"
+            style={{ ...presetBtnStyle, padding: '4px 8px' }}
           >
             ↔
           </button>
-          <label className="flex-1">
-            <span className="text-xs text-chrome-500 block mb-0.5">Height (mm)</span>
+          <label style={{ flex: 1 }}>
+            <span style={{ fontSize: 10, letterSpacing: 0.14, textTransform: 'uppercase', color: 'var(--color-faint)', display: 'block', marginBottom: 4 }}>Height (mm)</span>
             <input
               type="number"
               value={height}
               onChange={(e) => setHeight(e.target.value)}
-              className="w-full border border-chrome-300 px-1.5 py-0.5 text-sm font-mono"
+              style={inputStyle}
               min="1"
               step="0.1"
               data-testid="artboard-height"
@@ -88,17 +130,35 @@ export function ArtboardDialog({ dimensions, onApply, onClose }: ArtboardDialogP
           </label>
         </div>
 
-        <div className="flex gap-2 justify-end">
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'end' }}>
           <button
             onClick={onClose}
-            className="px-3 py-1 text-xs border border-chrome-300 bg-chrome-50 hover:bg-chrome-200"
+            style={{
+              padding: '6px 14px',
+              fontSize: 12,
+              border: '1px solid var(--color-border)',
+              borderRadius: 999,
+              background: 'transparent',
+              color: 'var(--color-muted)',
+              cursor: 'default',
+            }}
           >
             Cancel
           </button>
           <button
             onClick={handleApply}
-            className="px-3 py-1 text-xs bg-accent text-white hover:bg-accent-light"
             data-testid="artboard-apply"
+            style={{
+              padding: '6px 16px',
+              fontSize: 12,
+              fontWeight: 500,
+              border: 0,
+              borderRadius: 999,
+              background: 'linear-gradient(180deg, var(--color-accent), var(--color-accent-text))',
+              color: '#fff',
+              cursor: 'default',
+              boxShadow: '0 4px 10px -4px var(--color-accent), 0 1px 0 rgba(255,255,255,0.25) inset',
+            }}
           >
             Apply
           </button>
