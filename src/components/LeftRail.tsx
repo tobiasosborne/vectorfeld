@@ -41,7 +41,12 @@ export function LeftRail() {
   const [activeName, setActiveName] = useState<string | null>(getActiveToolName())
   const [overflowOpen, setOverflowOpen] = useState(false)
 
-  useEffect(() => subscribe(() => setActiveName(getActiveToolName())), [])
+  useEffect(() => {
+    // Sync once after mount in case setActiveTool fired before we subscribed
+    // (Canvas mount effect runs before LeftRail's during initial render).
+    setActiveName(getActiveToolName())
+    return subscribe(() => setActiveName(getActiveToolName()))
+  }, [])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minHeight: 0 }}>
