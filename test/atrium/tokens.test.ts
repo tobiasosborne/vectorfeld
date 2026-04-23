@@ -45,4 +45,17 @@ describe('Atrium theme tokens in src/index.css', () => {
     expect(indexCss).not.toContain('#2563eb')
     expect(indexCss).not.toContain('#3b82f6')
   })
+
+  it('bundles Inter and JetBrains Mono via local @font-face (no Google Fonts CDN)', () => {
+    expect(indexCss).toContain("font-family: 'Inter'")
+    expect(indexCss).toContain("font-family: 'JetBrains Mono'")
+    expect(indexCss).toContain("./fonts/web/Inter-Regular.woff2")
+    expect(indexCss).toContain("./fonts/web/JetBrainsMono-Regular.woff2")
+    expect(indexCss).not.toContain('fonts.googleapis.com')
+    expect(indexCss).not.toContain('fonts.gstatic.com')
+  })
+
+  it('sets body font-family to start with Inter', () => {
+    expect(indexCss).toMatch(/body[^{]*{[^}]*font-family:\s*'Inter'/)
+  })
 })
