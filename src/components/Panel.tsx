@@ -4,6 +4,7 @@ interface PanelProps {
   children?: ReactNode
   className?: string
   style?: CSSProperties
+  'data-testid'?: string
 }
 
 const panelTreatment: CSSProperties = {
@@ -15,10 +16,11 @@ const panelTreatment: CSSProperties = {
   boxShadow: 'var(--shadow-panel)',
 }
 
-export function Panel({ children, className, style }: PanelProps) {
+export function Panel({ children, className, style, 'data-testid': testid }: PanelProps) {
   return (
     <div
       data-role="panel"
+      data-testid={testid}
       className={className}
       style={{ ...panelTreatment, ...style }}
     >

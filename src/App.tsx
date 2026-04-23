@@ -8,6 +8,7 @@ import { PropertiesPanel } from './components/PropertiesPanel'
 import { StatusBar } from './components/StatusBar'
 import { ControlBar } from './components/ControlBar'
 import { ArtboardDialog } from './components/ArtboardDialog'
+import { Panel } from './components/Panel'
 import { EditorProvider, useEditor } from './model/EditorContext'
 import { useToolShortcuts } from './tools/useToolShortcuts'
 import { registerAllTools } from './tools/registerAllTools'
@@ -47,8 +48,6 @@ function AppContent() {
 
   const [dimensions, setDimensions] = useState<DocumentDimensions>({ width: 210, height: 297 })
   const [showArtboard, setShowArtboard] = useState(false)
-  const [layersCollapsed, setLayersCollapsed] = useState(false)
-  const [propsCollapsed, setPropsCollapsed] = useState(false)
   const [canvasState, setCanvasState] = useState<CanvasState>({
     cursorX: 0,
     cursorY: 0,
@@ -176,9 +175,6 @@ function AppContent() {
           if (pos !== null && !isNaN(Number(pos))) addGuide('v', Number(pos))
         }},
         { label: 'Clear All Guides', shortcut: '', action: () => clearAllGuides() },
-        { separator: true, label: '' },
-        { label: 'Toggle Layers Panel', shortcut: '', action: () => setLayersCollapsed((c) => !c) },
-        { label: 'Toggle Properties Panel', shortcut: '', action: () => setPropsCollapsed((c) => !c) },
       ],
     },
     {
@@ -234,20 +230,47 @@ function AppContent() {
   ]
 
   return (
-    <div id="app" className="h-screen w-screen flex flex-col">
-      <MenuBar menus={menus} />
-      <ControlBar />
-      <div className="flex flex-1 min-h-0">
-        <ToolStrip />
-        <div className="flex-1 min-w-0" style={{ display: 'grid', gridTemplate: '"corner hruler" 20px "vruler canvas" 1fr / 20px 1fr' }}>
-          <div style={{ gridArea: 'corner', background: '#f0f0f0', borderRight: '1px solid #ccc', borderBottom: '1px solid #ccc' }} />
-          <div style={{ gridArea: 'hruler' }}>
+    <div
+      id="app"
+      style={{
+        position: 'relative',
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+        background: 'var(--color-bg)',
+        color: 'var(--color-text)',
+      }}
+    >
+      {/* Canvas root — radial gradient background, fills the viewport, rulers + SVG mount inside */}
+      <div
+        data-role="canvas-root"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          overflow: 'hidden',
+          background: 'radial-gradient(circle at 70% 30%, var(--color-panel-solid), var(--color-canvas-tint))',
+        }}
+      >
+        {/* Ruler + canvas inner grid — sits inside the canvas region, below the TopBar zone */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 66,
+            left: 78,
+            right: 306,
+            bottom: 60,
+            display: 'grid',
+            gridTemplate: '"corner hruler" 14px "vruler canvas" 1fr / 14px 1fr',
+          }}
+        >
+          <div style={{ gridArea: 'corner' }} />
+          <div style={{ gridArea: 'hruler', overflow: 'hidden', opacity: 0.6 }}>
             <HRuler viewBox={canvasState.viewBox} canvasSize={canvasSize.width} cursorPos={canvasState.cursorX} />
           </div>
-          <div style={{ gridArea: 'vruler' }}>
+          <div style={{ gridArea: 'vruler', overflow: 'hidden', opacity: 0.6 }}>
             <VRuler viewBox={canvasState.viewBox} canvasSize={canvasSize.height} cursorPos={canvasState.cursorY} />
           </div>
-          <div ref={canvasContainerRef} style={{ gridArea: 'canvas' }}>
+          <div ref={canvasContainerRef} style={{ gridArea: 'canvas', overflow: 'hidden' }}>
             <Canvas
               dimensions={dimensions}
               onStateChange={handleCanvasState}
@@ -256,54 +279,118 @@ function AppContent() {
             />
           </div>
         </div>
-        <div className="flex flex-col border-l border-chrome-300">
-          {propsCollapsed ? (
-            <div
-              className="h-6 bg-chrome-100 border-b border-chrome-300 flex items-center justify-center cursor-pointer hover:bg-chrome-200"
-              onClick={() => setPropsCollapsed(false)}
-              title="Show Properties"
-            >
-              <span className="text-xs text-chrome-500 select-none">Properties &raquo;</span>
-            </div>
-          ) : (
-            <div className="relative flex-1 min-h-0">
-              <PropertiesPanel />
-              <button
-                className="absolute top-0 left-0 w-4 h-4 text-xs text-chrome-400 hover:text-chrome-700"
-                onClick={() => setPropsCollapsed(true)}
-                title="Collapse"
-              >
-                &raquo;
-              </button>
-            </div>
-          )}
-          {layersCollapsed ? (
-            <div
-              className="h-6 bg-chrome-100 border-t border-chrome-300 flex items-center justify-center cursor-pointer hover:bg-chrome-200"
-              onClick={() => setLayersCollapsed(false)}
-              title="Show Layers"
-            >
-              <span className="text-xs text-chrome-500 select-none">Layers &raquo;</span>
-            </div>
-          ) : (
-            <div className="relative border-t border-chrome-300">
-              <LayersPanel />
-              <button
-                className="absolute top-0 left-0 w-4 h-4 text-xs text-chrome-400 hover:text-chrome-700"
-                onClick={() => setLayersCollapsed(true)}
-                title="Collapse"
-              >
-                &raquo;
-              </button>
-            </div>
-          )}
-        </div>
       </div>
-      <StatusBar
-        cursorX={canvasState.cursorX}
-        cursorY={canvasState.cursorY}
-        zoomPercent={canvasState.zoomPercent}
-      />
+
+      {/* TopBar — floating card, holds the MenuBar for now (TopBar rewrite in 3b) */}
+      <Panel
+        data-testid="topbar"
+        style={{
+          position: 'absolute',
+          top: 12,
+          left: 12,
+          right: 12,
+          height: 44,
+          zIndex: 4,
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 8px',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <MenuBar menus={menus} />
+        </div>
+      </Panel>
+      {/* Temporary: keep ControlBar docked below TopBar until 3e folds its X/Y/W/H fields into the Inspector Frame section */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 66,
+          left: 82,
+          right: 306,
+          height: 28,
+          zIndex: 3,
+        }}
+      >
+        <ControlBar />
+      </div>
+
+      {/* LeftRail — tool palette */}
+      <Panel
+        data-testid="leftrail"
+        style={{
+          position: 'absolute',
+          left: 12,
+          top: 72,
+          width: 58,
+          zIndex: 3,
+          padding: 6,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+        }}
+      >
+        <ToolStrip />
+      </Panel>
+
+      {/* Layers shell — floats between the rail and the canvas. Gets merged into the Inspector in 3e. */}
+      <Panel
+        data-testid="layers-shell"
+        style={{
+          position: 'absolute',
+          left: 82,
+          top: 100,
+          width: 240,
+          bottom: 60,
+          zIndex: 3,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <LayersPanel />
+      </Panel>
+
+      {/* Inspector — right side. Holds PropertiesPanel in phase 2; phase 3e rewrites and absorbs Layers. */}
+      <Panel
+        data-testid="inspector"
+        style={{
+          position: 'absolute',
+          right: 12,
+          top: 72,
+          bottom: 60,
+          width: 286,
+          zIndex: 3,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <PropertiesPanel />
+      </Panel>
+
+      {/* StatusBar — floating pill at bottom */}
+      <Panel
+        data-testid="statusbar"
+        style={{
+          position: 'absolute',
+          bottom: 12,
+          left: 12,
+          right: 12,
+          height: 40,
+          zIndex: 4,
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 14px',
+        }}
+      >
+        <StatusBar
+          cursorX={canvasState.cursorX}
+          cursorY={canvasState.cursorY}
+          zoomPercent={canvasState.zoomPercent}
+        />
+      </Panel>
+
       {showArtboard && (
         <ArtboardDialog
           dimensions={dimensions}
