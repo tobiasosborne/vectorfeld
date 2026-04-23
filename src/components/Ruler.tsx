@@ -6,7 +6,23 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
 import { addGuide } from '../model/guides'
 
-const RULER_SIZE = 20 // px
+const RULER_SIZE = 14 // px (Atrium thin ruler)
+
+// Resolve an Atrium CSS var to a concrete color string for canvas-rendering.
+function cssVar(name: string, fallback: string): string {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return fallback
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return v || fallback
+}
+
+function atriumRulerPalette() {
+  return {
+    border: cssVar('--color-border', 'rgba(60,40,20,0.08)'),
+    borderStrong: cssVar('--color-border-strong', 'rgba(60,40,20,0.14)'),
+    text: cssVar('--color-muted', 'oklch(52% 0.02 70)'),
+    cursor: cssVar('--color-accent', 'oklch(64% 0.18 35)'),
+  }
+}
 
 /** Adaptive tick intervals — pick one so ticks are ~50-100px apart */
 const INTERVALS = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]
@@ -59,12 +75,13 @@ export function HRuler({ viewBox, canvasSize, cursorPos }: RulerProps) {
     canvas.height = h * dpr
     ctx.scale(dpr, dpr)
 
-    // Background
-    ctx.fillStyle = '#f0f0f0'
-    ctx.fillRect(0, 0, w, h)
+    const pal = atriumRulerPalette()
+
+    // Background: transparent (sits over canvas tint)
+    ctx.clearRect(0, 0, w, h)
 
     // Bottom border
-    ctx.strokeStyle = '#ccc'
+    ctx.strokeStyle = pal.border
     ctx.lineWidth = 1
     ctx.beginPath()
     ctx.moveTo(0, h - 0.5)
@@ -81,39 +98,38 @@ export function HRuler({ viewBox, canvasSize, cursorPos }: RulerProps) {
     const start = Math.floor(viewBox.x / interval) * interval
     const end = viewBox.x + viewBox.width
 
-    ctx.fillStyle = '#333'
-    ctx.strokeStyle = '#999'
-    ctx.font = '9px sans-serif'
+    ctx.fillStyle = pal.text
+    ctx.font = '9px ui-sans-serif, Inter, system-ui, sans-serif'
     ctx.textBaseline = 'top'
 
     // Minor ticks
     const minorStart = Math.floor(viewBox.x / minorInterval) * minorInterval
-    ctx.strokeStyle = '#ccc'
+    ctx.strokeStyle = pal.border
     ctx.lineWidth = 0.5
     for (let v = minorStart; v <= end; v += minorInterval) {
       const px = (v - viewBox.x) * pxPerUnit
       ctx.beginPath()
-      ctx.moveTo(px, h - 4)
+      ctx.moveTo(px, h - 3)
       ctx.lineTo(px, h)
       ctx.stroke()
     }
 
     // Major ticks + labels
-    ctx.strokeStyle = '#666'
+    ctx.strokeStyle = pal.borderStrong
     ctx.lineWidth = 1
     for (let v = start; v <= end; v += interval) {
       const px = (v - viewBox.x) * pxPerUnit
       ctx.beginPath()
-      ctx.moveTo(px, h - 10)
+      ctx.moveTo(px, h - 7)
       ctx.lineTo(px, h)
       ctx.stroke()
-      ctx.fillText(formatLabel(v, interval), px + 2, 2)
+      ctx.fillText(formatLabel(v, interval), px + 2, 1)
     }
 
-    // Cursor indicator (red triangle)
+    // Cursor indicator (accent triangle)
     const cursorPx = (cursorPos - viewBox.x) * pxPerUnit
     if (cursorPx >= 0 && cursorPx <= w) {
-      ctx.fillStyle = '#e53e3e'
+      ctx.fillStyle = pal.cursor
       ctx.beginPath()
       ctx.moveTo(cursorPx - 4, h)
       ctx.lineTo(cursorPx + 4, h)
@@ -176,12 +192,13 @@ export function VRuler({ viewBox, canvasSize, cursorPos }: RulerProps) {
     canvas.height = h * dpr
     ctx.scale(dpr, dpr)
 
-    // Background
-    ctx.fillStyle = '#f0f0f0'
-    ctx.fillRect(0, 0, w, h)
+    const pal = atriumRulerPalette()
+
+    // Background: transparent
+    ctx.clearRect(0, 0, w, h)
 
     // Right border
-    ctx.strokeStyle = '#ccc'
+    ctx.strokeStyle = pal.border
     ctx.lineWidth = 1
     ctx.beginPath()
     ctx.moveTo(w - 0.5, 0)
@@ -197,27 +214,27 @@ export function VRuler({ viewBox, canvasSize, cursorPos }: RulerProps) {
     // Minor ticks
     const minorStart = Math.floor(viewBox.y / minorInterval) * minorInterval
     const end = viewBox.y + viewBox.height
-    ctx.strokeStyle = '#ccc'
+    ctx.strokeStyle = pal.border
     ctx.lineWidth = 0.5
     for (let v = minorStart; v <= end; v += minorInterval) {
       const py = (v - viewBox.y) * pxPerUnit
       ctx.beginPath()
-      ctx.moveTo(w - 4, py)
+      ctx.moveTo(w - 3, py)
       ctx.lineTo(w, py)
       ctx.stroke()
     }
 
     // Major ticks + labels
-    ctx.fillStyle = '#333'
-    ctx.strokeStyle = '#666'
+    ctx.fillStyle = pal.text
+    ctx.strokeStyle = pal.borderStrong
     ctx.lineWidth = 1
-    ctx.font = '9px sans-serif'
+    ctx.font = '9px ui-sans-serif, Inter, system-ui, sans-serif'
     const start = Math.floor(viewBox.y / interval) * interval
 
     for (let v = start; v <= end; v += interval) {
       const py = (v - viewBox.y) * pxPerUnit
       ctx.beginPath()
-      ctx.moveTo(w - 10, py)
+      ctx.moveTo(w - 7, py)
       ctx.lineTo(w, py)
       ctx.stroke()
 
@@ -230,10 +247,10 @@ export function VRuler({ viewBox, canvasSize, cursorPos }: RulerProps) {
       ctx.restore()
     }
 
-    // Cursor indicator (red triangle)
+    // Cursor indicator (accent triangle)
     const cursorPy = (cursorPos - viewBox.y) * pxPerUnit
     if (cursorPy >= 0 && cursorPy <= h) {
-      ctx.fillStyle = '#e53e3e'
+      ctx.fillStyle = pal.cursor
       ctx.beginPath()
       ctx.moveTo(w, cursorPy - 4)
       ctx.lineTo(w, cursorPy + 4)
