@@ -13,7 +13,6 @@ export async function run(page, h) {
   await h.clickTool('select')
   await h.clickOnCanvas(250, 230)
   await h.setFrame({ x: 40, y: 120, w: 40, h: 30 })
-  // Copy + paste — pasteClipboard normally offsets by a small amount.
   await page.keyboard.press('Control+C')
   await page.waitForTimeout(50)
   await page.keyboard.press('Control+V')

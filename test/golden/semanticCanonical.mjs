@@ -114,6 +114,10 @@ function shapeToPath(el) {
   ])
   for (const attr of Array.from(el.attributes)) {
     if (GEOM_ATTRS.has(attr.name)) continue
+    // xmlns and xmlns:* are namespace declarations, already re-emitted by
+    // the serializer from the element's namespaceURI; setAttribute on these
+    // in strict XML throws "Invalid attribute localName value".
+    if (attr.name === 'xmlns' || attr.name.startsWith('xmlns:')) continue
     path.setAttribute(attr.name, attr.value)
   }
   path.setAttribute('d', d)
@@ -124,6 +128,103 @@ function shapesToPath(root) {
   // Collect first — replaceWith mutates the tree.
   const shapes = Array.from(root.querySelectorAll('rect, circle, ellipse, line, polyline, polygon'))
   for (const s of shapes) shapeToPath(s)
+}
+
+// ---- 1b. Transform flatten (every transform → matrix(a,b,c,d,e,f)) ----
+//
+// Two transforms that produce the same visual matrix can differ in source
+// form:  `rotate(30, 80, 150)` ≡ `translate(80,150) rotate(30) translate(-80,-150)`
+// and the rotation-center argument in rotate(θ, cx, cy) just bakes in a
+// translation. If the app picks one pivot and the target fixture picks
+// another, the visual result can be identical while the transform strings
+// diverge. Flatten to matrix() so only the visible geometry matters.
+
+function identity() { return [1, 0, 0, 1, 0, 0] }
+
+function mul(a, b) {
+  // Column-vector convention matching SVG: [a c e; b d f; 0 0 1]
+  return [
+    a[0] * b[0] + a[2] * b[1],
+    a[1] * b[0] + a[3] * b[1],
+    a[0] * b[2] + a[2] * b[3],
+    a[1] * b[2] + a[3] * b[3],
+    a[0] * b[4] + a[2] * b[5] + a[4],
+    a[1] * b[4] + a[3] * b[5] + a[5],
+  ]
+}
+
+function translate(tx, ty) { return [1, 0, 0, 1, tx, ty] }
+function scaleM(sx, sy) { return [sx, 0, 0, sy, 0, 0] }
+function rotateM(deg) {
+  const r = deg * Math.PI / 180
+  const c = Math.cos(r), s = Math.sin(r)
+  return [c, s, -s, c, 0, 0]
+}
+function skewXM(deg) { return [1, 0, Math.tan(deg * Math.PI / 180), 1, 0, 0] }
+function skewYM(deg) { return [1, Math.tan(deg * Math.PI / 180), 0, 1, 0, 0] }
+
+function parseTransformToMatrix(str) {
+  let m = identity()
+  const re = /(\w+)\s*\(([^)]*)\)/g
+  let match
+  while ((match = re.exec(str)) !== null) {
+    const fn = match[1]
+    const args = match[2].trim().split(/[\s,]+/).filter(Boolean).map(parseFloat)
+    let step
+    switch (fn) {
+      case 'translate': step = translate(args[0] || 0, args[1] || 0); break
+      case 'scale': step = scaleM(args[0] || 1, args[1] ?? args[0] ?? 1); break
+      case 'rotate': {
+        if (args.length >= 3) {
+          step = mul(mul(translate(args[1], args[2]), rotateM(args[0] || 0)), translate(-args[1], -args[2]))
+        } else {
+          step = rotateM(args[0] || 0)
+        }
+        break
+      }
+      case 'skewX': step = skewXM(args[0] || 0); break
+      case 'skewY': step = skewYM(args[0] || 0); break
+      case 'matrix':
+        step = [args[0] || 0, args[1] || 0, args[2] || 0, args[3] || 0, args[4] || 0, args[5] || 0]
+        break
+      default: step = identity()
+    }
+    m = mul(m, step)
+  }
+  return m
+}
+
+function matrixToString(m) {
+  const r2 = (n) => {
+    if (!Number.isFinite(n)) return '0'
+    // Clamp tiny floats to zero (rotation + back-translation leaves 1e-15s)
+    if (Math.abs(n) < 1e-6) return '0'
+    return parseFloat(n.toFixed(2)).toString()
+  }
+  return `matrix(${r2(m[0])}, ${r2(m[1])}, ${r2(m[2])}, ${r2(m[3])}, ${r2(m[4])}, ${r2(m[5])})`
+}
+
+function flattenTransforms(root) {
+  const walker = root.ownerDocument.createTreeWalker(root, 1 /* SHOW_ELEMENT */)
+  let n = walker.currentNode
+  while (n) {
+    const el = /** @type {Element} */ (n)
+    const t = el.getAttribute('transform')
+    if (t) {
+      const m = parseTransformToMatrix(t)
+      // Check if it's the identity — if so, strip the attribute entirely.
+      if (
+        Math.abs(m[0] - 1) < 1e-6 && Math.abs(m[1]) < 1e-6 &&
+        Math.abs(m[2]) < 1e-6 && Math.abs(m[3] - 1) < 1e-6 &&
+        Math.abs(m[4]) < 1e-6 && Math.abs(m[5]) < 1e-6
+      ) {
+        el.removeAttribute('transform')
+      } else {
+        el.setAttribute('transform', matrixToString(m))
+      }
+    }
+    n = walker.nextNode()
+  }
 }
 
 // ---- 2. Color normalization ----
@@ -232,6 +333,7 @@ export function semanticCanonicalSvg(svgString) {
   const root = dom.window.document.documentElement
   stripAppChrome(root)
   shapesToPath(root)
+  flattenTransforms(root)
   normalizeColors(root)
   // Re-serialize and run the basic canonical pass (id strip, 2dp round,
   // attr sort). canonicalizeSvg handles xmlns/xlink properly.

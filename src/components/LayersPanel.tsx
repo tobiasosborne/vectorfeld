@@ -139,7 +139,7 @@ export function LayersPanel({ embedded = false }: LayersPanelProps = {}) {
         fontSize: 12,
       }}
     >
-      {/* Header: Layers / Pages tabs + add (omitted when embedded — Inspector provides its own header) */}
+      {/* Header: Layers / Pages tabs + add (omitted when embedded — Inspector provides its own tab strip) */}
       {!embedded && (
         <div style={{ padding: '12px 14px 8px', display: 'flex', gap: 2, alignItems: 'center' }}>
           {(['Layers', 'Pages'] as const).map((s, i) => (
@@ -163,6 +163,21 @@ export function LayersPanel({ embedded = false }: LayersPanelProps = {}) {
           ))}
           <div style={{ flex: 1 }} />
           <button
+            data-testid="add-layer"
+            onClick={addLayer}
+            title="Add layer"
+            style={{ color: 'var(--color-faint)', border: 0, background: 'transparent', fontSize: 14, cursor: 'default' }}
+          >
+            +
+          </button>
+        </div>
+      )}
+      {/* Compact "+" shown in embedded mode — the Inspector's own tab strip
+          doesn't surface a way to add a new layer without this. */}
+      {embedded && (
+        <div style={{ padding: '4px 8px 0', display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            data-testid="add-layer"
             onClick={addLayer}
             title="Add layer"
             style={{ color: 'var(--color-faint)', border: 0, background: 'transparent', fontSize: 14, cursor: 'default' }}

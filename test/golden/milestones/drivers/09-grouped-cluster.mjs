@@ -30,8 +30,8 @@ export async function run(page, h) {
 
   await page.keyboard.press('Control+A')
   await page.waitForTimeout(50)
-  await page.getByRole('button', { name: 'Object', exact: true }).click()
-  await page.getByText(/^Group$/i).first().click()
+  // Group via Ctrl+G — no menu item exists (gap filed as vectorfeld-gna).
+  await page.keyboard.press('Control+g')
   await page.waitForTimeout(100)
 
   // Move the group 50 right, 40 down via setFrame (translate 50,40)

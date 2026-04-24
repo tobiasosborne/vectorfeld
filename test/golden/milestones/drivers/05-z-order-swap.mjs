@@ -24,13 +24,26 @@ export async function run(page, h) {
   await drawRectFill(80, 125, 50, 50, 'blue')
   await drawRectFill(100, 140, 50, 50, 'green')
 
-  // Select blue (middle one). After drawing green, green is selected.
-  // Click on blue's visible area. Blue is at (80,125) w=50 h=50 → canvas
-  // offset depends on viewport-to-mm ratio, but 1mm ≈ 3.78px so blue's
-  // top-left in canvas-relative px would be roughly (80*3.78, 125*3.78)
-  // offset by artboard origin. This is fragile — the milestone will likely
-  // drift or fail here, which surfaces the selection-click usability gap.
-  await h.clickOnCanvas(350, 400) // blue's rough center — adjust if gap surfaces
+  // Select blue (the middle DOM child of the layer). Use an evaluate to
+  // dispatch a mousedown/mouseup at blue's on-screen center — canvas-to-mm
+  // px ratio depends on zoom and viewport, so asking the DOM for its
+  // actual bounding box is more robust than pixel math.
+  const blueCenter = await page.evaluate(() => {
+    const layerChildren = Array.from(document.querySelectorAll('g[data-layer-name] > rect'))
+    const blue = layerChildren[1] // middle rect in insertion order
+    if (!blue) return null
+    const b = blue.getBoundingClientRect()
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2 }
+  })
+  if (!blueCenter) throw new Error('blue rect not found')
+  // Clear current selection, then click blue.
+  await h.clickOnCanvas(5, 5)
+  await page.waitForTimeout(50)
+  await page.mouse.move(blueCenter.x, blueCenter.y)
+  await page.mouse.down()
+  await page.waitForTimeout(30)
+  await page.mouse.up()
+  await page.waitForTimeout(100)
 
   await page.getByRole('button', { name: 'Object', exact: true }).click()
   await page.getByText(/Bring to Front/i).first().click()

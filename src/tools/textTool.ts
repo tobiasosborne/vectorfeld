@@ -1,4 +1,4 @@
-import { registerTool, setKeyboardCapture } from './registry'
+import { registerTool, setActiveTool, setKeyboardCapture } from './registry'
 import type { ToolConfig } from './registry'
 import { screenToDoc } from '../model/coordinates'
 import { AddElementCommand } from '../model/commands'
@@ -6,6 +6,7 @@ import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import type { Point } from '../model/coordinates'
 import { getDefaultStyle } from '../model/defaultStyle'
+import { setSelection } from '../model/selection'
 
 const DEFAULT_FONT_FAMILY = 'sans-serif'
 const DEFAULT_FONT_SIZE = 16
@@ -187,6 +188,12 @@ export function createTextTool(
     const el = cmd.getElement()
     if (el) {
       el.textContent = textContent
+      // Auto-select the committed text + switch to the select tool so the
+      // Properties panel / Frame inputs operate on it immediately. Mirrors
+      // rectTool's post-create pattern. Without this, after Escape the
+      // selection is empty and the Frame inputs disappear.
+      setSelection([el])
+      setActiveTool('select')
     }
   }
 

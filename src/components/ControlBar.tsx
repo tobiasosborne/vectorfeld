@@ -201,13 +201,38 @@ export function ControlBar() {
   }
   const onW = (v: string) => {
     if (tag === 'rect' || tag === 'image') applyAttr(el, 'width', v)
-    else if (tag === 'ellipse') applyAttr(el, 'rx', String(parseFloat(v) / 2))
-    else if (tag === 'circle') applyAttr(el, 'r', String(parseFloat(v) / 2))
+    else if (tag === 'ellipse') {
+      // Preserve bbox.x (= cx - rx) when rx changes. Without the cx compensation,
+      // setFrame({x, w}) leaves the ellipse at the OLD cx, which moves bbox.x.
+      const newRx = parseFloat(v) / 2
+      const oldRx = parseFloat(getAttr(el, 'rx') || '0')
+      const oldCx = parseFloat(getAttr(el, 'cx') || '0')
+      const newCx = oldCx - oldRx + newRx
+      applyAttrs(el, [['rx', String(newRx)], ['cx', String(newCx)]])
+    } else if (tag === 'circle') {
+      const newR = parseFloat(v) / 2
+      const oldR = parseFloat(getAttr(el, 'r') || '0')
+      const oldCx = parseFloat(getAttr(el, 'cx') || '0')
+      const newCx = oldCx - oldR + newR
+      applyAttrs(el, [['r', String(newR)], ['cx', String(newCx)]])
+    }
   }
   const onH = (v: string) => {
     if (tag === 'rect' || tag === 'image') applyAttr(el, 'height', v)
-    else if (tag === 'ellipse') applyAttr(el, 'ry', String(parseFloat(v) / 2))
-    else if (tag === 'circle') applyAttr(el, 'r', String(parseFloat(v) / 2))
+    else if (tag === 'ellipse') {
+      const newRy = parseFloat(v) / 2
+      const oldRy = parseFloat(getAttr(el, 'ry') || '0')
+      const oldCy = parseFloat(getAttr(el, 'cy') || '0')
+      const newCy = oldCy - oldRy + newRy
+      applyAttrs(el, [['ry', String(newRy)], ['cy', String(newCy)]])
+    }
+    else if (tag === 'circle') {
+      const newR = parseFloat(v) / 2
+      const oldR = parseFloat(getAttr(el, 'r') || '0')
+      const oldCy = parseFloat(getAttr(el, 'cy') || '0')
+      const newCy = oldCy - oldR + newR
+      applyAttrs(el, [['r', String(newR)], ['cy', String(newCy)]])
+    }
   }
   const onRot = (v: string) => {
     const angle = parseFloat(v) || 0

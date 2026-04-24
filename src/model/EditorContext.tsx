@@ -62,26 +62,31 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       // but still allow Ctrl combos
       if (isKeyboardCaptured() && !e.ctrlKey) return
 
-      if (e.ctrlKey && e.key === 'c' && !e.shiftKey) {
+      // e.key comes through as uppercase under some input synthesis paths
+      // (Playwright, and some IMEs). Compare case-insensitively so Ctrl+C
+      // / Ctrl+V / Ctrl+X / Ctrl+D / Ctrl+G all match regardless.
+      const k = e.key.toLowerCase()
+
+      if (e.ctrlKey && k === 'c' && !e.shiftKey) {
         const sel = getSelection()
         if (sel.length > 0) {
           e.preventDefault()
           clipboardRef.current = copySelection()
         }
-      } else if (e.ctrlKey && e.key === 'x' && !e.shiftKey) {
+      } else if (e.ctrlKey && k === 'x' && !e.shiftKey) {
         if (getSelection().length > 0 && docRef.current) {
           e.preventDefault()
           cutSelection(clipboardRef, history, docRef.current)
         }
-      } else if (e.ctrlKey && e.key === 'v' && !e.shiftKey) {
+      } else if (e.ctrlKey && k === 'v' && !e.shiftKey) {
         e.preventDefault()
         if (docRef.current) pasteClipboard(clipboardRef, history, docRef.current)
-      } else if (e.ctrlKey && e.key === 'd' && !e.shiftKey) {
+      } else if (e.ctrlKey && k === 'd' && !e.shiftKey) {
         if (getSelection().length > 0 && docRef.current) {
           e.preventDefault()
           duplicateSelection(clipboardRef, history, docRef.current)
         }
-      } else if (e.ctrlKey && e.key === 'g' && !e.shiftKey) {
+      } else if (e.ctrlKey && k === 'g' && !e.shiftKey) {
         const sel = getSelection()
         if (sel.length > 0 && docRef.current) {
           e.preventDefault()
@@ -93,7 +98,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           history.execute(cmd)
           setSelection([group])
         }
-      } else if (e.ctrlKey && e.key === 'G' && e.shiftKey) {
+      } else if (e.ctrlKey && k === 'g' && e.shiftKey) {
         const sel = getSelection()
         if (sel.length === 1 && sel[0].tagName === 'g' && !sel[0].hasAttribute('data-layer-name')) {
           e.preventDefault()
@@ -105,10 +110,10 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           history.execute(cmd)
           setSelection(children)
         }
-      } else if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+      } else if (e.ctrlKey && k === 'z' && !e.shiftKey) {
         e.preventDefault()
         history.undo()
-      } else if (e.ctrlKey && e.key === 'Z' && e.shiftKey) {
+      } else if (e.ctrlKey && k === 'z' && e.shiftKey) {
         e.preventDefault()
         history.redo()
       } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && !e.ctrlKey) {
@@ -146,7 +151,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       } else if (e.ctrlKey && e.shiftKey && (e.key === '{' || e.code === 'BracketLeft')) {
         e.preventDefault()
         sendToBack(history)
-      } else if (e.ctrlKey && e.key === 'a' && !e.shiftKey) {
+      } else if (e.ctrlKey && k === 'a' && !e.shiftKey) {
         e.preventDefault()
         if (docRef.current) {
           const layers = docRef.current.getLayerElements()

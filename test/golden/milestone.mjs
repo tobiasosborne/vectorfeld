@@ -87,15 +87,21 @@ async function runMilestone(driver, page) {
   if (!out || !out.svg) {
     return { state: '—', reason: `driver returned no svg` }
   }
-  const actualCanonical = semanticCanonicalSvg(out.svg)
+  // Always dump the raw app output so a canonicalizer exception doesn't
+  // hide the underlying data — we can still inspect the SVG the app emitted.
+  const safeName = driver.name.replace(/[^a-z0-9-]/gi, '_')
+  writeFileSync(resolve(PENDING_DIR, `milestone-${safeName}-actual-raw.svg`), out.svg)
+  let actualCanonical
+  try {
+    actualCanonical = semanticCanonicalSvg(out.svg)
+  } catch (err) {
+    return { state: '—', reason: `canonicalize threw: ${err.message} — see pending/milestone-${safeName}-actual-raw.svg` }
+  }
   if (actualCanonical === targetCanonical) {
     return { state: '✓' }
   }
-  // Drift — dump pending for inspection
-  const safeName = driver.name.replace(/[^a-z0-9-]/gi, '_')
   writeFileSync(resolve(PENDING_DIR, `milestone-${safeName}-target.svg`), targetCanonical)
   writeFileSync(resolve(PENDING_DIR, `milestone-${safeName}-actual.svg`), actualCanonical)
-  writeFileSync(resolve(PENDING_DIR, `milestone-${safeName}-actual-raw.svg`), out.svg)
   return {
     state: '✗',
     reason: `drift — pending/milestone-${safeName}-{target,actual}.svg`,

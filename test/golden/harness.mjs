@@ -74,7 +74,9 @@ export async function openPage(browser, url = DEFAULT_URL) {
   const page = await context.newPage()
   page.on('pageerror', (err) => console.error('[page:error]', err.message))
   page.on('console', (msg) => {
-    if (msg.type() === 'error') console.error('[console:error]', msg.text())
+    const txt = msg.text()
+    if (msg.type() === 'error') console.error('[console:error]', txt)
+    else if (txt.startsWith('[DIAG')) console.log('  ', txt)
   })
   await page.goto(url, { waitUntil: 'networkidle' })
   // Wait for the canvas + Select tool active marker
@@ -172,6 +174,12 @@ export function makeHelpers(page) {
     // Fill the Frame section of the ControlBar with exact numeric values.
     // Requires an element to be selected (ControlBar only shows when selection
     // is non-empty). Each input commits on Enter. Undefined values are skipped.
+    //
+    // NOTE: explicitly blurs the last input at the end. Without this, focus
+    // stays on the Frame input and subsequent keyboard shortcuts (Ctrl+C,
+    // Ctrl+V, Delete, …) are captured by the input and never reach the
+    // document-level keydown handler. This bit milestone 03 and surfaced
+    // via vectorfeld-cj3.
     async setFrame({ x, y, w, h: frameH, r } = {}) {
       const fill = async (key, val) => {
         if (val == null) return
@@ -189,6 +197,17 @@ export function makeHelpers(page) {
       await fill('frame-w', w)
       await fill('frame-h', frameH)
       await fill('frame-r', r)
+      // Force focus back to body. The document-level keydown handler in
+      // EditorContext.tsx bails out early when target is INPUT/TEXTAREA, so
+      // if a Frame input stays focused, every subsequent Ctrl+C/V/Delete
+      // is captured by the input instead of reaching the editor.
+      await page.evaluate(() => {
+        if (document.activeElement && document.activeElement !== document.body) {
+          document.activeElement.blur && document.activeElement.blur()
+        }
+        document.body.focus && document.body.focus()
+      })
+      await page.waitForTimeout(30)
     },
 
     async press(key) {
