@@ -113,6 +113,15 @@ export function PropertiesPanel({ embedded = false }: PropertiesPanelProps = {})
     return subscribeSelection(update)
   }, [])
 
+  // Bump a counter on every history mutation so this panel re-derives
+  // attribute-backed state (fillType, colors, kept-attrs) after applyAttr.
+  // Without this, changing the fill-type select from none → solid updates
+  // the DOM via ModifyAttributeCommand but the panel's derived state is
+  // stale until the next selection change, so the fill ColorPicker never
+  // mounts. Surfaced by milestone 02.
+  const [, setHistoryTick] = useState(0)
+  useEffect(() => history.subscribe(() => setHistoryTick((n) => n + 1)), [history])
+
   const applyAttr = (el: Element, attr: string, value: string) => {
     // Bug 3: validate numeric attributes
     if (NUMERIC_ATTRS.has(attr) && isNaN(parseFloat(value))) return
@@ -487,13 +496,14 @@ export function PropertiesPanel({ embedded = false }: PropertiesPanelProps = {})
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-chrome-500 w-8">Str</span>
-                  <ColorPicker value={getAttr(el, 'stroke') || '#000000'} onChange={(v) => applyAttr(el, 'stroke', v)} allowNone={false} />
+                  <ColorPicker testid="stroke" value={getAttr(el, 'stroke') || '#000000'} onChange={(v) => applyAttr(el, 'stroke', v)} allowNone={false} />
                 </div>
                 <PropertyInput label="SW" value={getAttr(el, 'stroke-width') || '1'} onChange={(v) => applyAttr(el, 'stroke-width', v)} />
                 <div className="space-y-1">
                   <label className="flex items-center gap-1">
                     <span className="text-xs text-chrome-500 w-8">Fill</span>
                     <select
+                      data-testid="fill-type"
                       value={fillType}
                       onChange={(e) => {
                         const ft = e.target.value as FillType
@@ -523,7 +533,7 @@ export function PropertiesPanel({ embedded = false }: PropertiesPanelProps = {})
                   {fillType === 'solid' && (
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-chrome-500 w-8"></span>
-                      <ColorPicker value={getAttr(el, 'fill') || '#000000'} onChange={(v) => applyAttr(el, 'fill', v)} />
+                      <ColorPicker testid="fill" value={getAttr(el, 'fill') || '#000000'} onChange={(v) => applyAttr(el, 'fill', v)} />
                     </div>
                   )}
                   {(fillType === 'linear' || fillType === 'radial') && (() => {

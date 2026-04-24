@@ -10,9 +10,10 @@ interface ColorPickerProps {
   value: string
   onChange: (color: string) => void
   allowNone?: boolean
+  testid?: string
 }
 
-export function ColorPicker({ value, onChange, allowNone = true }: ColorPickerProps) {
+export function ColorPicker({ value, onChange, allowNone = true, testid }: ColorPickerProps) {
   const [open, setOpen] = useState(false)
   const [hexInput, setHexInput] = useState(value)
   const ref = useRef<HTMLDivElement>(null)
@@ -44,6 +45,7 @@ export function ColorPicker({ value, onChange, allowNone = true }: ColorPickerPr
   return (
     <div className="relative" ref={ref}>
       <button
+        data-testid={testid ? `colorpicker-${testid}` : undefined}
         onClick={() => setOpen(!open)}
         className="w-6 h-6 cursor-pointer"
         style={{
@@ -110,6 +112,7 @@ export function ColorPicker({ value, onChange, allowNone = true }: ColorPickerPr
           )}
           <div style={{ display: 'flex', gap: 4 }}>
             <input
+              data-testid={testid ? `colorpicker-${testid}-hex` : undefined}
               type="text"
               value={hexInput}
               onChange={(e) => setHexInput(e.target.value)}

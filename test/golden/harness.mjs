@@ -210,6 +210,65 @@ export function makeHelpers(page) {
       await page.waitForTimeout(30)
     },
 
+    // Open the fill picker in the Properties panel, type an exact hex,
+    // commit with Enter. Requires a selection so the ColorPicker is mounted.
+    //
+    // If the selected element has fill="none", the fill ColorPicker isn't
+    // rendered (PropertiesPanel only shows it for fillType='solid'). In that
+    // case we flip the fill-type <select> to "Solid" first, which seeds a
+    // default fill and mounts the picker.
+    async setFill(hex) {
+      let btn = page.locator('[data-testid="colorpicker-fill"]')
+      let count = await btn.count()
+      if (count === 0) {
+        // Fill-type <select> in the Properties panel. Exists when a single
+        // element is selected; options = none|solid|linear|radial.
+        const ft = page.locator('[data-testid="fill-type"]')
+        if (await ft.count() === 0) throw new Error('fill-type select not found (no selection?)')
+        await ft.selectOption('solid')
+        await page.waitForTimeout(80)
+        btn = page.locator('[data-testid="colorpicker-fill"]')
+        count = await btn.count()
+        if (count === 0) throw new Error('fill colorpicker did not mount after selecting solid')
+      }
+      await btn.click()
+      await page.waitForTimeout(80)
+      const hexInput = page.locator('[data-testid="colorpicker-fill-hex"]')
+      await hexInput.click()
+      await page.keyboard.press('Control+A')
+      await hexInput.fill(hex)
+      await hexInput.press('Enter')
+      await page.waitForTimeout(100)
+      await page.evaluate(() => {
+        if (document.activeElement && document.activeElement !== document.body) {
+          document.activeElement.blur && document.activeElement.blur()
+        }
+        document.body.focus && document.body.focus()
+      })
+    },
+
+    // Same for stroke — the stroke ColorPicker has allowNone=false by
+    // default in PropertiesPanel.
+    async setStroke(hex) {
+      const btn = page.locator('[data-testid="colorpicker-stroke"]')
+      const count = await btn.count()
+      if (count === 0) throw new Error('stroke colorpicker not found')
+      await btn.click()
+      await page.waitForTimeout(80)
+      const hexInput = page.locator('[data-testid="colorpicker-stroke-hex"]')
+      await hexInput.click()
+      await page.keyboard.press('Control+A')
+      await hexInput.fill(hex)
+      await hexInput.press('Enter')
+      await page.waitForTimeout(100)
+      await page.evaluate(() => {
+        if (document.activeElement && document.activeElement !== document.body) {
+          document.activeElement.blur && document.activeElement.blur()
+        }
+        document.body.focus && document.body.focus()
+      })
+    },
+
     async press(key) {
       await page.keyboard.press(key)
       await page.waitForTimeout(30)

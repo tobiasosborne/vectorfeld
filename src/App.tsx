@@ -15,8 +15,9 @@ import { toggleGridVisible } from './model/grid'
 import { toggleWireframe } from './model/wireframe'
 import { addGuide, clearAllGuides } from './model/guides'
 import { computeReflectH, computeReflectV } from './model/reflect'
-import { getSelection, subscribeSelection, refreshOverlay, clearSelection } from './model/selection'
-import { ModifyAttributeCommand, CompoundCommand, AddElementCommand, RemoveElementCommand, ReorderElementCommand } from './model/commands'
+import { computeAlign, applyDelta, type AlignOp } from './model/align'
+import { getSelection, subscribeSelection, refreshOverlay, clearSelection, setSelection } from './model/selection'
+import { ModifyAttributeCommand, CompoundCommand, AddElementCommand, RemoveElementCommand, ReorderElementCommand, GroupCommand, UngroupCommand } from './model/commands'
 import { elementToPathD, extractStyleAttrs } from './model/shapeToPath'
 import { joinPaths } from './model/pathOps'
 import { importPdf, importPdfAsBackgroundLayer } from './model/pdfImport'
@@ -196,6 +197,53 @@ function AppContent() {
         { label: 'Bring Forward', shortcut: 'Ctrl+]', disabled: selCount === 0, action: () => editor.history && bringForward(editor.history) },
         { label: 'Send Backward', shortcut: 'Ctrl+[', disabled: selCount === 0, action: () => editor.history && sendBackward(editor.history) },
         { label: 'Send to Back', shortcut: 'Ctrl+Shift+[', disabled: selCount === 0, action: () => editor.history && sendToBack(editor.history) },
+        { separator: true, label: '' },
+        ...([
+          ['Align Left', 'left'],
+          ['Align Center Horizontal', 'center-h'],
+          ['Align Right', 'right'],
+          ['Align Top', 'top'],
+          ['Align Middle', 'center-v'],
+          ['Align Bottom', 'bottom'],
+        ] as [string, AlignOp][]).map(([label, op]) => ({
+          label,
+          shortcut: '',
+          disabled: selCount < 2,
+          action: () => {
+            const sel = getSelection()
+            if (sel.length < 2) return
+            const deltas = computeAlign(sel, op)
+            const cmds: ModifyAttributeCommand[] = []
+            for (const [el, { dx, dy }] of deltas) {
+              for (const [attr, val] of applyDelta(el, dx, dy)) {
+                cmds.push(new ModifyAttributeCommand(el, attr, val))
+              }
+            }
+            if (cmds.length > 0) editor.history.execute(new CompoundCommand(cmds, `Align ${op}`))
+          },
+        })),
+        { separator: true, label: '' },
+        { label: 'Group', shortcut: 'Ctrl+G', disabled: selCount === 0, action: () => {
+          const sel = getSelection()
+          if (sel.length === 0) return
+          const parent = sel[0].parentElement
+          if (!parent) return
+          const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+          group.setAttribute('id', `vf-${Date.now()}`)
+          editor.history.execute(new GroupCommand(parent, group, sel))
+          setSelection([group])
+        }},
+        { label: 'Ungroup', shortcut: 'Ctrl+Shift+G', disabled: selCount !== 1, action: () => {
+          const sel = getSelection()
+          if (sel.length !== 1) return
+          const group = sel[0]
+          if (group.tagName !== 'g' || group.hasAttribute('data-layer-name')) return
+          const parent = group.parentElement
+          if (!parent) return
+          const children = Array.from(group.children)
+          editor.history.execute(new UngroupCommand(parent, group))
+          setSelection(children)
+        }},
         { separator: true, label: '' },
         { label: 'Convert to Path', shortcut: '', disabled: selCount === 0, action: () => {
           const sel = getSelection()

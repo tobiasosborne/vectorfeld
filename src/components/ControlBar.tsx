@@ -238,8 +238,19 @@ export function ControlBar() {
     const angle = parseFloat(v) || 0
     const lb = (el as SVGGraphicsElement).getBBox?.()
     if (lb) {
-      const cx = lb.x + lb.width / 2
-      const cy = lb.y + lb.height / 2
+      // Text rotates around its own anchor (x, y) — the baseline-left point.
+      // That matches SVG convention and is predictable for text users: the
+      // cursor/position stays put as the glyphs swing around it. For every
+      // other element type we pivot around bbox center, matching Illustrator
+      // and the free-transform rotate-handle behaviour.
+      let cx: number, cy: number
+      if (tag === 'text') {
+        cx = parseFloat(getAttr(el, 'x') || '0')
+        cy = parseFloat(getAttr(el, 'y') || '0')
+      } else {
+        cx = lb.x + lb.width / 2
+        cy = lb.y + lb.height / 2
+      }
       const existingTransform = el.getAttribute('transform') || ''
       // Check for matrix() or other non-trivial transforms that we need to preserve
       const hasMatrix = /matrix\(/.test(existingTransform)

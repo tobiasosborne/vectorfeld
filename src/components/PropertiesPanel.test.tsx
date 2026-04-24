@@ -16,7 +16,7 @@ vi.mock('../model/selection', () => ({
 
 vi.mock('../model/EditorContext', () => ({
   useEditor: vi.fn(() => ({
-    history: { execute: vi.fn() },
+    history: { execute: vi.fn(), subscribe: vi.fn(() => () => {}) },
     doc: { getDefs: () => document.createElementNS('http://www.w3.org/2000/svg', 'defs') },
   })),
 }))
