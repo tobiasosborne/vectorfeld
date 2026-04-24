@@ -50,12 +50,25 @@ const NS = {
   xmlns: 'http://www.w3.org/2000/xmlns/',
 }
 
+// Inside each function-call in a transform attribute, collapse
+// whitespace/comma argument separators to a single ", " so
+// `rotate(45 110 140)` and `rotate(45, 110, 140)` normalize to the
+// same string.
+function normalizeTransformArgs(s) {
+  return s.replace(/\(([^)]*)\)/g, (_, inner) => {
+    const parts = inner.trim().split(/[\s,]+/).filter(Boolean)
+    return `(${parts.join(', ')})`
+  })
+}
+
 function walkAndStrip(el) {
   const survivors = []
   for (const attr of Array.from(el.attributes)) {
     if (attr.name === 'id') continue
     if (attr.name === 'xmlns' || attr.name.startsWith('xmlns:')) continue
-    survivors.push([attr.name, round2Str(attr.value)])
+    let val = round2Str(attr.value)
+    if (attr.name === 'transform') val = normalizeTransformArgs(val)
+    survivors.push([attr.name, val])
   }
   for (const a of Array.from(el.attributes)) {
     if (a.namespaceURI) el.removeAttributeNS(a.namespaceURI, a.localName)
@@ -84,11 +97,32 @@ function walkAndStrip(el) {
   }
 }
 
+// Collapse inter-element whitespace so pretty-printed input and
+// single-line XMLSerializer output both canonicalize to the same string.
+// This does not affect whitespace inside <text>/<tspan> (preserved by
+// the DOM as text nodes, which outerHTML emits without the collapse).
+function collapseInterElementWhitespace(s) {
+  return s.replace(/>\s+</g, '><')
+}
+
 export function canonicalizeSvg(svgString) {
   const dom = new JSDOM(svgString, { contentType: 'image/svg+xml' })
   const root = dom.window.document.documentElement
+  // Drop whitespace-only text nodes between elements so re-serialization
+  // produces a canonical single-line form.
+  const walker = dom.window.document.createTreeWalker(root, 4 /* SHOW_TEXT */)
+  const drop = []
+  let n = walker.currentNode
+  while (n) {
+    const text = /** @type {Text} */ (n)
+    if (text.parentElement && text.parentElement.tagName !== 'text' && text.parentElement.tagName !== 'tspan') {
+      if (/^\s*$/.test(text.data)) drop.push(text)
+    }
+    n = walker.nextNode()
+  }
+  for (const t of drop) t.remove()
   walkAndStrip(root)
-  return dom.window.document.documentElement.outerHTML
+  return collapseInterElementWhitespace(dom.window.document.documentElement.outerHTML)
 }
 
 // ---- PDF canonicalization via pdfjs-dist ----

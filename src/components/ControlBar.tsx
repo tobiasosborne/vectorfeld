@@ -12,7 +12,7 @@ function formatNum(val: string): string {
   return isNaN(n) ? val : n.toFixed(2)
 }
 
-function CompactInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function CompactInput({ label, value, onChange, testid }: { label: string; value: string; onChange: (v: string) => void; testid?: string }) {
   const [editing, setEditing] = useState(false)
   const [local, setLocal] = useState(value)
   const ref = useRef<HTMLInputElement>(null)
@@ -30,6 +30,7 @@ function CompactInput({ label, value, onChange }: { label: string; value: string
       <input
         ref={ref}
         type="text"
+        data-testid={testid}
         value={editing ? local : formatNum(value)}
         onChange={(e) => setLocal(e.target.value)}
         onFocus={() => { setEditing(true); setLocal(value) }}
@@ -243,11 +244,11 @@ export function ControlBar() {
 
   return (
     <div className="h-7 bg-chrome-100 border-b border-chrome-200 flex items-center px-3 gap-3">
-      <CompactInput label="X:" value={x} onChange={onX} />
-      <CompactInput label="Y:" value={y} onChange={onY} />
-      {w && <CompactInput label="W:" value={w} onChange={onW} />}
-      {h && <CompactInput label="H:" value={h} onChange={onH} />}
-      <CompactInput label="R:" value={rot} onChange={onRot} />
+      <CompactInput label="X:" value={x} onChange={onX} testid="frame-x" />
+      <CompactInput label="Y:" value={y} onChange={onY} testid="frame-y" />
+      {w && <CompactInput label="W:" value={w} onChange={onW} testid="frame-w" />}
+      {h && <CompactInput label="H:" value={h} onChange={onH} testid="frame-h" />}
+      <CompactInput label="R:" value={rot} onChange={onRot} testid="frame-r" />
       <span className="text-[10px] text-chrome-400 ml-auto">{tag}</span>
     </div>
   )

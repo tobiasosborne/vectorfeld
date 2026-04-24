@@ -169,6 +169,28 @@ export function makeHelpers(page) {
       await page.keyboard.type(text, { delay: 10 })
     },
 
+    // Fill the Frame section of the ControlBar with exact numeric values.
+    // Requires an element to be selected (ControlBar only shows when selection
+    // is non-empty). Each input commits on Enter. Undefined values are skipped.
+    async setFrame({ x, y, w, h: frameH, r } = {}) {
+      const fill = async (key, val) => {
+        if (val == null) return
+        const loc = page.locator(`[data-testid="${key}"]`)
+        const count = await loc.count()
+        if (count === 0) throw new Error(`frame input ${key} not found (selection empty?)`)
+        await loc.click()
+        await page.keyboard.press('Control+A')
+        await loc.fill(String(val))
+        await loc.press('Enter')
+        await page.waitForTimeout(30)
+      }
+      await fill('frame-x', x)
+      await fill('frame-y', y)
+      await fill('frame-w', w)
+      await fill('frame-h', frameH)
+      await fill('frame-r', r)
+    },
+
     async press(key) {
       await page.keyboard.press(key)
       await page.waitForTimeout(30)

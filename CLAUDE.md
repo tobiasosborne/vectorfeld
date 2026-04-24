@@ -30,6 +30,12 @@
 - Ask yourself: "Would a staff engineer approve this?"
 - Run tests, check logs, demonstrate correctness
 - Use playwright-cli to visually verify canvas/UI changes against `localhost:5173`
+- **Golden suites** (see AGENTS.md for detail — read before running):
+  - `npm run golden` — **CI GATE**. Must be green before any commit that touches
+    export, tool, or UI code. Red means do not ship. Regressions become P1 beads.
+  - `npm run golden:milestones` — **SCOREBOARD, NOT A GATE**. Run to see whether
+    your UX change moves the ✓/✗/— scoreboard. Never blocks merges. Red entries
+    are backlog inputs, not merge blockers.
 
 ### 5. Demand Elegance (Balanced)
 

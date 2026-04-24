@@ -77,31 +77,73 @@ Run `bd ready` for the live queue. As of 2026-04-19 (end of pivot session):
 7. **Commit + push**: `git push` is the definition of "done". Include `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>` line.
 8. **Close the bead**: `bd close <id> --reason="<what you did>"`.
 
-## Golden-master suite (`test/golden/`)
+## Golden-master suites (`test/golden/`)
 
-Headed-Chromium user-story gate that asserts byte-level match against committed
-canonical exports. The definition of "usable".
+Two distinct classes. **Learn the difference before reaching for either.**
+
+### Gates — `npm run golden` (CI BLOCKER)
+
+Headed-Chromium user stories that drive Playwright mouse/keyboard through the
+real UI against `localhost:5173`, trigger Export SVG + Export PDF, and
+**byte-match** the canonicalized output against committed masters. **Red means
+do not ship.**
 
 ```bash
-npm run golden               # verify all stories
-npm run golden -- --only NAME
-npm run golden:record        # regenerate every master
-npm run golden:record NAME   # regenerate one
-npm run golden:accept NAME   # promote pending → master after human review
+npm run golden                      # verify all stories
+npm run golden -- --only NAME       # verify one
+npm run golden:record               # regenerate all masters (only with intent)
+npm run golden:record NAME          # regenerate one
+npm run golden:accept NAME          # promote pending → master after review
 ```
 
-- Each story in `test/golden/stories/NN-*.mjs` scripts Playwright mouse/keyboard
-  against `localhost:5173`, triggers Export SVG + Export PDF, and returns the
-  downloaded bytes.
-- `canonicalize.mjs` normalizes outputs: SVG (strip IDs, round coords 2dp, sort
-  attrs), PDF (pdfjs extract → JSON with docId sweep). Pass/fail is byte-equal
-  on canonical forms.
-- Failures write pending/\*.{svg,pdf,svg.canonical,pdf.json}. Each regression
-  must become a new P1 bead — no silent re-record.
-- Determinism fixes landed in `pdfExport.ts` (CreationDate/ModDate pinned,
-  Producer/Creator fixed); SVG IDs were already counter-based.
-- Phase 1 shipped stories 1-5 (circle, rect, text, three-shapes, PDF round-trip).
-  Stories 6-20 filed as beads (vectorfeld-u7s/00r/44a/6yf/n87/x0x).
+- Stories in `test/golden/stories/NN-*.mjs`
+- Masters in `test/golden/masters/` — canonicalized app output, committed
+- `canonicalize.mjs` normalizes: SVG (id strip, 2dp coord round, attr sort,
+  xlink-aware NS handling, transform-arg unification, whitespace collapse);
+  PDF (pdfjs extract → JSON with docId sweep)
+- Failures dump to `pending/` with first-diff line printed
+- **Determinism fixes** live in `src/model/pdfExport.ts` (`CreationDate`,
+  `ModDate`, `Producer`, `Creator` pinned); SVG IDs are counter-based.
+- Phase 1 stories: circle, rect, text, three-shapes, PDF round-trip.
+  Follow-ons: `vectorfeld-u7s/00r/44a/6yf/n87/x0x`.
+
+**Failure policy:** each regression becomes a new P1 bead. Do not silently
+re-record a master.
+
+### Milestones — `npm run golden:milestones` (SCOREBOARD, NOT A GATE)
+
+Headed-Chromium **tool-combination** exercises. Each milestone has an external
+target SVG under `test/golden/milestones/fixtures/` and a driver script under
+`test/golden/milestones/drivers/` that must use a **specific tool combo** (e.g.
+`rect + select + Frame X/Y/W/H/R`) to recreate it. The **semantic
+canonicalizer** (`semanticCanonical.mjs`) normalizes both sides (shape→path,
+hex colors, strip app chrome) before match.
+
+```bash
+npm run golden:milestones                # run the scoreboard (always exit 0)
+npm run golden:milestones -- --only NAME # run one milestone
+```
+
+Scoreboard states:
+- **✓** matched — the tool combo works end-to-end
+- **✗** drift — combo produced output that doesn't match; likely a bug
+- **—** gap — combo couldn't execute; missing feature or broken UX
+
+**Milestones never block merges.** They are a visible quality scoreboard. Red
+milestones are inputs to the bug/feature backlog. ✓-count is a progress metric.
+
+Phase 1: 10 milestones (rotate, fill, duplicate, align, z-order, scale,
+text-rotate, mirror, group, cross-layer). Epic: `vectorfeld-4xi`. Real bugs
+filed so far: `vectorfeld-cj3` (copy/paste drops original), `vectorfeld-qum`
+(ellipse Frame W/H breaks X/Y).
+
+### Which one to use when
+
+- Touching export code (`fileio.ts`, `pdfExport.ts`) → gates MUST stay green
+- Touching tool UX (toolstrip, Properties panel, Object menu) → run milestones
+  to see if the scoreboard moves
+- Adding a new user-facing feature → add a story (gate) AND a milestone
+- Never copy masters into fixtures or vice versa — the canonicalizers differ
 
 ## Essential commands
 
