@@ -135,6 +135,27 @@ export function makeHelpers(page) {
       await page.waitForTimeout(50)
     },
 
+    // Click at a precise mm coordinate on the canvas, converting via the
+    // SVG's screenCTM. Crucial for tools that capture world coords from
+    // screen clicks (pen, line, measure) so the resulting geometry lands
+    // at the intended mm without pixel-ratio math in the driver.
+    async clickAtMm(mmX, mmY) {
+      const screenXY = await page.evaluate(({ mmX, mmY }) => {
+        const svg = document.querySelector('svg')
+        if (!svg) return null
+        const pt = svg.createSVGPoint()
+        pt.x = mmX
+        pt.y = mmY
+        const ctm = svg.getScreenCTM()
+        if (!ctm) return null
+        const screen = pt.matrixTransform(ctm)
+        return { x: screen.x, y: screen.y }
+      }, { mmX, mmY })
+      if (!screenXY) throw new Error('mm→screen conversion failed (no SVG/CTM?)')
+      await page.mouse.click(screenXY.x, screenXY.y)
+      await page.waitForTimeout(50)
+    },
+
     async openFileMenu() {
       await page.getByRole('button', { name: 'File', exact: true }).click()
     },

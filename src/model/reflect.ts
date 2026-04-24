@@ -4,6 +4,7 @@
  */
 
 import { getElementAABB } from './geometry'
+import { parsePathD, commandsToD } from './pathOps'
 
 /** Compute attribute changes to reflect an element horizontally (across its vertical center axis) */
 export function computeReflectH(el: Element): Array<[string, string]> {
@@ -32,8 +33,30 @@ export function computeReflectH(el: Element): Array<[string, string]> {
   if (tag === 'circle') {
     return []
   }
-  // path, g, polygon, polyline: apply scale(-1,1) transform around center
-  if (tag === 'path' || tag === 'g' || tag === 'polygon' || tag === 'polyline') {
+  // path: bake the horizontal mirror directly into d coords. Avoids leaving
+  // a scale(-1, 1) transform on the element, which complicates subsequent
+  // setFrame calls and surprises downstream consumers (milestone 08).
+  if (tag === 'path') {
+    const d = el.getAttribute('d') || ''
+    if (!d) return []
+    const cmds = parsePathD(d)
+    for (const c of cmds) {
+      for (const p of c.points) p.x = 2 * cx - p.x
+    }
+    return [['d', commandsToD(cmds)]]
+  }
+  // polygon/polyline: mirror x in each point of the points list.
+  if (tag === 'polygon' || tag === 'polyline') {
+    const pts = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number)
+    const out: string[] = []
+    for (let i = 0; i + 1 < pts.length; i += 2) {
+      out.push(`${2 * cx - pts[i]},${pts[i + 1]}`)
+    }
+    return [['points', out.join(' ')]]
+  }
+  // g: fallback to scale-transform (groups aggregate children; can't edit
+  // individual d-attrs without descending).
+  if (tag === 'g') {
     return buildScaleTransform(el, -1, 1, cx, aabb.y + aabb.height / 2)
   }
   return []
@@ -62,7 +85,24 @@ export function computeReflectV(el: Element): Array<[string, string]> {
   if (tag === 'ellipse' || tag === 'circle') {
     return []
   }
-  if (tag === 'path' || tag === 'g' || tag === 'polygon' || tag === 'polyline') {
+  if (tag === 'path') {
+    const d = el.getAttribute('d') || ''
+    if (!d) return []
+    const cmds = parsePathD(d)
+    for (const c of cmds) {
+      for (const p of c.points) p.y = 2 * cy - p.y
+    }
+    return [['d', commandsToD(cmds)]]
+  }
+  if (tag === 'polygon' || tag === 'polyline') {
+    const pts = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number)
+    const out: string[] = []
+    for (let i = 0; i + 1 < pts.length; i += 2) {
+      out.push(`${pts[i]},${2 * cy - pts[i + 1]}`)
+    }
+    return [['points', out.join(' ')]]
+  }
+  if (tag === 'g') {
     return buildScaleTransform(el, 1, -1, aabb.x + aabb.width / 2, cy)
   }
   return []

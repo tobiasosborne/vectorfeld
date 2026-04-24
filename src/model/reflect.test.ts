@@ -79,12 +79,15 @@ describe('computeReflectH', () => {
     expect(changes).toHaveLength(0)
   })
 
-  it('applies scale transform to path', () => {
+  it('bakes horizontal mirror into path d', () => {
     const el = makeEl(svg, 'path', { d: 'M10 10 L90 10 L90 70 Z' })
     const changes = computeReflectH(el)
+    // bbox.x=10, width=80, cx=50. Each x → 2*50 - x.
+    // M10,10 → M90,10; L90,10 → L10,10; L90,70 → L10,70
     expect(changes).toHaveLength(1)
-    expect(changes[0][0]).toBe('transform')
-    expect(changes[0][1]).toContain('scale(-1, 1)')
+    expect(changes[0][0]).toBe('d')
+    expect(changes[0][1]).toContain('M90 10')
+    expect(changes[0][1]).toContain('L10 10')
   })
 })
 
@@ -112,11 +115,14 @@ describe('computeReflectV', () => {
     expect(changes).toHaveLength(0)
   })
 
-  it('applies scale transform to path', () => {
+  it('bakes vertical mirror into path d', () => {
     const el = makeEl(svg, 'path', { d: 'M10 10 L90 10 L90 70 Z' })
     const changes = computeReflectV(el)
+    // bbox.y=10, height=60, cy=40. Each y → 2*40 - y.
+    // M10,10 → M10,70; L90,10 → L90,70; L90,70 → L90,10
     expect(changes).toHaveLength(1)
-    expect(changes[0][0]).toBe('transform')
-    expect(changes[0][1]).toContain('scale(1, -1)')
+    expect(changes[0][0]).toBe('d')
+    expect(changes[0][1]).toContain('M10 70')
+    expect(changes[0][1]).toContain('L90 10')
   })
 })

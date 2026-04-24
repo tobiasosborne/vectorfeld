@@ -328,6 +328,45 @@ function stripAppChrome(root) {
 
 // ---- entry point ----
 
+// Aggressive numeric normalization for milestone matching. The base
+// canonicalize rounds decimals to 2dp but preserves integer-vs-decimal
+// distinctions and separator choice (comma vs space). Hand-authored
+// fixtures use integer mm coords + comma separators; tool-emitted output
+// (especially via screen → mm FP round-trip) produces things like
+// "M 39.88 99.92 L 69.9 59.97" — same shape, different text. This pass
+// rounds every numeric token to the nearest 0.5mm and forces a single
+// space separator between tokens in path-d / points / transform.
+function normalizePathNumerics(s) {
+  return s
+    // Space-wrap every path/points command letter so "M40,100" and "M 40 100"
+    // both become " M 40 100 " after whitespace collapse.
+    .replace(/([MLCSQAZHVTmlcsqazhvt])/g, ' $1 ')
+    // Commas and semicolons act as argument separators in SVG — treat as
+    // whitespace before the collapse.
+    .replace(/[,;]/g, ' ')
+    // Collapse runs of whitespace.
+    .replace(/\s+/g, ' ')
+    // Round every decimal token to nearest 0.5mm to absorb FP drift from
+    // screenToDoc round-trips.
+    .replace(/(-?\d+\.\d+)/g, (m) => {
+      const n = parseFloat(m)
+      if (!Number.isFinite(n)) return m
+      const half = Math.round(n * 2) / 2
+      return Number.isInteger(half) ? String(half) : half.toFixed(1)
+    })
+    .trim()
+}
+
+function normalizePathAttrs(root) {
+  const els = root.querySelectorAll('*')
+  for (const el of els) {
+    for (const name of ['d', 'points']) {
+      const v = el.getAttribute(name)
+      if (v) el.setAttribute(name, normalizePathNumerics(v))
+    }
+  }
+}
+
 export function semanticCanonicalSvg(svgString) {
   const dom = new JSDOM(svgString, { contentType: 'image/svg+xml' })
   const root = dom.window.document.documentElement
@@ -335,6 +374,7 @@ export function semanticCanonicalSvg(svgString) {
   shapesToPath(root)
   flattenTransforms(root)
   normalizeColors(root)
+  normalizePathAttrs(root)
   // Re-serialize and run the basic canonical pass (id strip, 2dp round,
   // attr sort). canonicalizeSvg handles xmlns/xlink properly.
   const intermediate = dom.window.document.documentElement.outerHTML
