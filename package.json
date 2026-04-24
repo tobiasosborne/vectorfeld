@@ -10,6 +10,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "golden": "node test/golden/run.mjs",
+    "golden:record": "node test/golden/run.mjs --record",
+    "golden:accept": "node test/golden/run.mjs --accept",
     "tauri": "tauri"
   },
   "dependencies": {

@@ -544,6 +544,13 @@ export async function svgStringToPdfBytes(
   const heightPt = vb.height * MM_TO_PT
 
   const pdf = await PDFDocument.create()
+  // Pin metadata so every call produces byte-identical output for identical
+  // inputs — required by test/golden/ canonicalized byte-match. pdf-lib
+  // otherwise sets CreationDate/ModDate to new Date() on every save().
+  pdf.setCreationDate(new Date(0))
+  pdf.setModificationDate(new Date(0))
+  pdf.setProducer('vectorfeld')
+  pdf.setCreator('vectorfeld')
   const page = pdf.addPage([widthPt, heightPt])
   const fonts = await embedFonts(pdf, opts.fonts)
 

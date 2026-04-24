@@ -77,6 +77,32 @@ Run `bd ready` for the live queue. As of 2026-04-19 (end of pivot session):
 7. **Commit + push**: `git push` is the definition of "done". Include `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>` line.
 8. **Close the bead**: `bd close <id> --reason="<what you did>"`.
 
+## Golden-master suite (`test/golden/`)
+
+Headed-Chromium user-story gate that asserts byte-level match against committed
+canonical exports. The definition of "usable".
+
+```bash
+npm run golden               # verify all stories
+npm run golden -- --only NAME
+npm run golden:record        # regenerate every master
+npm run golden:record NAME   # regenerate one
+npm run golden:accept NAME   # promote pending → master after human review
+```
+
+- Each story in `test/golden/stories/NN-*.mjs` scripts Playwright mouse/keyboard
+  against `localhost:5173`, triggers Export SVG + Export PDF, and returns the
+  downloaded bytes.
+- `canonicalize.mjs` normalizes outputs: SVG (strip IDs, round coords 2dp, sort
+  attrs), PDF (pdfjs extract → JSON with docId sweep). Pass/fail is byte-equal
+  on canonical forms.
+- Failures write pending/\*.{svg,pdf,svg.canonical,pdf.json}. Each regression
+  must become a new P1 bead — no silent re-record.
+- Determinism fixes landed in `pdfExport.ts` (CreationDate/ModDate pinned,
+  Producer/Creator fixed); SVG IDs were already counter-based.
+- Phase 1 shipped stories 1-5 (circle, rect, text, three-shapes, PDF round-trip).
+  Stories 6-20 filed as beads (vectorfeld-u7s/00r/44a/6yf/n87/x0x).
+
 ## Essential commands
 
 ```bash
