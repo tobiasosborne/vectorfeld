@@ -62,3 +62,77 @@ export function graftSourcePageInto(
 ): void {
   outDoc.graftPage(-1, srcDoc, srcPageIdx)
 }
+
+/**
+ * Append `opStr` (raw PDF content-stream operators) as a new stream onto
+ * page `pageIdx`'s `/Contents`. If `/Contents` is already an array, push
+ * the new stream's indirect ref onto it. Otherwise wrap the existing
+ * single ref in a new array and put the array back as `/Contents`.
+ *
+ * The newly appended stream draws ON TOP of the existing content (PDF
+ * spec §7.8.2 paints content streams in array order), which is what the
+ * graft engine wants for overlays.
+ *
+ * Mirrors spike-02 lines 98–118 (verified to preserve source bytes
+ * intact under reload).
+ */
+export async function appendContentStream(
+  outDoc: mupdfTypes.PDFDocument,
+  pageIdx: number,
+  opStr: string,
+): Promise<void> {
+  const m = await loadMuPDF()
+  const buf = new m.Buffer()
+  buf.write(opStr)
+  const csRef = outDoc.addStream(buf, outDoc.newDictionary())
+
+  const page = outDoc.findPage(pageIdx)
+  const contents = page.get('Contents').resolve()
+  if (contents.isArray()) {
+    contents.push(csRef)
+    return
+  }
+  // Single stream (or single indirect ref) — wrap into an array, preserving
+  // the original entry first so its draw order stays beneath the overlay.
+  const arr = outDoc.newArray()
+  arr.push(page.get('Contents'))
+  arr.push(csRef)
+  page.put('Contents', arr)
+}
+
+/**
+ * Embed `fontBytes` as a simple-encoded Latin font into `outDoc` and
+ * register it in page `pageIdx`'s `/Resources/Font` dict under `fontKey`,
+ * ready to be referenced from a content stream as `/<fontKey> N Tf`.
+ *
+ * If the page has no `/Resources` dict (rare — e.g. the page was created
+ * empty), it's created. Same for `/Resources/Font` (common — a grafted
+ * shape-only page has no font dict). The mupdf font's internal name is
+ * set to `fontKey` for ease of post-mortem inspection; PDF readers
+ * identify the font via its embedded program, not this label.
+ *
+ * Mirrors spike-02b's font-embed flow.
+ */
+export async function registerOverlayFont(
+  outDoc: mupdfTypes.PDFDocument,
+  pageIdx: number,
+  fontKey: string,
+  fontBytes: Uint8Array,
+): Promise<void> {
+  const m = await loadMuPDF()
+  const font = new m.Font(fontKey, fontBytes)
+  const fontRef = outDoc.addSimpleFont(font, 'Latin')
+
+  const page = outDoc.findPage(pageIdx)
+  let resources = page.get('Resources').resolve()
+  if (!resources.isDictionary()) {
+    resources = outDoc.newDictionary()
+    page.put('Resources', resources)
+  }
+  let fontsDict = resources.get('Font')
+  if (!fontsDict.isDictionary()) {
+    fontsDict = outDoc.newDictionary()
+    resources.put('Font', fontsDict)
+  }
+  fontsDict.put(fontKey, fontRef)
+}
