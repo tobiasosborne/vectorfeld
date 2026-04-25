@@ -45,3 +45,20 @@ export async function createEmptyPdfDoc(): Promise<mupdfTypes.PDFDocument> {
 export function closeSourcePdfDoc(doc: { destroy(): void }): void {
   doc.destroy()
 }
+
+/**
+ * Append a page from `srcDoc` onto the end of `outDoc`, byte-for-byte.
+ * Wraps `mupdf.PDFDocument.graftPage(-1, srcDoc, srcPageIdx)` — the `-1`
+ * is the mupdf convention for "append at end". Spike-01 verified this
+ * preserves all source font subsets, kerning tables, embedded images,
+ * and colour spaces (0.0000% pixel diff vs. source).
+ *
+ * Does not mutate `srcDoc`. Caller closes both docs when done.
+ */
+export function graftSourcePageInto(
+  outDoc: mupdfTypes.PDFDocument,
+  srcDoc: mupdfTypes.PDFDocument,
+  srcPageIdx: number,
+): void {
+  outDoc.graftPage(-1, srcDoc, srcPageIdx)
+}
