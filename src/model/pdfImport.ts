@@ -12,6 +12,7 @@ import { clearSelection } from './selection'
 import { parseSvgString, type ParsedSvg } from './fileio'
 import { analyzeImportedSvg } from './importAnalysis'
 import { getActiveSourcePdfStore, recordImportedSource } from './sourcePdf'
+import { tagImportedLayer, PRIMARY_LAYER_ID } from './sourceTagging'
 import RenderWorker from './pdfRender.worker.ts?worker'
 
 // ── Worker management ──────────────────────────────────────────────────
@@ -285,6 +286,7 @@ export function applyParsedAsBackgroundLayer(doc: DocumentModel, parsed: ParsedS
     flattenAndScalePdfLayer(imported, PT_TO_MM)
     imported.setAttribute('data-layer-name', layerName)
     tagLayerWithImportAnalysis(imported, filename)
+    tagImportedLayer(imported, { page: 0, layerId: layerName })
     if (insertBefore) {
       doc.svg.insertBefore(imported, insertBefore)
     } else {
@@ -330,6 +332,7 @@ function applyParsedSvg(doc: DocumentModel, parsed: ParsedSvg): void {
     const imported = document.importNode(layer, true) as Element
     flattenAndScalePdfLayer(imported, PT_TO_MM)
     tagLayerWithImportAnalysis(imported, '(imported PDF)')
+    tagImportedLayer(imported, { page: 0, layerId: PRIMARY_LAYER_ID })
     if (firstOverlay) {
       doc.svg.insertBefore(imported, firstOverlay)
     } else {

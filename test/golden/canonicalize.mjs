@@ -66,6 +66,10 @@ function walkAndStrip(el) {
   for (const attr of Array.from(el.attributes)) {
     if (attr.name === 'id') continue
     if (attr.name === 'xmlns' || attr.name.startsWith('xmlns:')) continue
+    // Editor-internal source-PDF back-references (vectorfeld-8v3) — these
+    // are populated on import and consumed by the graft engine, not part of
+    // the semantic content the user sees in the exported file.
+    if (attr.name === 'data-src-page' || attr.name === 'data-src-layer-id' || attr.name === 'data-source-pdf-id') continue
     let val = round2Str(attr.value)
     if (attr.name === 'transform') val = normalizeTransformArgs(val)
     survivors.push([attr.name, val])

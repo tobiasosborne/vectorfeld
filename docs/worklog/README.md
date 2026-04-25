@@ -4,6 +4,7 @@ Chronological session logs. Each file describes one working session: what shippe
 
 | Date | Session | One-line |
 |---|---|---|
+| 2026-04-25 | [graft-8v3](2026-04-25-graft-8v3.md) | Source-PDF back-references on imported SVG elements (page + layer-id tags) |
 | 2026-04-25 | [graft-byq](2026-04-25-graft-byq.md) | Phase 2 of `ccl` starts: SourcePdfStore lands bytes in DocumentState |
 | 2026-04-24 | [golden-grind](2026-04-24-golden-grind.md) | Built golden gates + milestone scoreboard; 1→10 grind, 6 real bugs fixed |
 | 2026-04-23 | [atrium](2026-04-23-atrium.md) | Atrium UI redesign — 17-commit autonomous ship; 600 tests green |
