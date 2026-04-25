@@ -1,9 +1,26 @@
 import type { DocumentModel } from './document'
+import { isFromSource } from './sourceTagging'
 
 export interface Command {
   readonly description: string
   execute(): void
   undo(): void
+  /**
+   * Optional. True iff this command mutates an element that originated from
+   * a source PDF (tagged with `data-src-page` / `data-src-layer-id`). The
+   * graft export engine (`vectorfeld-wjj`) reads this to decide per-element:
+   *   - false (or absent) → graft from source byte-for-byte
+   *   - true              → re-render via overlay content stream
+   * Defaults to false (the safe choice — overlay-render is always correct,
+   * just slower). CompoundCommand returns the OR of its children.
+   * See `vectorfeld-5gk`.
+   */
+  touchesSource?(): boolean
+}
+
+/** Safe accessor: returns false when the command doesn't implement it. */
+export function commandTouchesSource(cmd: Command): boolean {
+  return cmd.touchesSource ? cmd.touchesSource() : false
 }
 
 const MAX_HISTORY = 200
@@ -95,6 +112,11 @@ export class AddElementCommand implements Command {
   getElement(): Element | null {
     return this.element
   }
+
+  touchesSource(): boolean {
+    // Add introduces a fresh, untagged element — overlay-only.
+    return false
+  }
 }
 
 export class RemoveElementCommand implements Command {
@@ -124,6 +146,10 @@ export class RemoveElementCommand implements Command {
       this.removedParent.appendChild(this.element)
     }
   }
+
+  touchesSource(): boolean {
+    return isFromSource(this.element)
+  }
 }
 
 export class ModifyAttributeCommand implements Command {
@@ -151,6 +177,10 @@ export class ModifyAttributeCommand implements Command {
     } else {
       this.element.setAttribute(this.attr, this.oldValue)
     }
+  }
+
+  touchesSource(): boolean {
+    return isFromSource(this.element)
   }
 }
 
@@ -184,6 +214,10 @@ export class ReorderElementCommand implements Command {
       this.parent.appendChild(this.element)
     }
   }
+
+  touchesSource(): boolean {
+    return isFromSource(this.element)
+  }
 }
 
 export class GroupCommand implements Command {
@@ -213,6 +247,10 @@ export class GroupCommand implements Command {
       this.parent.insertBefore(child, this.group)
     }
     this.group.remove()
+  }
+
+  touchesSource(): boolean {
+    return this.children.some(isFromSource)
   }
 }
 
@@ -249,6 +287,10 @@ export class UngroupCommand implements Command {
       this.group.appendChild(child)
     }
   }
+
+  touchesSource(): boolean {
+    return this.children.some(isFromSource)
+  }
 }
 
 export class CompoundCommand implements Command {
@@ -270,5 +312,9 @@ export class CompoundCommand implements Command {
     for (let i = this.commands.length - 1; i >= 0; i--) {
       this.commands[i].undo()
     }
+  }
+
+  touchesSource(): boolean {
+    return this.commands.some(commandTouchesSource)
   }
 }
