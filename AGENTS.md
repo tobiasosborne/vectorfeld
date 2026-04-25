@@ -27,7 +27,7 @@ Implications that shape every decision:
 ## Current state (2026-04-25, late session)
 
 - **Build**: green. **746 tests** across **60 files**. Type check clean.
-- **Golden suites**: 5/5 gate stories ✓ (`npm run golden`); 10/10 milestones ✓ (`npm run golden:milestones`). Engine isn't yet on the production export path so gates are unaffected.
+- **Golden suites**: **10/10 gate stories ✓** (`npm run golden`) — gates 6–10 (PDF delete-text, composite, copy-paste-nudge, pen bezier, PDF text recolor) shipped this session; 10/10 milestones ✓ (`npm run golden:milestones`). Engine isn't yet on the production export path so the new gates lock the pdf-lib pipeline's behaviour and will need re-recording when `u7r` swaps in the graft engine.
 - **Bundle** (`npm run build`): main JS **1,670 KB** (gzip 665 KB) + MuPDF JS **89 KB** + MuPDF WASM **10 MB** + Inter/JetBrainsMono woff2 **422 KB** + Carlito/Liberation Serif TTFs **2.7 MB** (embedded for pdf-lib font fidelity, see `vectorfeld-85m`).
 - **UI shell — Atrium** (shipped 2026-04-23): floating Panels over a radial-gradient root. `LeftRail` 9-slot rail + `⋯` overflow for keyboard-only tools, `TopBar` with brand + menu words + tab stub + coral Export PDF, `StatusBar` floating pill, `InspectorPanel` (Frame + Style + merged Layers/Pages tab). Token system in `src/index.css` (oklch) + `src/theme/atrium.ts`.
 - **PDF import**: MuPDF `text=text` mode in a Web Worker. Real `<text>`/`<tspan>`/`<image>` when MuPDF can preserve them; outlines otherwise. ⚠ "mostly-outlined" badge surfaces unrecoverable cases (`analyzeImportedSvg`). Each PDF lands as N direct layer children.
@@ -59,8 +59,10 @@ Run `bd ready` for the live queue. As of 2026-04-25:
 - `vectorfeld-4w7` — Multi-document UI tabs + cross-document clipboard. Lights up the tab stub Atrium left in `TopBar`.
 - `vectorfeld-2ss` — Paste in Place (Ctrl+Shift+V), no offset.
 - `vectorfeld-6z0` — Yellow-BG composite white-margin / clipping on Export PDF. Re-verify before fixing — may have moved post-9s9 engine swap.
-- Golden gate stories 6–10: `u7s`/`00r`/`44a`/`6yf`/`n87`.
 - Pre-pivot pen-tool / properties polish: `9hu`, `t7u`, `els`, `vj5`, `ptz`. Drive-by territory.
+
+**P3:**
+- `vectorfeld-qj7` — Expose `window.__vfTest` hook so gate stories 06/10 can use UI selection instead of direct DOM mutation.
 
 **P3:**
 - `vectorfeld-ah8` — bundle cleanup (rip unused `jspdf` + `svg2pdf.js`).
@@ -170,6 +172,7 @@ Session histories at `docs/worklog/`. Most recent first; load when working on th
 
 | Date | Session |
 |---|---|
+| 2026-04-25 | [gate-stories-6-10](docs/worklog/2026-04-25-gate-stories-6-10.md) — 5 new headed gates (10/10 green) |
 | 2026-04-25 | [graft-engine-complete](docs/worklog/2026-04-25-graft-engine-complete.md) — engine end-to-end (4 beads + epic) |
 | 2026-04-25 | [handoff](docs/worklog/2026-04-25-handoff.md) — tidy + 8 graft Phase 2 beads |
 | 2026-04-24 | [golden-grind](docs/worklog/2026-04-24-golden-grind.md) |

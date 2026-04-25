@@ -4,7 +4,8 @@ Chronological session logs. Each file describes one working session: what shippe
 
 | Date | Session | One-line |
 |---|---|---|
-| 2026-04-25 | [graft-engine-complete](2026-04-25-graft-engine-complete.md) | **Engine end-to-end** — wjj-6/7/8/9 (uuz/ne4/e1j/hnj) + epic close; +75 tests |
+| 2026-04-25 | [gate-stories-6-10](2026-04-25-gate-stories-6-10.md) | **5 new gates green** — 06/07/08/09/10 (PDF edit, composite, copy-paste, pen, recolor) |
+| 2026-04-25 | [graft-engine-complete](2026-04-25-graft-engine-complete.md) | Engine end-to-end — wjj-6/7/8/9 (uuz/ne4/e1j/hnj) + epic close; +75 tests |
 | 2026-04-25 | [handoff](2026-04-25-handoff.md) | Tidy + 8 graft Phase 2 beads (byq/8v3/5gk + wjj-1..5) |
 | 2026-04-25 | [graft-5gk](2026-04-25-graft-5gk.md) | Command.touchesSource() classification on every command type |
 | 2026-04-25 | [graft-8v3](2026-04-25-graft-8v3.md) | Source-PDF back-references on imported SVG elements (page + layer-id tags) |
