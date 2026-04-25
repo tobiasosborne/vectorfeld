@@ -26,7 +26,7 @@ Implications that shape every decision:
 
 ## Current state (2026-04-25)
 
-- **Build**: green. **630 tests** across **51 files**. Type check clean.
+- **Build**: green. **671 tests** across **57 files**. Type check clean.
 - **Golden suites**: 5/5 gate stories ✓ (`npm run golden`); 10/10 milestones ✓ (`npm run golden:milestones`).
 - **Bundle** (`npm run build`): main JS **1,670 KB** (gzip 665 KB) + MuPDF JS **89 KB** + MuPDF WASM **10 MB** + Inter/JetBrainsMono woff2 **422 KB** + Carlito/Liberation Serif TTFs **2.7 MB** (embedded for pdf-lib font fidelity, see `vectorfeld-85m`).
 - **UI shell — Atrium** (shipped 2026-04-23): floating Panels over a radial-gradient root. `LeftRail` 9-slot rail + `⋯` overflow for keyboard-only tools, `TopBar` with brand + menu words + tab stub + coral Export PDF, `StatusBar` floating pill, `InspectorPanel` (Frame + Style + merged Layers/Pages tab). Token system in `src/index.css` (oklch) + `src/theme/atrium.ts`.
@@ -35,7 +35,7 @@ Implications that shape every decision:
 - **Compositing**: `File > Open PDF as Background Layer…` adds a named layer at the bottom of the z-stack without clearing the canvas. Three-click workflow: open foreground, open background layer, done.
 - **Z-order**: Arrange + Group/Ungroup + 6 Align items live in the Object menu with keyboard shortcuts right-aligned.
 - **Security**: SVG sanitizer strips `<script>`, `<foreignObject>`, `<iframe>`, `<object>`, `<embed>`, `on*` handlers, `javascript:`/`data:text/html` hrefs. Tauri CSP is an explicit allowlist (`src-tauri/tauri.conf.json`).
-- **Architecture**: DocumentState Phase 1 landed (per-document state isolation). Multi-doc UI (`vectorfeld-4w7`) is pending. The **graft-architecture rewrite** (epic `vectorfeld-ccl`, P1) Phase 1 spikes are complete: `mupdf.PDFDocument.graftPage()` clones the source PDF byte-for-byte (0.0000% pixel diff); overlays via appended content streams. Phase 2 implementation in progress: `byq` (SourcePdfStore), `8v3` (source-PDF back-references via `src/model/sourceTagging.ts`), and `5gk` (`Command.touchesSource()` classification on every command type) shipped 2026-04-25. Next: `wjj → u7r → 6d0`. See `scripts/spike/*.mjs` and `docs/spikes/`.
+- **Architecture**: DocumentState Phase 1 landed (per-document state isolation). Multi-doc UI (`vectorfeld-4w7`) is pending. The **graft-architecture rewrite** (epic `vectorfeld-ccl`, P1) Phase 1 spikes are complete: `mupdf.PDFDocument.graftPage()` clones the source PDF byte-for-byte (0.0000% pixel diff); overlays via appended content streams. Phase 2 implementation deep — eight beads shipped 2026-04-25: `byq` (SourcePdfStore), `8v3` (back-refs), `5gk` (`Command.touchesSource()`), then `wjj` decomposed into 9 sub-beads with `wjj-1..5` (`tsi` snapshot, `fx8` classifier, `68p` mupdf opener, `2oi` graft primitive, `am6` bbox) all green. Next on track: `wjj-6` (`uuz`, content-stream emitter shapes) → `wjj-7` (`e1j`, text emitter) → `wjj-8` (`ne4`, overlay stream + font registration) → `wjj-9` (`hnj`, engine entry point) → `u7r` (wire into fileio) → `6d0` (real-flyer byte-diff test). See `scripts/spike/*.mjs`, `docs/spikes/`, and the `docs/worklog/2026-04-25-handoff.md` session log.
 
 ### Round-trip status
 
@@ -170,6 +170,7 @@ Session histories at `docs/worklog/`. Most recent first; load when working on th
 
 | Date | Session |
 |---|---|
+| 2026-04-25 | [handoff](docs/worklog/2026-04-25-handoff.md) — tidy + 8 graft Phase 2 beads |
 | 2026-04-24 | [golden-grind](docs/worklog/2026-04-24-golden-grind.md) |
 | 2026-04-23 | [atrium](docs/worklog/2026-04-23-atrium.md) |
 | 2026-04-22 | [graft-spikes](docs/worklog/2026-04-22-graft-spikes.md) |
