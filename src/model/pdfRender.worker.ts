@@ -5,7 +5,7 @@
 // the caller (pdfImport.ts). The pure renderPdfPageToSvg lives in
 // pdfRender.ts so tests can import it without a worker shim.
 
-import { renderPdfPageToSvg } from './pdfRender'
+import { renderPdfPageToSvgWithMeta } from './pdfRender'
 
 type RenderRequest = {
   kind: 'render'
@@ -15,15 +15,15 @@ type RenderRequest = {
 }
 
 type RenderResponse =
-  | { kind: 'rendered'; id: number; svg: string }
+  | { kind: 'rendered'; id: number; svg: string; pageCount: number }
   | { kind: 'error'; id: number; message: string }
 
 self.addEventListener('message', async (e: MessageEvent<RenderRequest>) => {
   const msg = e.data
   if (msg?.kind !== 'render') return
   try {
-    const svg = await renderPdfPageToSvg(msg.pdf, msg.pageIndex)
-    const resp: RenderResponse = { kind: 'rendered', id: msg.id, svg }
+    const { svg, pageCount } = await renderPdfPageToSvgWithMeta(msg.pdf, msg.pageIndex)
+    const resp: RenderResponse = { kind: 'rendered', id: msg.id, svg, pageCount }
     ;(self as unknown as Worker).postMessage(resp)
   } catch (err) {
     const resp: RenderResponse = {

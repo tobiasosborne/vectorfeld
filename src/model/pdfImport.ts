@@ -11,24 +11,30 @@ import { syncIdCounter } from './document'
 import { clearSelection } from './selection'
 import { parseSvgString, type ParsedSvg } from './fileio'
 import { analyzeImportedSvg } from './importAnalysis'
+import { getActiveSourcePdfStore, recordImportedSource } from './sourcePdf'
 import RenderWorker from './pdfRender.worker.ts?worker'
 
 // ── Worker management ──────────────────────────────────────────────────
 
+type RenderResult = { svg: string; pageCount: number }
+
 let worker: Worker | null = null
 let pendingId = 0
-const pending = new Map<number, { resolve: (svg: string) => void; reject: (err: Error) => void }>()
+const pending = new Map<number, { resolve: (r: RenderResult) => void; reject: (err: Error) => void }>()
 
 function getWorker(): Worker {
   if (worker) return worker
   worker = new RenderWorker()
   worker.addEventListener('message', (e: MessageEvent) => {
-    const msg = e.data as { kind: string; id: number; svg?: string; message?: string }
+    const msg = e.data as { kind: string; id: number; svg?: string; pageCount?: number; message?: string }
     const p = pending.get(msg.id)
     if (!p) return
     pending.delete(msg.id)
-    if (msg.kind === 'rendered' && typeof msg.svg === 'string') p.resolve(msg.svg)
-    else p.reject(new Error(msg.message ?? 'PDF render failed'))
+    if (msg.kind === 'rendered' && typeof msg.svg === 'string' && typeof msg.pageCount === 'number') {
+      p.resolve({ svg: msg.svg, pageCount: msg.pageCount })
+    } else {
+      p.reject(new Error(msg.message ?? 'PDF render failed'))
+    }
   })
   worker.addEventListener('error', (e) => {
     // If the worker dies, reject every pending request so callers don't hang.
@@ -39,12 +45,13 @@ function getWorker(): Worker {
   return worker
 }
 
-function postRender(pdf: ArrayBuffer, pageIndex: number): Promise<string> {
+function postRender(pdf: ArrayBuffer, pageIndex: number): Promise<RenderResult> {
   const w = getWorker()
   const id = ++pendingId
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<RenderResult>((resolve, reject) => {
     pending.set(id, { resolve, reject })
-    // Transfer the ArrayBuffer to avoid a copy.
+    // Transfer the ArrayBuffer to avoid a copy. Caller must clone first if it
+    // needs to retain the bytes — the SourcePdfStore in importPdf does this.
     w.postMessage({ kind: 'render', id, pdf, pageIndex }, [pdf])
   })
 }
@@ -129,10 +136,25 @@ export function postProcessPdfSvg(svgString: string): string {
 /**
  * Render a PDF page to SVG via the worker. Pure pipeline: the worker
  * holds the MuPDF instance; this function just shepherds bytes in and
- * the SVG string out.
+ * the SVG + page count out.
  */
-async function renderPageToSvg(pdfData: ArrayBuffer, pageIndex = 0): Promise<string> {
+async function renderPageToSvg(pdfData: ArrayBuffer, pageIndex = 0): Promise<RenderResult> {
   return postRender(pdfData, pageIndex)
+}
+
+/**
+ * Read the file once, then split into:
+ *  - a retained Uint8Array (kept on main side, stored in `SourcePdfStore` so
+ *    the graft engine can re-open MuPDF on demand)
+ *  - a fresh ArrayBuffer transferred to the worker for SVG render
+ *
+ * The split is a `slice(0)` clone so the worker can still receive a
+ * transferable without detaching our retained copy.
+ */
+async function readAndForkPdfBytes(file: File): Promise<{ retained: Uint8Array; forwarded: ArrayBuffer }> {
+  const arrayBuffer = await file.arrayBuffer()
+  const retained = new Uint8Array(arrayBuffer.slice(0))
+  return { retained, forwarded: arrayBuffer }
 }
 
 /**
@@ -151,12 +173,17 @@ export async function importPdf(doc: DocumentModel): Promise<void> {
       if (!file) { resolve(); return }
 
       try {
-        const arrayBuffer = await file.arrayBuffer()
-        const rawSvg = await renderPageToSvg(arrayBuffer)
-        const processedSvg = postProcessPdfSvg(rawSvg)
+        const { retained, forwarded } = await readAndForkPdfBytes(file)
+        const { svg, pageCount } = await renderPageToSvg(forwarded)
+        const processedSvg = postProcessPdfSvg(svg)
         const parsed = parseSvgString(processedSvg)
 
         applyParsedSvg(doc, parsed)
+        recordImportedSource(getActiveSourcePdfStore(), 'primary', null, {
+          bytes: retained,
+          filename: file.name,
+          pageCount,
+        })
         resolve()
       } catch (err) {
         reject(err instanceof Error ? err : new Error(String(err)))
@@ -212,11 +239,17 @@ export async function importPdfAsBackgroundLayer(doc: DocumentModel): Promise<vo
       const file = input.files?.[0]
       if (!file) { resolve(); return }
       try {
-        const arrayBuffer = await file.arrayBuffer()
-        const rawSvg = await renderPageToSvg(arrayBuffer)
-        const processedSvg = postProcessPdfSvg(rawSvg)
+        const { retained, forwarded } = await readAndForkPdfBytes(file)
+        const { svg, pageCount } = await renderPageToSvg(forwarded)
+        const processedSvg = postProcessPdfSvg(svg)
         const parsed = parseSvgString(processedSvg)
+        const layerName = sanitizeLayerNameFromFile(file.name)
         applyParsedAsBackgroundLayer(doc, parsed, file.name)
+        recordImportedSource(getActiveSourcePdfStore(), 'background', layerName, {
+          bytes: retained,
+          filename: file.name,
+          pageCount,
+        })
         resolve()
       } catch (err) {
         reject(err instanceof Error ? err : new Error(String(err)))

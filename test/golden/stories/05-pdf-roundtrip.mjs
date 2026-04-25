@@ -1,8 +1,8 @@
 // Story 05: Import a real PDF, don't edit, export SVG + PDF.
 //
 // The load-bearing proof for the pivot: opening a PDF and saving again
-// must produce a stable output. The source PDF is Flyer …noheader.pdf
-// from temp/; treat it as immutable input.
+// must produce a stable output. The source PDF is the noheader flyer in
+// test/dogfood/fixtures/; treat it as immutable input.
 //
 // This is the story that has historically exposed the worst bugs
 // (transform-on-leaf, tspan positioning, path double-Y-flip). A green
@@ -13,7 +13,7 @@ import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const FIXTURE = resolve(here, '..', '..', '..', 'temp', 'Flyer Swift Vortragscoaching 15.04.2026 noheader.pdf')
+const FIXTURE = resolve(here, '..', '..', 'dogfood', 'fixtures', 'Flyer Swift Vortragscoaching 15.04.2026 noheader.pdf')
 
 export const name = '05-pdf-roundtrip'
 

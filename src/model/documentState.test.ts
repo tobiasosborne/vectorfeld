@@ -5,6 +5,7 @@ import { getGridSettings, setGridSettings } from './grid'
 import { getGuides, addGuide, clearAllGuides } from './guides'
 import { getDefaultStyle, setDefaultStyle } from './defaultStyle'
 import { isWireframe, setWireframe } from './wireframe'
+import { getActiveSourcePdfStore } from './sourcePdf'
 
 /** Remember whatever DocumentState was active at test-file load so we can
  *  restore it in afterEach — otherwise state from these tests would bleed
@@ -31,6 +32,27 @@ describe('DocumentState', () => {
     expect(a.artboard).not.toBe(b.artboard)
     expect(a.smartGuides).not.toBe(b.smartGuides)
     expect(a.activeLayer).not.toBe(b.activeLayer)
+    expect(a.sourcePdf).not.toBe(b.sourcePdf)
+  })
+
+  it('setActiveDocument swaps source-PDF byte store', () => {
+    const a = new DocumentState()
+    const b = new DocumentState()
+    const bytesA = new Uint8Array([1, 2, 3])
+    const bytesB = new Uint8Array([9, 9])
+
+    setActiveDocument(a)
+    getActiveSourcePdfStore().setPrimary({ bytes: bytesA, filename: 'a.pdf', pageCount: 1 })
+    expect(getActiveSourcePdfStore().getPrimary()?.filename).toBe('a.pdf')
+
+    setActiveDocument(b)
+    expect(getActiveSourcePdfStore().getPrimary()).toBeNull()
+    getActiveSourcePdfStore().setPrimary({ bytes: bytesB, filename: 'b.pdf', pageCount: 2 })
+    expect(getActiveSourcePdfStore().getPrimary()?.filename).toBe('b.pdf')
+
+    setActiveDocument(a)
+    expect(getActiveSourcePdfStore().getPrimary()?.filename).toBe('a.pdf')
+    expect(getActiveSourcePdfStore().getPrimary()?.bytes).toBe(bytesA)
   })
 
   it('setActiveDocument swaps selection scope', () => {

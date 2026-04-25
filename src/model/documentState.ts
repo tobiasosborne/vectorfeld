@@ -30,6 +30,7 @@ import { GuidesState, setActiveGuidesState, getActiveGuidesState } from './guide
 import { DefaultStyleState, setActiveDefaultStyleState, getActiveDefaultStyleState } from './defaultStyle'
 import { SmartGuidesState, setActiveSmartGuidesState, getActiveSmartGuidesState } from './smartGuides'
 import { WireframeState, setActiveWireframeState, getActiveWireframeState } from './wireframe'
+import { SourcePdfStore, setActiveSourcePdfStore, getActiveSourcePdfStore } from './sourcePdf'
 
 export class DocumentState {
   selection: SelectionState
@@ -40,6 +41,7 @@ export class DocumentState {
   defaultStyle: DefaultStyleState
   smartGuides: SmartGuidesState
   wireframe: WireframeState
+  sourcePdf: SourcePdfStore
 
   constructor() {
     this.selection = new SelectionState()
@@ -50,6 +52,7 @@ export class DocumentState {
     this.defaultStyle = new DefaultStyleState()
     this.smartGuides = new SmartGuidesState()
     this.wireframe = new WireframeState()
+    this.sourcePdf = new SourcePdfStore()
   }
 }
 
@@ -66,6 +69,7 @@ export function captureActiveDocumentState(): DocumentState {
   d.defaultStyle = getActiveDefaultStyleState()
   d.smartGuides = getActiveSmartGuidesState()
   d.wireframe = getActiveWireframeState()
+  d.sourcePdf = getActiveSourcePdfStore()
   return d
 }
 
@@ -83,4 +87,5 @@ export function setActiveDocument(doc: DocumentState): void {
   setActiveDefaultStyleState(doc.defaultStyle)
   setActiveSmartGuidesState(doc.smartGuides)
   setActiveWireframeState(doc.wireframe)
+  setActiveSourcePdfStore(doc.sourcePdf)
 }

@@ -22,9 +22,24 @@ export async function renderPdfPageToSvg(
   pdfData: ArrayBuffer,
   pageIndex = 0
 ): Promise<string> {
+  const r = await renderPdfPageToSvgWithMeta(pdfData, pageIndex)
+  return r.svg
+}
+
+/**
+ * Render + return page count alongside the SVG. The graft-export pipeline
+ * (`vectorfeld-ccl`) needs the page count to validate page-index bounds
+ * without a second mupdf round-trip; the `SourcePdfStore` records it so
+ * downstream consumers don't pay to re-open the PDF.
+ */
+export async function renderPdfPageToSvgWithMeta(
+  pdfData: ArrayBuffer,
+  pageIndex = 0
+): Promise<{ svg: string; pageCount: number }> {
   const m = await getMuPDF()
   const doc = m.Document.openDocument(pdfData, 'application/pdf')
   try {
+    const pageCount: number = doc.countPages()
     const page = doc.loadPage(pageIndex)
     try {
       const bounds = page.getBounds()
@@ -34,7 +49,7 @@ export async function renderPdfPageToSvg(
       page.run(device, m.Matrix.identity)
       writer.endPage()
       writer.close()
-      return buf.asString()
+      return { svg: buf.asString(), pageCount }
     } finally {
       page.destroy()
     }
