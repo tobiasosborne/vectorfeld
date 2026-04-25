@@ -4,6 +4,10 @@ import { clearSelection } from './selection'
 import { AddElementCommand } from './commands'
 import type { CommandHistory } from './commands'
 import { svgStringToPdfBytes, type FontBytes } from './pdfExport'
+import { exportViaGraft } from './graftExport'
+import { getActiveSourcePdfStore, type SourcePdfStore } from './sourcePdf'
+import { classifyLayer } from './graftClassify'
+import { expectedSourceCount, currentSourceCount } from './sourceSnapshot'
 
 // Carlito (Calibri-metric-compatible open clone) for sans, Liberation Serif
 // as a Playfair-Display-compatible fallback for serif. Vite resolves the
@@ -147,14 +151,65 @@ export async function exportSvgStringToPdfBytes(svgString: string): Promise<Uint
   return svgStringToPdfBytes(svgString)
 }
 
+export interface ExportPdfOpts {
+  /** Override Carlito-Regular bytes for the graft engine. Defaults to
+   *  the ?url-imported file from src/fonts. Tests pass this directly
+   *  to skip the network fetch. */
+  carlito?: Uint8Array
+  /** Override the pdf-lib font set. Defaults to ?url-imported files
+   *  from src/fonts. Pass `{}` in tests to skip font loading and fall
+   *  back to Helvetica. */
+  fonts?: FontBytes
+}
+
 /**
- * Export the document as a PDF file download.
- * Uses the pdf-lib engine in src/model/pdfExport.ts so embedded fonts and
- * glyph positioning round-trip cleanly (vectorfeld-9s9). Replaces the
- * earlier svg2pdf.js + jsPDF pipeline which substituted glyph metrics from
- * its bundled fonts and visibly garbled body text.
+ * Conservative MVP routing rule (vectorfeld-u7r): use the graft engine
+ * only for the cleanest case — a single primary source PDF with NO
+ * edits whatsoever (no modifications, additions, OR deletions on any
+ * layer). Anything else falls back to the pdf-lib engine, which
+ * re-renders from the current SVG and therefore handles all mutations
+ * naturally.
+ *
+ * Why so conservative:
+ *   - Backgrounds (composites) currently re-render source text in
+ *     Carlito (no per-source font preservation) — fidelity regression.
+ *   - The graft engine's mixed path masks + re-renders MODIFIED elements
+ *     but doesn't yet track DELETIONS — a deleted text would still appear
+ *     in the grafted page bytes.
+ * Until both gaps close (`vectorfeld-yyj`, future deletion-tracking bead),
+ * any document with edits stays on the pdf-lib pipeline.
  */
-export async function exportPdf(doc: DocumentModel, filename: string = 'document.pdf'): Promise<void> {
+function shouldUseGraftEngine(doc: DocumentModel, store: SourcePdfStore): boolean {
+  if (store.primary === null || store.backgrounds.size > 0) return false
+  // All layers must be pure-untouched-graft.
+  for (const layer of doc.getLayerElements()) {
+    const cls = classifyLayer(layer, store)
+    if (cls.kind !== 'graft') return false
+    // classifyLayer doesn't see deletions; check element count vs snapshot.
+    if (currentSourceCount(layer) !== expectedSourceCount(layer)) return false
+  }
+  return true
+}
+
+/**
+ * Render the document to PDF bytes WITHOUT triggering a download.
+ * Routes between the graft engine (single-source-PDF case) and the
+ * pdf-lib engine (everything else). Production exportPdf wraps this
+ * with the download flow; tests call directly to inspect bytes.
+ */
+export async function exportPdfBytes(
+  doc: DocumentModel,
+  opts: ExportPdfOpts = {},
+): Promise<Uint8Array> {
+  const store = getActiveSourcePdfStore()
+  if (shouldUseGraftEngine(doc, store)) {
+    const carlito = opts.carlito ?? (await loadFontsForExport()).sansRegular
+    return exportViaGraft(doc, store, { carlito })
+  }
+  // pdf-lib fallback path. Embeds Carlito + Liberation Serif so imported
+  // PDF fonts (Calibri, Playfair Display, etc.) round-trip with near-
+  // correct metrics rather than being substituted with Helvetica (wrong
+  // shape AND wrong widths → visible kerning errors).
   const svgClone = doc.svg.cloneNode(true) as SVGSVGElement
   for (const el of svgClone.querySelectorAll(OVERLAY_SELECTOR)) {
     el.remove()
@@ -162,14 +217,18 @@ export async function exportPdf(doc: DocumentModel, filename: string = 'document
   if (!svgClone.getAttribute('xmlns')) {
     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
   }
-
   const svgString = new XMLSerializer().serializeToString(svgClone)
-  // Load Carlito + Liberation Serif so imported PDF fonts (Calibri, Playfair
-  // Display, etc.) round-trip with near-correct metrics rather than being
-  // substituted with Helvetica (wrong shape AND wrong widths → visible
-  // kerning errors).
-  const fonts = await loadFontsForExport()
-  const pdfBytes = await svgStringToPdfBytes(svgString, { fonts })
+  const fonts = opts.fonts ?? await loadFontsForExport()
+  return svgStringToPdfBytes(svgString, { fonts })
+}
+
+/**
+ * Export the document as a PDF file download. Routes through
+ * exportPdfBytes for engine selection, then triggers the browser
+ * download. The graft engine path was wired in by vectorfeld-u7r.
+ */
+export async function exportPdf(doc: DocumentModel, filename: string = 'document.pdf'): Promise<void> {
+  const pdfBytes = await exportPdfBytes(doc)
 
   const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' })
   const url = URL.createObjectURL(blob)

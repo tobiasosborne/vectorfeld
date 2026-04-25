@@ -24,6 +24,12 @@ import { isFromSource } from './sourceTagging'
 
 const snapshots: WeakMap<Element, Map<string, string>> = new WeakMap()
 
+/** Layer attribute that records how many source-tagged elements existed at
+ *  import time. Compared at export time against the current count to detect
+ *  deletions — `findModifiedSourceElements` only sees what's still in the
+ *  DOM, so removals are otherwise invisible. */
+export const SOURCE_COUNT_ATTR = 'data-vf-source-count'
+
 function captureAttributes(el: Element): Map<string, string> {
   const m = new Map<string, string>()
   for (const a of Array.from(el.attributes)) {
@@ -33,18 +39,46 @@ function captureAttributes(el: Element): Map<string, string> {
 }
 
 /** Snapshot every tagged source element under `layer` (including the layer
- *  itself if it carries source attrs — though normally only leaves do). */
+ *  itself if it carries source attrs — though normally only leaves do).
+ *  Stamps `data-vf-source-count` on the layer with the snapshot count so
+ *  the export pipeline can detect deletions (which `findModifiedSource-
+ *  Elements` cannot — it only sees current DOM nodes). */
 export function snapshotImportedElements(layer: Element): void {
+  let count = 0
   walk(layer)
+  layer.setAttribute(SOURCE_COUNT_ATTR, String(count))
+
+  function walk(node: Element): void {
+    if (isFromSource(node)) {
+      snapshots.set(node, captureAttributes(node))
+      count++
+    }
+    for (const child of Array.from(node.children)) {
+      walk(child)
+    }
+  }
 }
 
-function walk(node: Element): void {
-  if (isFromSource(node)) {
-    snapshots.set(node, captureAttributes(node))
+/** Number of source-tagged elements snapshot at import time. Returns 0 if
+ *  the layer was never snapshot. */
+export function expectedSourceCount(layer: Element): number {
+  const s = layer.getAttribute(SOURCE_COUNT_ATTR)
+  if (s === null) return 0
+  const n = parseInt(s, 10)
+  return Number.isFinite(n) ? n : 0
+}
+
+/** Walk the layer and count source-tagged elements present in the DOM
+ *  RIGHT NOW. Comparing this to expectedSourceCount tells you whether
+ *  the user has removed any source elements. */
+export function currentSourceCount(layer: Element): number {
+  let count = 0
+  function walk(node: Element): void {
+    if (isFromSource(node)) count++
+    for (const child of Array.from(node.children)) walk(child)
   }
-  for (const child of Array.from(node.children)) {
-    walk(child)
-  }
+  walk(layer)
+  return count
 }
 
 /** True iff this element was snapshot during import (tagged source content). */
