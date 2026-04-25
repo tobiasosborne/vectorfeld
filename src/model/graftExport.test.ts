@@ -164,16 +164,128 @@ describe('exportViaGraft — determinism', () => {
   })
 })
 
-describe('exportViaGraft — multiple layers', () => {
-  it('produces one page per layer (MVP scope; single-page-stacking is a future bead)', async () => {
+describe('exportViaGraft — single-page-stacking (1kp)', () => {
+  let srcBytes: Uint8Array
+  beforeAll(async () => { srcBytes = await exportSvgStringToPdfBytes(SHAPES_SVG) })
+
+  it('two overlay-only layers stack onto a single page; both contents present', async () => {
     const docXml = `<svg xmlns="${SVG_NS}" viewBox="0 0 50 30">
-      <g data-layer-name="L1"><rect x="0" y="0" width="5" height="5" fill="black"/></g>
-      <g data-layer-name="L2"><rect x="10" y="10" width="5" height="5" fill="black"/></g>
+      <g data-layer-name="L1"><rect x="0" y="0" width="5" height="5" fill="#ff0000"/></g>
+      <g data-layer-name="L2"><rect x="10" y="10" width="5" height="5" fill="#0000ff"/></g>
     </svg>`
     const doc = createDocumentModel(svgRoot(docXml))
     const out = await exportViaGraft(doc, new SourcePdfStore())
+
     const reloaded = await openSourcePdfDoc(out)
-    expect(reloaded.countPages()).toBe(2)
+    expect(reloaded.countPages()).toBe(1)
     closeSourcePdfDoc(reloaded)
+
+    const content = await pageContent(out)
+    // Red rect from L1
+    expect(content).toMatch(/1 0 0 rg/)
+    // Blue rect from L2
+    expect(content).toMatch(/0 0 1 rg/)
+  })
+
+  it('graft foundation + overlay-on-top: page count stays 1; overlay content lands on grafted page', async () => {
+    const docXml = `<svg xmlns="${SVG_NS}" viewBox="0 0 50 30">
+      <g data-layer-name="From Source"><rect x="5" y="5" width="10" height="10" fill="#ff0000"/></g>
+      <g data-layer-name="User Drew"><rect x="20" y="20" width="3" height="3" fill="#00ff00"/></g>
+    </svg>`
+    const docSvg = svgRoot(docXml)
+    const layers = docSvg.querySelectorAll('g[data-layer-name]')
+    tagImportedLayer(layers[0], { page: 0, layerId: PRIMARY_LAYER_ID })
+    snapshotImportedElements(layers[0])
+
+    const doc = createDocumentModel(docSvg)
+    const store = new SourcePdfStore()
+    store.setPrimary({ bytes: srcBytes, filename: 'test.pdf', pageCount: 1 })
+
+    const out = await exportViaGraft(doc, store)
+
+    const reloaded = await openSourcePdfDoc(out)
+    expect(reloaded.countPages()).toBe(1)
+    closeSourcePdfDoc(reloaded)
+
+    const content = await pageContent(out)
+    // The user-drawn green rect is in the appended overlay.
+    expect(content).toMatch(/0 1 0 rg/)
+  })
+
+  it('two graft layers: first is foundation (page count 1), second renders as overlay (lossy MVP)', async () => {
+    // Both layers are tagged from source; second uses a different layerId
+    // so the source-store lookup picks up its own bytes (here the same
+    // SHAPES_SVG bytes for simplicity).
+    const docXml = `<svg xmlns="${SVG_NS}" viewBox="0 0 50 30">
+      <g data-layer-name="Foreground"><rect x="5" y="5" width="10" height="10" fill="#ff0000"/></g>
+      <g data-layer-name="bg"><rect x="20" y="20" width="3" height="3" fill="#0000ff"/></g>
+    </svg>`
+    const docSvg = svgRoot(docXml)
+    const layers = docSvg.querySelectorAll('g[data-layer-name]')
+    tagImportedLayer(layers[0], { page: 0, layerId: PRIMARY_LAYER_ID })
+    snapshotImportedElements(layers[0])
+    tagImportedLayer(layers[1], { page: 0, layerId: 'bg' })
+    snapshotImportedElements(layers[1])
+
+    const doc = createDocumentModel(docSvg)
+    const store = new SourcePdfStore()
+    store.setPrimary({ bytes: srcBytes, filename: 'fg.pdf', pageCount: 1 })
+    store.addBackground('bg', { bytes: srcBytes, filename: 'bg.pdf', pageCount: 1 })
+
+    const out = await exportViaGraft(doc, store)
+
+    const reloaded = await openSourcePdfDoc(out)
+    expect(reloaded.countPages()).toBe(1)
+    closeSourcePdfDoc(reloaded)
+
+    const content = await pageContent(out)
+    // Second graft layer's blue rect rendered as overlay.
+    expect(content).toMatch(/0 0 1 rg/)
+  })
+
+  it('page size taken from foundation MediaBox (not doc viewBox) when foundation is a graft', async () => {
+    // Source PDF is 50×30 mm = 141.7×85.0 pt (matches SHAPES_SVG viewBox)
+    // Doc viewBox is intentionally different to prove the MediaBox wins.
+    const docXml = `<svg xmlns="${SVG_NS}" viewBox="0 0 999 999">
+      <g data-layer-name="From Source"><rect x="5" y="5" width="10" height="10" fill="#ff0000"/></g>
+    </svg>`
+    const docSvg = svgRoot(docXml)
+    const layer = docSvg.querySelector('g[data-layer-name]')!
+    tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
+    snapshotImportedElements(layer)
+
+    const doc = createDocumentModel(docSvg)
+    const store = new SourcePdfStore()
+    store.setPrimary({ bytes: srcBytes, filename: 'test.pdf', pageCount: 1 })
+
+    const out = await exportViaGraft(doc, store)
+    const reloaded = await openSourcePdfDoc(out)
+    const PT = 72 / 25.4
+    const mb = reloaded.findPage(0).getInheritable('MediaBox')
+    // Source page is 50×30 mm. Doc viewBox is 999×999 mm. MediaBox should
+    // match the source, not the viewBox.
+    expect(mb.get(2).asNumber() - mb.get(0).asNumber()).toBeCloseTo(50 * PT, 1)
+    expect(mb.get(3).asNumber() - mb.get(1).asNumber()).toBeCloseTo(30 * PT, 1)
+    closeSourcePdfDoc(reloaded)
+  })
+
+  it('overlay-text on top of a graft foundation registers a font on the grafted page', async () => {
+    const docXml = `<svg xmlns="${SVG_NS}" viewBox="0 0 50 30">
+      <g data-layer-name="From Source"><rect x="5" y="5" width="10" height="10" fill="#ff0000"/></g>
+      <g data-layer-name="Annotations"><text x="20" y="20" font-size="6">Hi</text></g>
+    </svg>`
+    const docSvg = svgRoot(docXml)
+    const layer = docSvg.querySelector('g[data-layer-name]')!
+    tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
+    snapshotImportedElements(layer)
+
+    const doc = createDocumentModel(docSvg)
+    const store = new SourcePdfStore()
+    store.setPrimary({ bytes: srcBytes, filename: 'test.pdf', pageCount: 1 })
+
+    const out = await exportViaGraft(doc, store, { carlito: CARLITO })
+    const content = await pageContent(out)
+    expect(content).toContain('(Hi) Tj')
+    expect(content).toContain('/VfCarlito')
   })
 })

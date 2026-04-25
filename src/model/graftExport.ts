@@ -1,28 +1,38 @@
 /**
  * Graft-based PDF export engine — entry point.
  *
- * Composes the primitives shipped by the wjj sub-beads into the full export
+ * Composes the wjj sub-bead primitives into a single-page-stacking export
  * pipeline:
  *
- *   per layer →
- *     classifyLayer (graft / mixed / overlay)
- *         graft   → graftSourcePageInto
- *         mixed   → graftSourcePageInto + per-modified mask + re-render
- *                   + per-new-leaf overlay
- *         overlay → addPage(viewBox) + walk + emit content stream
+ *   1. Pick the FOUNDATION layer: the first graft/mixed layer in DOM
+ *      order. If none exists, bootstrap a blank page sized to the
+ *      document viewBox.
+ *   2. Graft the foundation page into the new doc — this gives us a
+ *      single output page (page 0).
+ *   3. Walk the remaining layers in DOM order (which is z-order, bottom
+ *      to top), appending overlay content streams onto page 0:
+ *        - mixed FOUNDATION   → mask + re-render modified, render new
+ *        - non-foundation graft → render whole layer (lossy: text loses
+ *                                 source-font fidelity, becomes Carlito)
+ *        - non-foundation mixed → same as overlay (treat as user-content)
+ *        - overlay              → render whole layer
+ *   4. Save with compression.
  *
- * MVP scope (this bead, hnj):
- *   - One output page per layer (multi-layer-stacking onto a shared page is
- *     a future bead). For the canonical "one source PDF + zero or one
- *     overlay layer" case this is exactly right.
- *   - Source page 0 only on graft/mixed layers (multi-source-page support
- *     is a future bead).
- *   - Single Carlito font for all overlay text (full pickFont 5-slot is a
- *     future bead).
+ * Page sizing: when the foundation is a graft/mixed, the page MediaBox
+ * comes from the source PDF (preserves source dimensions byte-for-byte).
+ * When there's no graft foundation, MediaBox comes from the doc viewBox
+ * scaled to PDF points.
  *
  * Determinism: relies on mupdf's saveToBuffer not stamping wall-clock
  * timestamps on identical inputs. Re-export of the same document yields
  * byte-identical PDFs (verified by graftExport.test.ts).
+ *
+ * MVP scope:
+ *   - Single output page (multi-page source PDFs imported as multiple
+ *     output pages is a future bead).
+ *   - Source page 0 only on graft/mixed (multi-source-page is future).
+ *   - Single Carlito font for ALL overlay text (full pickFont 5-slot
+ *     is a future bead — `vectorfeld-yyj`).
  */
 
 import {
@@ -58,10 +68,17 @@ const LEAF_TAGS = new Set(['rect', 'line', 'circle', 'ellipse', 'path', 'text'])
 const TEXT_TAGS = new Set(['text'])
 
 export interface ExportViaGraftOpts {
-  /** Carlito-Regular bytes. Required for any layer that draws new text
-   *  (overlay or mixed). Engine throws a clear error if a layer needs a
-   *  font and none was supplied. */
+  /** Carlito-Regular bytes. Required for any layer whose contents — either
+   *  user-authored text (overlay) or mask+re-rendered source text (mixed)
+   *  or non-foundation grafted text (lossy fallback) — will be emitted
+   *  via emitText. Engine throws a clear actionable error if a font is
+   *  needed and none is supplied. */
   carlito?: Uint8Array
+}
+
+interface ClassifiedEntry {
+  layer: Element
+  cls: ClassifiedLayer
 }
 
 export async function exportViaGraft(
@@ -72,96 +89,121 @@ export async function exportViaGraft(
   const out = await createEmptyPdfDoc()
   try {
     const layers = doc.getLayerElements()
-    for (const layer of layers) {
-      const cls = classifyLayer(layer, store)
-      if (cls.kind === 'graft') {
-        await processGraftLayer(out, cls)
-      } else if (cls.kind === 'mixed') {
-        await processMixedLayer(out, layer, cls, opts)
-      } else {
-        await processOverlayLayer(out, layer, doc, opts)
-      }
+    const classifications: ClassifiedEntry[] = layers.map((layer) => ({
+      layer,
+      cls: classifyLayer(layer, store),
+    }))
+
+    // 1. Pick foundation: first graft/mixed in DOM order. -1 = none.
+    const foundIdx = classifications.findIndex(
+      (c) => c.cls.kind === 'graft' || c.cls.kind === 'mixed',
+    )
+
+    // 2. Bootstrap the single output page.
+    const pageHeightPt = await bootstrapPage(out, doc, foundIdx, classifications)
+    const pageIdx = 0
+
+    // 3. Decide whether to register a font on this page.
+    const registry = await ensureFontIfNeeded(
+      out,
+      pageIdx,
+      classificationsNeedFont(classifications, foundIdx),
+      opts,
+    )
+
+    // 4. Build a single overlay content stream from all layers (the
+    //    foundation contributes only its mixed-layer overlays; pure-
+    //    graft foundation contributes nothing because the grafted bytes
+    //    are already on the page).
+    const ctx: Ctx = { matrix: identityMatrix(), pageHeightPt }
+    const ops: string[] = []
+    for (let i = 0; i < classifications.length; i++) {
+      emitLayerOverlay(classifications[i], i === foundIdx, ctx, ops, registry)
     }
-    const buf = out.saveToBuffer('compress=yes')
-    return buf.asUint8Array().slice()
+
+    if (ops.length > 0) {
+      await appendContentStream(out, pageIdx, ops.join(''))
+    }
+
+    return out.saveToBuffer('compress=yes').asUint8Array().slice()
   } finally {
     closeSourcePdfDoc(out)
   }
 }
 
 // ---------------------------------------------------------------------------
-// Per-layer processors
+// Page bootstrap
 // ---------------------------------------------------------------------------
 
-async function processGraftLayer(
+async function bootstrapPage(
   out: mupdfTypes.PDFDocument,
-  cls: Extract<ClassifiedLayer, { kind: 'graft' }>,
-): Promise<void> {
-  const src = await openSourcePdfDoc(cls.sourceEntry.bytes)
-  try {
-    graftSourcePageInto(out, src, 0)
-  } finally {
-    closeSourcePdfDoc(src)
-  }
-}
-
-async function processMixedLayer(
-  out: mupdfTypes.PDFDocument,
-  layer: Element,
-  cls: Extract<ClassifiedLayer, { kind: 'mixed' }>,
-  opts: ExportViaGraftOpts,
-): Promise<void> {
-  const src = await openSourcePdfDoc(cls.sourceEntry.bytes)
-  try {
-    graftSourcePageInto(out, src, 0)
-  } finally {
-    closeSourcePdfDoc(src)
-  }
-  const pageIdx = out.countPages() - 1
-  const pageHeightPt = pageHeightPtOf(out, pageIdx)
-  const registry = await ensureFontIfNeeded(
-    out,
-    pageIdx,
-    layerNeedsFont(cls.modifiedElements, cls.newElements),
-    opts,
-  )
-  const ctx: Ctx = { matrix: identityMatrix(), pageHeightPt }
-
-  const ops: string[] = []
-  for (const el of cls.modifiedElements) {
-    const bbox = elementBboxPdfPt(el, pageHeightPt)
-    if (bbox) ops.push(emitMaskRectOp(bbox))
-    const op = emitElementWithAncestors(el, layer, ctx, registry)
-    if (op) ops.push(op)
-  }
-  for (const el of cls.newElements) {
-    const op = emitElementWithAncestors(el, layer, ctx, registry)
-    if (op) ops.push(op)
-  }
-
-  const stream = ops.join('')
-  if (stream) await appendContentStream(out, pageIdx, stream)
-}
-
-async function processOverlayLayer(
-  out: mupdfTypes.PDFDocument,
-  layer: Element,
   doc: DocumentModel,
-  opts: ExportViaGraftOpts,
-): Promise<void> {
-  const vb = parseViewBox(doc.svg.getAttribute('viewBox'))
-  const widthPt = vb.width * MM_TO_PT
-  const heightPt = vb.height * MM_TO_PT
-  await addBlankPage(out, widthPt, heightPt)
-  const pageIdx = out.countPages() - 1
+  foundIdx: number,
+  classifications: ClassifiedEntry[],
+): Promise<number> {
+  if (foundIdx === -1) {
+    // No source foundation: page comes from doc viewBox.
+    const vb = parseViewBox(doc.svg.getAttribute('viewBox'))
+    const widthPt = vb.width * MM_TO_PT
+    const heightPt = vb.height * MM_TO_PT
+    await addBlankPage(out, widthPt, heightPt)
+    return heightPt
+  }
+  // Source foundation: graft its page 0; MediaBox follows the source.
+  const found = classifications[foundIdx].cls as Extract<
+    ClassifiedLayer,
+    { kind: 'graft' | 'mixed' }
+  >
+  const src = await openSourcePdfDoc(found.sourceEntry.bytes)
+  try {
+    graftSourcePageInto(out, src, 0)
+  } finally {
+    closeSourcePdfDoc(src)
+  }
+  return pageHeightPtOf(out, 0)
+}
 
-  const registry = await ensureFontIfNeeded(out, pageIdx, layerHasText(layer), opts)
-  const ctx: Ctx = { matrix: identityMatrix(), pageHeightPt: heightPt }
+// ---------------------------------------------------------------------------
+// Per-layer overlay emission
+// ---------------------------------------------------------------------------
 
-  const ops: string[] = []
+function emitLayerOverlay(
+  entry: ClassifiedEntry,
+  isFoundation: boolean,
+  ctx: Ctx,
+  ops: string[],
+  registry: FontRegistry,
+): void {
+  const { layer, cls } = entry
+
+  // Pure-graft foundation: page bytes already in place, no overlay.
+  if (isFoundation && cls.kind === 'graft') return
+
+  // Mixed FOUNDATION: mask + re-render edits, then render new leaves.
+  // The mask logic is only valid against the foundation's own source
+  // (which IS what's currently on the page).
+  if (isFoundation && cls.kind === 'mixed') {
+    for (const el of cls.modifiedElements) {
+      const bbox = elementBboxPdfPt(el, ctx.pageHeightPt)
+      if (bbox) ops.push(emitMaskRectOp(bbox))
+      const op = emitElementWithAncestors(el, layer, ctx, registry)
+      if (op) ops.push(op)
+    }
+    for (const el of cls.newElements) {
+      const op = emitElementWithAncestors(el, layer, ctx, registry)
+      if (op) ops.push(op)
+    }
+    return
+  }
+
+  // All other cases (overlay; non-foundation graft; non-foundation mixed):
+  // walk the layer's DOM and render every leaf via the emitter dispatch.
+  // For non-foundation graft this is a deliberate fidelity loss — source
+  // bytes can't be grafted onto a page that already has different source
+  // bytes; rendering as overlay preserves visible content but loses font
+  // subsetting and per-glyph positioning. Acceptable for the composite
+  // case until multi-graft-per-page support lands.
   walkLayer(layer, ctx, ops, registry)
-  const stream = ops.join('')
-  if (stream) await appendContentStream(out, pageIdx, stream)
 }
 
 // ---------------------------------------------------------------------------
@@ -203,9 +245,9 @@ function dispatchLeaf(el: Element, ctx: Ctx, registry: FontRegistry): string {
 
 /**
  * Emit an element honoring the cumulative transform from `layer` down to
- * `el`. Used for mixed-layer overlay (the elements are loose pointers from
- * classifyLayer, not visited via walkLayer, so we have to compose ancestor
- * transforms ourselves).
+ * `el`. Used for mixed-foundation overlay (the elements are loose pointers
+ * from classifyLayer, not visited via walkLayer, so we have to compose
+ * ancestor transforms ourselves).
  */
 function emitElementWithAncestors(el: Element, layer: Element, baseCtx: Ctx, registry: FontRegistry): string {
   let m: Matrix = identityMatrix()
@@ -222,7 +264,7 @@ function emitElementWithAncestors(el: Element, layer: Element, baseCtx: Ctx, reg
 }
 
 // ---------------------------------------------------------------------------
-// Page bootstrap + font registration
+// Page primitives + font registration
 // ---------------------------------------------------------------------------
 
 function pageHeightPtOf(out: mupdfTypes.PDFDocument, pageIdx: number): number {
@@ -272,11 +314,28 @@ function parseViewBox(s: string | null): { x: number; y: number; width: number; 
   return { x: parts[0], y: parts[1], width: parts[2], height: parts[3] }
 }
 
+function classificationsNeedFont(
+  classifications: ClassifiedEntry[],
+  foundIdx: number,
+): boolean {
+  return classifications.some((c, i) => {
+    if (i === foundIdx && c.cls.kind === 'graft') return false
+    if (c.cls.kind === 'mixed') {
+      // Foundation mixed checks modified+new (only those land via overlay);
+      // non-foundation mixed renders the whole layer so any text matters.
+      if (i === foundIdx) return mixedNeedsFont(c.cls.modifiedElements, c.cls.newElements)
+      return layerHasText(c.layer)
+    }
+    // graft (non-foundation) and overlay: render whole layer.
+    return layerHasText(c.layer)
+  })
+}
+
 function layerHasText(layer: Element): boolean {
   return hasDescendantWithTag(layer, TEXT_TAGS)
 }
 
-function layerNeedsFont(modifiedElements: Element[], newElements: Element[]): boolean {
+function mixedNeedsFont(modifiedElements: Element[], newElements: Element[]): boolean {
   return [...modifiedElements, ...newElements].some(
     (el) => el.tagName.toLowerCase() === 'text' || hasDescendantWithTag(el, TEXT_TAGS),
   )
