@@ -24,10 +24,10 @@ Implications that shape every decision:
 - Scientific-diagram precision (rulers, mm-snap, Bézier authoring, TikZ) is NOT the target.
 - The owner is one specific person. No multi-user, no cloud, no auth.
 
-## Current state (2026-04-25)
+## Current state (2026-04-25, late session)
 
-- **Build**: green. **671 tests** across **57 files**. Type check clean.
-- **Golden suites**: 5/5 gate stories ✓ (`npm run golden`); 10/10 milestones ✓ (`npm run golden:milestones`).
+- **Build**: green. **746 tests** across **60 files**. Type check clean.
+- **Golden suites**: 5/5 gate stories ✓ (`npm run golden`); 10/10 milestones ✓ (`npm run golden:milestones`). Engine isn't yet on the production export path so gates are unaffected.
 - **Bundle** (`npm run build`): main JS **1,670 KB** (gzip 665 KB) + MuPDF JS **89 KB** + MuPDF WASM **10 MB** + Inter/JetBrainsMono woff2 **422 KB** + Carlito/Liberation Serif TTFs **2.7 MB** (embedded for pdf-lib font fidelity, see `vectorfeld-85m`).
 - **UI shell — Atrium** (shipped 2026-04-23): floating Panels over a radial-gradient root. `LeftRail` 9-slot rail + `⋯` overflow for keyboard-only tools, `TopBar` with brand + menu words + tab stub + coral Export PDF, `StatusBar` floating pill, `InspectorPanel` (Frame + Style + merged Layers/Pages tab). Token system in `src/index.css` (oklch) + `src/theme/atrium.ts`.
 - **PDF import**: MuPDF `text=text` mode in a Web Worker. Real `<text>`/`<tspan>`/`<image>` when MuPDF can preserve them; outlines otherwise. ⚠ "mostly-outlined" badge surfaces unrecoverable cases (`analyzeImportedSvg`). Each PDF lands as N direct layer children.
@@ -35,7 +35,7 @@ Implications that shape every decision:
 - **Compositing**: `File > Open PDF as Background Layer…` adds a named layer at the bottom of the z-stack without clearing the canvas. Three-click workflow: open foreground, open background layer, done.
 - **Z-order**: Arrange + Group/Ungroup + 6 Align items live in the Object menu with keyboard shortcuts right-aligned.
 - **Security**: SVG sanitizer strips `<script>`, `<foreignObject>`, `<iframe>`, `<object>`, `<embed>`, `on*` handlers, `javascript:`/`data:text/html` hrefs. Tauri CSP is an explicit allowlist (`src-tauri/tauri.conf.json`).
-- **Architecture**: DocumentState Phase 1 landed (per-document state isolation). Multi-doc UI (`vectorfeld-4w7`) is pending. The **graft-architecture rewrite** (epic `vectorfeld-ccl`, P1) Phase 1 spikes are complete: `mupdf.PDFDocument.graftPage()` clones the source PDF byte-for-byte (0.0000% pixel diff); overlays via appended content streams. Phase 2 implementation deep — eight beads shipped 2026-04-25: `byq` (SourcePdfStore), `8v3` (back-refs), `5gk` (`Command.touchesSource()`), then `wjj` decomposed into 9 sub-beads with `wjj-1..5` (`tsi` snapshot, `fx8` classifier, `68p` mupdf opener, `2oi` graft primitive, `am6` bbox) all green. Next on track: `wjj-6` (`uuz`, content-stream emitter shapes) → `wjj-7` (`e1j`, text emitter) → `wjj-8` (`ne4`, overlay stream + font registration) → `wjj-9` (`hnj`, engine entry point) → `u7r` (wire into fileio) → `6d0` (real-flyer byte-diff test). See `scripts/spike/*.mjs`, `docs/spikes/`, and the `docs/worklog/2026-04-25-handoff.md` session log.
+- **Architecture**: DocumentState Phase 1 landed (per-document state isolation). Multi-doc UI (`vectorfeld-4w7`) is pending. The **graft-architecture rewrite** (epic `vectorfeld-ccl`, P1) is engine-complete: Phase 1 spikes proved `mupdf.PDFDocument.graftPage()` clones source PDFs byte-for-byte (0.0000% pixel diff) and overlays via appended content streams work. Phase 2 shipped 12 beads: `byq` (SourcePdfStore), `8v3` (back-refs), `5gk` (`Command.touchesSource()`), then `wjj` decomposed into 9 sub-beads (wjj-1..9 all green) culminating in `vectorfeld-hnj` — `exportViaGraft` in `src/model/graftExport.ts` walks layers, dispatches graft/mixed/overlay, emits via the graftCs primitives, returns `Uint8Array`. Engine has 8 integration tests proving each path including determinism. Pending before production wiring: `vectorfeld-1kp` (single-page-stacking — engine MVP is one-page-per-layer which would regress the composite case if wired in as-is) → `u7r` (wire into fileio) → `6d0` (real-flyer byte-diff test). See `scripts/spike/*.mjs`, `docs/spikes/`, and `docs/worklog/2026-04-25-graft-engine-complete.md`.
 
 ### Round-trip status
 
@@ -53,7 +53,7 @@ Don't re-add these unless the use case changes. Ask first.
 Run `bd ready` for the live queue. As of 2026-04-25:
 
 **P1 — load-bearing track:**
-- `vectorfeld-ccl` (epic) — Graft-based PDF round-trip. Phase 1 spikes done. Phase 2 (~670 LOC) starts at `vectorfeld-byq` (live `mupdf.PDFDocument` handle in `DocumentState`) → `8v3` (source-element back-ref tags) → `5gk` (command-level overlay vs source-touch classification) → `wjj` (new `src/model/graftExport.ts` engine) → `u7r` (wire into `fileio.ts`) → `6d0` (real-flyer byte-diff test). Phase 3 (~500 LOC) is in-place source-font edits (`yyj`, `eb0`).
+- `vectorfeld-ccl` (epic) — Graft-based PDF round-trip. Phases 1–2 engine work complete (engine + 75 unit tests). Production wiring blocked on **`vectorfeld-1kp`** (single-page-stacking — engine MVP is one-page-per-layer; needs to merge layers onto a shared page before `u7r` can swap the production export without regressing the foreground+background composite case). Then `u7r` → `6d0`. Phase 3 (~500 LOC) is in-place source-font edits (`yyj`, `eb0`) — both now reachable since `wjj` epic closed.
 
 **P2 cluster:**
 - `vectorfeld-4w7` — Multi-document UI tabs + cross-document clipboard. Lights up the tab stub Atrium left in `TopBar`.
@@ -170,6 +170,7 @@ Session histories at `docs/worklog/`. Most recent first; load when working on th
 
 | Date | Session |
 |---|---|
+| 2026-04-25 | [graft-engine-complete](docs/worklog/2026-04-25-graft-engine-complete.md) — engine end-to-end (4 beads + epic) |
 | 2026-04-25 | [handoff](docs/worklog/2026-04-25-handoff.md) — tidy + 8 graft Phase 2 beads |
 | 2026-04-24 | [golden-grind](docs/worklog/2026-04-24-golden-grind.md) |
 | 2026-04-23 | [atrium](docs/worklog/2026-04-23-atrium.md) |

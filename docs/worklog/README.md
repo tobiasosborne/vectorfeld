@@ -4,7 +4,8 @@ Chronological session logs. Each file describes one working session: what shippe
 
 | Date | Session | One-line |
 |---|---|---|
-| 2026-04-25 | [handoff](2026-04-25-handoff.md) | **Session handoff** — tidy + 8 graft Phase 2 beads (byq/8v3/5gk + wjj-1..5) |
+| 2026-04-25 | [graft-engine-complete](2026-04-25-graft-engine-complete.md) | **Engine end-to-end** — wjj-6/7/8/9 (uuz/ne4/e1j/hnj) + epic close; +75 tests |
+| 2026-04-25 | [handoff](2026-04-25-handoff.md) | Tidy + 8 graft Phase 2 beads (byq/8v3/5gk + wjj-1..5) |
 | 2026-04-25 | [graft-5gk](2026-04-25-graft-5gk.md) | Command.touchesSource() classification on every command type |
 | 2026-04-25 | [graft-8v3](2026-04-25-graft-8v3.md) | Source-PDF back-references on imported SVG elements (page + layer-id tags) |
 | 2026-04-25 | [graft-byq](2026-04-25-graft-byq.md) | Phase 2 of `ccl` starts: SourcePdfStore lands bytes in DocumentState |
