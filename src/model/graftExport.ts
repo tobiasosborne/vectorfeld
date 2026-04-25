@@ -44,7 +44,7 @@ import {
   registerOverlayFont,
 } from './graftMupdf'
 import { classifyLayer, type ClassifiedLayer } from './graftClassify'
-import { elementBboxPdfPt } from './graftBbox'
+import { elementBboxPdfPt, mmBboxToPdfPt } from './graftBbox'
 import {
   emitRect,
   emitLine,
@@ -179,9 +179,12 @@ function emitLayerOverlay(
   // Pure-graft foundation: page bytes already in place, no overlay.
   if (isFoundation && cls.kind === 'graft') return
 
-  // Mixed FOUNDATION: mask + re-render edits, then render new leaves.
-  // The mask logic is only valid against the foundation's own source
-  // (which IS what's currently on the page).
+  // Mixed FOUNDATION: mask + re-render edits, then render new leaves,
+  // then mask out any deleted source elements. The mask logic is only
+  // valid against the foundation's own source (which IS what's currently
+  // on the page); only the foundation needs masks because non-foundation
+  // mixed layers render their full subtree as overlay (which already
+  // omits removed elements naturally).
   if (isFoundation && cls.kind === 'mixed') {
     for (const el of cls.modifiedElements) {
       const bbox = elementBboxPdfPt(el, ctx.pageHeightPt)
@@ -192,6 +195,11 @@ function emitLayerOverlay(
     for (const el of cls.newElements) {
       const op = emitElementWithAncestors(el, layer, ctx, registry)
       if (op) ops.push(op)
+    }
+    // Mask deleted-element bboxes (captured at snapshot time so we still
+    // know where they were even though the elements are gone from DOM).
+    for (const bboxMm of cls.removedBboxes) {
+      ops.push(emitMaskRectOp(mmBboxToPdfPt(bboxMm, ctx.pageHeightPt)))
     }
     return
   }

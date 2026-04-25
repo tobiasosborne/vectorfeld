@@ -7,7 +7,6 @@ import { svgStringToPdfBytes, type FontBytes } from './pdfExport'
 import { exportViaGraft } from './graftExport'
 import { getActiveSourcePdfStore, type SourcePdfStore } from './sourcePdf'
 import { classifyLayer } from './graftClassify'
-import { expectedSourceCount, currentSourceCount } from './sourceSnapshot'
 
 // Carlito (Calibri-metric-compatible open clone) for sans, Liberation Serif
 // as a Playfair-Display-compatible fallback for serif. Vite resolves the
@@ -165,28 +164,26 @@ export interface ExportPdfOpts {
 /**
  * Conservative MVP routing rule (vectorfeld-u7r): use the graft engine
  * only for the cleanest case — a single primary source PDF with NO
- * edits whatsoever (no modifications, additions, OR deletions on any
- * layer). Anything else falls back to the pdf-lib engine, which
- * re-renders from the current SVG and therefore handles all mutations
- * naturally.
+ * edits whatsoever. Anything else falls back to the pdf-lib engine.
  *
- * Why so conservative:
- *   - Backgrounds (composites) currently re-render source text in
- *     Carlito (no per-source font preservation) — fidelity regression.
- *   - The graft engine's mixed path masks + re-renders MODIFIED elements
- *     but doesn't yet track DELETIONS — a deleted text would still appear
- *     in the grafted page bytes.
- * Until both gaps close (`vectorfeld-yyj`, future deletion-tracking bead),
- * any document with edits stays on the pdf-lib pipeline.
+ * Even though d3o ships the engine-side mask emission for deleted
+ * source elements, the gate stays strict on deletions for now: the
+ * mask bbox comes from `graftBbox.textBox`, which uses element-level
+ * y (not tspan-level y) and over-approximates text widths. For
+ * MuPDF-imported text the resulting mask lands at the wrong place.
+ * Will lift when `graftBbox.textBox` is rebuilt to honour tspan y +
+ * x-array bounds (filed as a follow-up).
+ *
+ * Modifications and additions also still gate to pdf-lib because the
+ * graft engine renders them in Carlito (no per-source font
+ * preservation) — fidelity regression vs the pdf-lib pipeline. That
+ * gap closes when `vectorfeld-yyj` ships per-source font support.
  */
 function shouldUseGraftEngine(doc: DocumentModel, store: SourcePdfStore): boolean {
   if (store.primary === null || store.backgrounds.size > 0) return false
-  // All layers must be pure-untouched-graft.
   for (const layer of doc.getLayerElements()) {
     const cls = classifyLayer(layer, store)
     if (cls.kind !== 'graft') return false
-    // classifyLayer doesn't see deletions; check element count vs snapshot.
-    if (currentSourceCount(layer) !== expectedSourceCount(layer)) return false
   }
   return true
 }

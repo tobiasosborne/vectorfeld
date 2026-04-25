@@ -124,6 +124,49 @@ describe('classifyLayer', () => {
     expect(c.kind).toBe('graft')
   })
 
+  it('returns kind="mixed" with removedBboxes when a source element was deleted', () => {
+    const { layer, rect } = makeImportedLayer()
+    rect.remove()
+    const store = new SourcePdfStore()
+    store.setPrimary(entry())
+    const c = classifyLayer(layer, store)
+    expect(c.kind).toBe('mixed')
+    if (c.kind === 'mixed') {
+      expect(c.modifiedElements).toEqual([])
+      expect(c.newElements).toEqual([])
+      expect(c.removedBboxes).toHaveLength(1)
+      expect(c.removedBboxes[0]).toEqual({ x: 0, y: 0, width: 10, height: 10 })
+    }
+  })
+
+  it('returns kind="mixed" with removedBboxes AND modifiedElements populated when user did both', () => {
+    const { layer, rect, path } = makeImportedLayer()
+    rect.remove()
+    path.setAttribute('d', 'M9 9')
+    const store = new SourcePdfStore()
+    store.setPrimary(entry())
+    const c = classifyLayer(layer, store)
+    expect(c.kind).toBe('mixed')
+    if (c.kind === 'mixed') {
+      expect(c.modifiedElements).toEqual([path])
+      expect(c.removedBboxes).toHaveLength(1)
+    }
+  })
+
+  it('always populates removedBboxes (empty array) on mixed classifications, never undefined', () => {
+    // Modification only — no deletions. removedBboxes should still be []
+    // so callers don't need to defensively check for undefined.
+    const { layer, rect } = makeImportedLayer()
+    rect.setAttribute('fill', '#00ff00')
+    const store = new SourcePdfStore()
+    store.setPrimary(entry())
+    const c = classifyLayer(layer, store)
+    expect(c.kind).toBe('mixed')
+    if (c.kind === 'mixed') {
+      expect(c.removedBboxes).toEqual([])
+    }
+  })
+
   it('looks up the source entry by data-source-pdf-id (background layer name)', () => {
     const { layer } = makeImportedLayer('Yellow BG')
     const store = new SourcePdfStore()

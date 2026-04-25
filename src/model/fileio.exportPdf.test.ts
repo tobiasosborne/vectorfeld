@@ -154,14 +154,16 @@ describe('exportPdfBytes — engine routing', () => {
       closeSourcePdfDoc(reloaded)
     })
 
-    it('falls back to pdf-lib when an imported element was DELETED', async () => {
+    it('falls back to pdf-lib when an imported element was DELETED (mask bbox is unreliable for tspan-wrapped text)', async () => {
       const docSvg = svgRoot(DOC_VIEWBOX_50_30)
       const layer = docSvg.querySelector('g[data-layer-name]')!
       tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
       snapshotImportedElements(layer)
-      // Remove the rect from DOM. findModifiedSourceElements wouldn't see
-      // this, but the new count check (currentSourceCount vs expected)
-      // catches it.
+      // Remove the rect from DOM. classifyLayer now returns kind='mixed'
+      // with removedBboxes populated. d3o ships the mask emission, but
+      // the conservative gate doesn't yet activate it because graftBbox.
+      // textBox over-approximates / mis-locates bboxes for MuPDF-imported
+      // tspan-wrapped text. Stays on pdf-lib until that's rebuilt.
       docSvg.querySelector('rect')!.remove()
 
       const store = new SourcePdfStore()

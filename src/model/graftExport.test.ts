@@ -125,6 +125,39 @@ describe('exportViaGraft — graft-only layer (untouched source)', () => {
   })
 })
 
+describe('exportViaGraft — mixed layer (deleted source element, d3o)', () => {
+  let srcBytes: Uint8Array
+  beforeAll(async () => { srcBytes = await exportSvgStringToPdfBytes(SHAPES_SVG) })
+
+  it('grafts source + emits a mask rect over the bbox of every removed source element', async () => {
+    const docXml = `<svg xmlns="${SVG_NS}" viewBox="0 0 50 30"><g data-layer-name="Mixed"><rect id="r" x="5" y="5" width="10" height="10" fill="#ff0000"/></g></svg>`
+    const docSvg = svgRoot(docXml)
+    const layer = docSvg.querySelector('g[data-layer-name]')!
+    tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
+    snapshotImportedElements(layer)
+
+    // Remove the rect after snapshot — engine should mask its bbox.
+    docSvg.querySelector('#r')!.remove()
+
+    const doc = createDocumentModel(docSvg)
+    const store = new SourcePdfStore()
+    store.setPrimary({ bytes: srcBytes, filename: 'test.pdf', pageCount: 1 })
+
+    const out = await exportViaGraft(doc, store)
+    const content = await pageContent(out)
+    // White-fill mask op should be present in the appended overlay.
+    expect(content).toContain('1 1 1 rg')
+    expect(content).toContain('re')
+    // The grafted page is 50×30mm = 141.7×85.0 PDF-pt. The deleted rect
+    // at mm (5,5,10,10) translates to PDF-pt (~14.17, 56.69, 28.35, 28.35)
+    // (mm * 72/25.4, with Y-flipped against pageHeight 85.04).
+    const PT = 72 / 25.4
+    const expectedX = 5 * PT
+    const expectedW = 10 * PT
+    expect(content).toMatch(new RegExp(`${expectedX.toFixed(3).replace(/0+$/, '0')}.* ${expectedW.toFixed(3).replace(/0+$/, '0')} `))
+  })
+})
+
 describe('exportViaGraft — mixed layer (modified source element)', () => {
   let srcBytes: Uint8Array
   beforeAll(async () => { srcBytes = await exportSvgStringToPdfBytes(SHAPES_SVG) })

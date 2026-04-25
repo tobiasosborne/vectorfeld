@@ -20,9 +20,10 @@
  * Pure: no DOM mutation, no I/O.
  */
 
-import { findModifiedSourceElements } from './sourceSnapshot'
+import { findModifiedSourceElements, findRemovedElementBboxes } from './sourceSnapshot'
 import { isFromSource, getLayerSourceId, lookupSourceEntry } from './sourceTagging'
 import type { SourcePdfStore, SourcePdfEntry } from './sourcePdf'
+import type { BBox } from './geometry'
 
 export type ClassifiedLayer =
   | { kind: 'graft'; sourceEntry: SourcePdfEntry }
@@ -31,6 +32,11 @@ export type ClassifiedLayer =
       sourceEntry: SourcePdfEntry
       modifiedElements: Element[]
       newElements: Element[]
+      /** Mm-space bboxes of source elements that have been REMOVED from
+       *  the DOM since import. Engine paints a white mask over each so
+       *  the grafted source bytes don't keep showing the deleted content.
+       *  Always present — empty array when nothing was deleted. */
+      removedBboxes: BBox[]
     }
   | { kind: 'overlay' }
 
@@ -64,12 +70,13 @@ export function classifyLayer(layer: Element, store: SourcePdfStore): Classified
 
   const modifiedElements = findModifiedSourceElements(layer)
   const newElements = collectNewLeaves(layer)
+  const removedBboxes = findRemovedElementBboxes(layer)
 
-  if (modifiedElements.length === 0 && newElements.length === 0) {
+  if (modifiedElements.length === 0 && newElements.length === 0 && removedBboxes.length === 0) {
     return { kind: 'graft', sourceEntry }
   }
 
-  return { kind: 'mixed', sourceEntry, modifiedElements, newElements }
+  return { kind: 'mixed', sourceEntry, modifiedElements, newElements, removedBboxes }
 }
 
 /** Walk `layer` and return every graphical leaf descendant that has no
