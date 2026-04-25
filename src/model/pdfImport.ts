@@ -13,6 +13,7 @@ import { parseSvgString, type ParsedSvg } from './fileio'
 import { analyzeImportedSvg } from './importAnalysis'
 import { getActiveSourcePdfStore, recordImportedSource } from './sourcePdf'
 import { tagImportedLayer, PRIMARY_LAYER_ID } from './sourceTagging'
+import { snapshotImportedElements } from './sourceSnapshot'
 import RenderWorker from './pdfRender.worker.ts?worker'
 
 // ── Worker management ──────────────────────────────────────────────────
@@ -287,6 +288,7 @@ export function applyParsedAsBackgroundLayer(doc: DocumentModel, parsed: ParsedS
     imported.setAttribute('data-layer-name', layerName)
     tagLayerWithImportAnalysis(imported, filename)
     tagImportedLayer(imported, { page: 0, layerId: layerName })
+    snapshotImportedElements(imported)
     if (insertBefore) {
       doc.svg.insertBefore(imported, insertBefore)
     } else {
@@ -333,6 +335,7 @@ function applyParsedSvg(doc: DocumentModel, parsed: ParsedSvg): void {
     flattenAndScalePdfLayer(imported, PT_TO_MM)
     tagLayerWithImportAnalysis(imported, '(imported PDF)')
     tagImportedLayer(imported, { page: 0, layerId: PRIMARY_LAYER_ID })
+    snapshotImportedElements(imported)
     if (firstOverlay) {
       doc.svg.insertBefore(imported, firstOverlay)
     } else {
