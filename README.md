@@ -61,10 +61,11 @@ npm run tauri build  # full app bundle
 
 ## Documentation
 
-- **[docs/API.md](docs/API.md)** — Agent-first API reference covering every function, class, component, and keybinding
-- **[vectorfeld-prd.md](vectorfeld-prd.md)** — Product requirements document
+- **[AGENTS.md](AGENTS.md)** — Current state, open priorities, workflow rules
 - **[CLAUDE.md](CLAUDE.md)** — AI agent workflow conventions
-- **[AGENTS.md](AGENTS.md)** — Agent onboarding and handoff context
+- **[docs/API.md](docs/API.md)** — API reference for the model + tool registry
+- **[docs/lessons.md](docs/lessons.md)** — Corrections from prior sessions
+- **[docs/worklog/](docs/worklog/)** — Session histories
 
 ## License
 

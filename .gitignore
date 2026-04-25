@@ -10,3 +10,9 @@ src-tauri/target/
 *.db
 experiments/
 temp/
+
+# Dogfood gate outputs (regenerated each run; fixtures/ is committed)
+test/dogfood/screenshots/
+test/dogfood/composite.pdf
+test/dogfood/composite-canvas.png
+test/dogfood/composite-rendered.png

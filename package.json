@@ -14,6 +14,9 @@
     "golden:record": "node test/golden/run.mjs --record",
     "golden:accept": "node test/golden/run.mjs --accept",
     "golden:milestones": "node test/golden/milestone.mjs",
+    "dogfood": "node test/dogfood/composite.mjs && node test/dogfood/atrium.mjs",
+    "dogfood:composite": "node test/dogfood/composite.mjs",
+    "dogfood:atrium": "node test/dogfood/atrium.mjs",
     "tauri": "tauri"
   },
   "dependencies": {
