@@ -1,24 +1,21 @@
 /**
- * Rasterize one page of a PDF to a PNG buffer using pdfjs-dist + node-canvas.
+ * Rasterize one page of a PDF to a PNG buffer using mupdf-js.
  *
  * Used as the coarse backstop layer of the round-trip test harness: when the
  * semantic SVG diff (normalizeSvg) is too lenient — e.g. an export change
  * preserves the SVG structure but visibly shifts glyph positions — pixel
- * comparison via pixelmatch catches it.
+ * comparison via pixelmatch catches it. Also used by `test/dogfood/composite.mjs`
+ * to render the exported composite PDF for side-by-side eyeballing.
  *
- * Runs only in the node test environment ("@vitest-environment node"). The
- * worker is explicitly bound to the local pdfjs-dist file URL so we don't
- * need a network fetch.
+ * Was pdfjs-dist + node-canvas. Switched to mupdf-js (vectorfeld-249)
+ * because pdfjs's `paintInlineImageXObject` calls `ctx.drawImage` with
+ * non-Canvas args under node-canvas, crashing on PDFs with embedded
+ * inline images (the composite case). mupdf's `Page.toPixmap` +
+ * `Pixmap.asPNG` handles every PDF without canvas-shim quirks, and
+ * mupdf is already a production dep so no extra surface added.
  */
 
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
-import { createCanvas, type Canvas } from 'canvas'
-import { fileURLToPath } from 'node:url'
-import { dirname, resolve } from 'node:path'
-
-const here = dirname(fileURLToPath(import.meta.url))
-const workerUrl = resolve(here, '../../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs')
-;(pdfjsLib as { GlobalWorkerOptions: { workerSrc: string } }).GlobalWorkerOptions.workerSrc = workerUrl
+import * as mupdf from 'mupdf'
 
 export interface RenderOptions {
   /** 1-indexed page number. Default 1. */
@@ -32,31 +29,19 @@ export async function renderPdfPageToPng(
   opts: RenderOptions = {}
 ): Promise<Uint8Array> {
   const { page = 1, scale = 1.5 } = opts
-
-  // Copy the input — pdfjs-dist can transfer ownership of the underlying
-  // ArrayBuffer to its worker, which detaches the caller's view and breaks
-  // any subsequent call that reuses the same Uint8Array.
-  const dataCopy = new Uint8Array(pdfBytes)
-  const loadingTask = pdfjsLib.getDocument({
-    data: dataCopy,
-    // Disable font fetching from disk; PDFs we test should embed their fonts.
-    disableFontFace: true,
-    useSystemFonts: false,
-  })
-  const doc = await loadingTask.promise
+  // Copy the input — defensive against callers reusing the buffer
+  // after this returns. mupdf takes ownership of the bytes.
+  const doc = new mupdf.PDFDocument(new Uint8Array(pdfBytes))
   try {
-    const p = await doc.getPage(page)
-    const viewport = p.getViewport({ scale })
-    const canvas = createCanvas(viewport.width, viewport.height) as unknown as Canvas
-    const ctx = canvas.getContext('2d')
-    await p.render({
-      canvasContext: ctx as unknown as CanvasRenderingContext2D,
-      viewport,
-      canvas: canvas as unknown as HTMLCanvasElement,
-    }).promise
-    // node-canvas toBuffer returns Buffer, which extends Uint8Array.
-    return new Uint8Array((canvas as unknown as { toBuffer(mime: string): Buffer }).toBuffer('image/png'))
+    // mupdf is 0-indexed; preserve the 1-indexed API.
+    const p = doc.loadPage(page - 1)
+    const pixmap = p.toPixmap(
+      mupdf.Matrix.scale(scale, scale),
+      mupdf.ColorSpace.DeviceRGB,
+      false, // alpha
+    )
+    return new Uint8Array(pixmap.asPNG())
   } finally {
-    await doc.destroy()
+    doc.destroy()
   }
 }
