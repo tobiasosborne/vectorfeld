@@ -19,6 +19,7 @@ import { createDocumentModel } from './document'
 import { SourcePdfStore } from './sourcePdf'
 import { tagImportedLayer, PRIMARY_LAYER_ID } from './sourceTagging'
 import { snapshotImportedElements } from './sourceSnapshot'
+import { extractPdfText } from '../../test/roundtrip/helpers/pdfText'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 const CARLITO = new Uint8Array(readFileSync(resolve(process.cwd(), 'src/fonts/Carlito-Regular.ttf')))
@@ -31,15 +32,20 @@ const CARLITO = new Uint8Array(readFileSync(resolve(process.cwd(), 'src/fonts/Ca
 async function pageContent(bytes: Uint8Array, pageIdx = 0): Promise<string> {
   const doc = await openSourcePdfDoc(bytes)
   try {
-    const contents = doc.findPage(pageIdx).get('Contents').resolve()
+    // Use the unresolved /Contents — this works whether it's an
+    // indirect ref (single stream object) or an array of refs. After
+    // applyRedactions the structure can shift between forms, so the
+    // pre-resolve `isArray()` branch isn't reliable.
+    const contents = doc.findPage(pageIdx).get('Contents')
     const parts: string[] = []
     if (contents.isArray()) {
       for (let i = 0; i < contents.length; i++) {
         const ref = contents.get(i)
-        const buf = ref.readStream()
-        parts.push(buf.asString())
+        parts.push(ref.readStream().asString())
       }
     } else {
+      // Single indirect ref to a stream OR a direct stream object.
+      // readStream resolves either case.
       parts.push(contents.readStream().asString())
     }
     return parts.join('\n')
@@ -125,18 +131,60 @@ describe('exportViaGraft — graft-only layer (untouched source)', () => {
   })
 })
 
-describe('exportViaGraft — mixed layer (deleted source element, d3o)', () => {
+describe('exportViaGraft — mixed layer (deleted source element, vectorfeld-enf)', () => {
   let srcBytes: Uint8Array
   beforeAll(async () => { srcBytes = await exportSvgStringToPdfBytes(SHAPES_SVG) })
 
-  it('grafts source + emits a mask rect over the bbox of every removed source element', async () => {
+  it('removes deleted TEXT from the PDF as pdfjs reads it (the gate-reader contract)', async () => {
+    // The headline acceptance for vectorfeld-enf: a deleted text
+    // element must be absent from pdfjs.getTextContent() in the
+    // exported PDF — same reader the golden gate uses, same reader
+    // Ctrl+F / copy-paste / accessibility tooling uses. The mask-
+    // overlay band-aid (vectorfeld-d3o) failed this contract; the
+    // redaction approach must satisfy it.
+    const NEEDLE = 'DELETEME'
+    const SURVIVOR = 'KEEPME'
+    const textSvg = `<svg xmlns="${SVG_NS}" viewBox="0 0 80 60">
+      <g data-layer-name="L">
+        <text x="5" y="20" font-family="Helvetica" font-size="6">${SURVIVOR}</text>
+        <text x="5" y="45" font-family="Helvetica" font-size="6">${NEEDLE}</text>
+      </g>
+    </svg>`
+    const textSrcBytes = await exportSvgStringToPdfBytes(textSvg)
+
+    const docXml = `<svg xmlns="${SVG_NS}" viewBox="0 0 80 60">
+      <g data-layer-name="L">
+        <text x="5" y="20" font-family="Helvetica" font-size="6">${SURVIVOR}</text>
+        <text id="del" x="5" y="45" font-family="Helvetica" font-size="6">${NEEDLE}</text>
+      </g>
+    </svg>`
+    const docSvg = svgRoot(docXml)
+    const layer = docSvg.querySelector('g[data-layer-name]')!
+    tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
+    snapshotImportedElements(layer)
+
+    docSvg.querySelector('#del')!.remove()
+
+    const doc = createDocumentModel(docSvg)
+    const store = new SourcePdfStore()
+    store.setPrimary({ bytes: textSrcBytes, filename: 'test.pdf', pageCount: 1 })
+
+    const out = await exportViaGraft(doc, store, { carlito: CARLITO })
+    const extracted = await extractPdfText(out, 1)
+    expect(extracted).toContain(SURVIVOR)
+    expect(extracted).not.toContain(NEEDLE)
+  })
+
+  it('grafts source then redacts the deleted element so its draw ops are excised, not masked', async () => {
     const docXml = `<svg xmlns="${SVG_NS}" viewBox="0 0 50 30"><g data-layer-name="Mixed"><rect id="r" x="5" y="5" width="10" height="10" fill="#ff0000"/></g></svg>`
     const docSvg = svgRoot(docXml)
     const layer = docSvg.querySelector('g[data-layer-name]')!
     tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
     snapshotImportedElements(layer)
 
-    // Remove the rect after snapshot — engine should mask its bbox.
+    // Remove the rect after snapshot — engine should redact its bbox
+    // (rewriting the foundation content stream) rather than overlay
+    // a white mask.
     docSvg.querySelector('#r')!.remove()
 
     const doc = createDocumentModel(docSvg)
@@ -145,16 +193,13 @@ describe('exportViaGraft — mixed layer (deleted source element, d3o)', () => {
 
     const out = await exportViaGraft(doc, store)
     const content = await pageContent(out)
-    // White-fill mask op should be present in the appended overlay.
-    expect(content).toContain('1 1 1 rg')
-    expect(content).toContain('re')
-    // The grafted page is 50×30mm = 141.7×85.0 PDF-pt. The deleted rect
-    // at mm (5,5,10,10) translates to PDF-pt (~14.17, 56.69, 28.35, 28.35)
-    // (mm * 72/25.4, with Y-flipped against pageHeight 85.04).
-    const PT = 72 / 25.4
-    const expectedX = 5 * PT
-    const expectedW = 10 * PT
-    expect(content).toMatch(new RegExp(`${expectedX.toFixed(3).replace(/0+$/, '0')}.* ${expectedW.toFixed(3).replace(/0+$/, '0')} `))
+    // The old mask emitter wrote `1 1 1 rg` (white fill) into the
+    // overlay stream. Redaction MUST not produce this band-aid.
+    expect(content).not.toContain('1 1 1 rg')
+    // Re-open the saved PDF and confirm the deleted rect's red fill
+    // (`1 0 0 rg` in 0-1 RGB) is gone from the rewritten foundation
+    // content stream — the actual user-visible signal.
+    expect(content).not.toContain('1 0 0 rg')
   })
 })
 
@@ -162,7 +207,7 @@ describe('exportViaGraft — mixed layer (modified source element)', () => {
   let srcBytes: Uint8Array
   beforeAll(async () => { srcBytes = await exportSvgStringToPdfBytes(SHAPES_SVG) })
 
-  it('grafts source + emits a mask + re-renders the modified element on top', async () => {
+  it('grafts source then redacts the original + re-renders the modified element on top (no mask band-aid)', async () => {
     const docXml = `<svg xmlns="${SVG_NS}" viewBox="0 0 50 30"><g data-layer-name="Mixed"><rect id="r" x="5" y="5" width="10" height="10" fill="#ff0000"/></g></svg>`
     const docSvg = svgRoot(docXml)
     const layer = docSvg.querySelector('g[data-layer-name]')!
@@ -179,10 +224,11 @@ describe('exportViaGraft — mixed layer (modified source element)', () => {
     const out = await exportViaGraft(doc, store)
     const content = await pageContent(out)
 
-    // White mask op should be present in the appended overlay stream.
-    expect(content).toContain('1 1 1 rg')
-    expect(content).toContain('re')
-    // New green fill should be present.
+    // No white-fill mask band-aid in the overlay stream.
+    expect(content).not.toContain('1 1 1 rg')
+    // Original red fill excised from the foundation content stream.
+    expect(content).not.toContain('1 0 0 rg')
+    // New green fill present in the overlay.
     expect(content).toMatch(/0 1 0 rg/)
   })
 })

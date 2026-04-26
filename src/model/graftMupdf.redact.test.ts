@@ -45,8 +45,8 @@ describe('applyRedactionsToPage', () => {
 
   it('removes redacted text from the rewritten content stream while preserving sibling text', async () => {
     // PdfRect convention: bottom-left origin, matching the rest of
-    // the graft engine (mmBboxToPdfPt, emitMaskRectOp). The primitive
-    // flips into mupdf's top-down coords internally.
+    // the graft engine (mmBboxToPdfPt, content-stream emitters). The
+    // primitive flips into mupdf's top-down coords internally.
     //
     // SVG y=40 mm is REDACTME's baseline; glyphs extend UPWARD in PDF
     // user space so the rect covers descender + ascender around it.

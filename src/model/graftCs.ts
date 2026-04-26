@@ -26,7 +26,6 @@
 import { applyMatrixToPoint, type Matrix } from './matrix'
 import { parsePathD, type PathCommand } from './pathOps'
 import { ellipseToPathD, rectToPathD, lineToPathD } from './shapeToPath'
-import type { PdfRect } from './graftBbox'
 
 const MM_TO_PT = 72 / 25.4
 
@@ -159,15 +158,6 @@ function styleAndPaint(
 // ---------------------------------------------------------------------------
 // Public emitters
 // ---------------------------------------------------------------------------
-
-/**
- * White-fill axis-aligned mask rect in PDF-pt coords. Used by the graft
- * engine to paint over the source rendering of a modified element before
- * drawing the edited state on top.
- */
-export function emitMaskRectOp(rect: PdfRect): string {
-  return `q\n1 1 1 rg\n${fmt(rect.x)} ${fmt(rect.y)} ${fmt(rect.w)} ${fmt(rect.h)} re\nf\nQ\n`
-}
 
 function num(el: Element, name: string, fallback = 0): number {
   const v = el.getAttribute(name)

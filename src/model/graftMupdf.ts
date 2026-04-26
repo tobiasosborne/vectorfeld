@@ -157,10 +157,17 @@ export async function registerOverlayFont(
  *   - text_method = REDACT_TEXT_REMOVE (0): excise text-show ops.
  *   - black_boxes = false: don't paint a visible black rect in place
  *     of the redaction (we want the deleted area transparent).
- *   - image_method = REDACT_IMAGE_NONE (0): leave images alone — we
- *     only redact text-shaped source elements today; image deletion
- *     would gate via classifyLayer separately.
- *   - line_art_method = REDACT_LINE_ART_NONE (0): same reasoning.
+ *   - image_method = REDACT_IMAGE_NONE (0): leave images alone —
+ *     image deletion would gate via classifyLayer separately and is
+ *     not in scope for vectorfeld-enf.
+ *   - line_art_method = REDACT_LINE_ART_REMOVE_IF_COVERED (1): excise
+ *     subpaths whose every point lies inside a redact rect. Strictly
+ *     safe — won't remove paths that extend beyond the bbox. Source-
+ *     element bboxes are AABBs of the element's exact coordinates so
+ *     paths fully contained in the bbox correspond exactly to the
+ *     deleted element. Shape deletions (rect, path, line, …) need
+ *     this; LINE_ART_NONE would leave their drawing operators in
+ *     place and a "deleted" rect would still render.
  *
  * Coordinate convention: `PdfRect` is documented as PDF-spec
  * bottom-left origin (consistent with the content-stream emission
@@ -199,7 +206,7 @@ export async function applyRedactionsToPage(
   // accessing them from a typed instance compiles awkwardly. The integers
   // are stable PDF-spec values (mupdf.d.ts:569-577).
   const REDACT_IMAGE_NONE = 0
-  const REDACT_LINE_ART_NONE = 0
+  const REDACT_LINE_ART_REMOVE_IF_COVERED = 1
   const REDACT_TEXT_REMOVE = 0
-  page.applyRedactions(false, REDACT_IMAGE_NONE, REDACT_LINE_ART_NONE, REDACT_TEXT_REMOVE)
+  page.applyRedactions(false, REDACT_IMAGE_NONE, REDACT_LINE_ART_REMOVE_IF_COVERED, REDACT_TEXT_REMOVE)
 }

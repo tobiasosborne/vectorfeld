@@ -8,6 +8,7 @@
  */
 
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
+import type { TextItem as PdfjsTextItem } from 'pdfjs-dist/types/src/display/api'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
@@ -37,10 +38,7 @@ export async function extractPdfTextItems(
     const page = await doc.getPage(pageIndex)
     const content = await page.getTextContent()
     return content.items
-      .filter((it: unknown): it is { str: string; transform: number[] } => {
-        return typeof (it as { str?: unknown }).str === 'string'
-          && Array.isArray((it as { transform?: unknown }).transform)
-      })
+      .filter((it): it is PdfjsTextItem => 'str' in it && 'transform' in it)
       .map((it) => ({
         str: it.str,
         x: it.transform[4],

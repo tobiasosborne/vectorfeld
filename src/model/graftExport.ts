@@ -42,9 +42,10 @@ import {
   graftSourcePageInto,
   appendContentStream,
   registerOverlayFont,
+  applyRedactionsToPage,
 } from './graftMupdf'
 import { classifyLayer, type ClassifiedLayer } from './graftClassify'
-import { elementBboxPdfPt, mmBboxToPdfPt } from './graftBbox'
+import { elementBboxPdfPt, mmBboxToPdfPt, type PdfRect } from './graftBbox'
 import {
   emitRect,
   emitLine,
@@ -52,7 +53,6 @@ import {
   emitEllipse,
   emitPath,
   emitText,
-  emitMaskRectOp,
   type Ctx,
   type FontRegistry,
 } from './graftCs'
@@ -111,11 +111,35 @@ export async function exportViaGraft(
       opts,
     )
 
-    // 4. Build a single overlay content stream from all layers (the
-    //    foundation contributes only its mixed-layer overlays; pure-
-    //    graft foundation contributes nothing because the grafted bytes
-    //    are already on the page).
+    // 4. Apply content-stream redactions for foundation+mixed
+    //    deletions and modifications BEFORE appending the overlay
+    //    stream (vectorfeld-enf). Order matters: redaction rewrites
+    //    the foundation page's content stream to excise text-show
+    //    ops inside each marked rect; appending the overlay
+    //    afterward adds a NEW stream on top of the rewritten
+    //    foundation, so the overlay's text isn't redacted by the
+    //    same pass. The previous emitMaskRectOp band-aid covered
+    //    visually but left the operators in the stream — pdfjs /
+    //    Ctrl+F / copy-paste / screen readers still found "deleted"
+    //    text. Redaction removes it for real.
     const ctx: Ctx = { matrix: identityMatrix(), pageHeightPt }
+    if (foundIdx !== -1 && classifications[foundIdx].cls.kind === 'mixed') {
+      const found = classifications[foundIdx].cls as Extract<ClassifiedLayer, { kind: 'mixed' }>
+      const redactRects: PdfRect[] = []
+      for (const el of found.modifiedElements) {
+        const bbox = elementBboxPdfPt(el, pageHeightPt)
+        if (bbox) redactRects.push(bbox)
+      }
+      for (const bboxMm of found.removedBboxes) {
+        redactRects.push(mmBboxToPdfPt(bboxMm, pageHeightPt))
+      }
+      await applyRedactionsToPage(out, pageIdx, redactRects)
+    }
+
+    // 5. Build the overlay content stream (modifications re-rendered
+    //    on top of the redacted area; new elements appended). Pure-
+    //    graft layers contribute nothing — their bytes are already
+    //    on the page.
     const ops: string[] = []
     for (let i = 0; i < classifications.length; i++) {
       emitLayerOverlay(classifications[i], i === foundIdx, ctx, ops, registry)
@@ -179,27 +203,20 @@ function emitLayerOverlay(
   // Pure-graft foundation: page bytes already in place, no overlay.
   if (isFoundation && cls.kind === 'graft') return
 
-  // Mixed FOUNDATION: mask + re-render edits, then render new leaves,
-  // then mask out any deleted source elements. The mask logic is only
-  // valid against the foundation's own source (which IS what's currently
-  // on the page); only the foundation needs masks because non-foundation
-  // mixed layers render their full subtree as overlay (which already
-  // omits removed elements naturally).
+  // Mixed FOUNDATION: redactions over modifications + deletions have
+  // already been applied to the foundation page's content stream
+  // (step 4 in exportViaGraft) — text-show ops inside those bboxes
+  // are excised. Here we only emit overlays: re-render modified
+  // elements on top of their redacted areas, and emit new elements.
+  // Deletions need no overlay — redaction alone removes them.
   if (isFoundation && cls.kind === 'mixed') {
     for (const el of cls.modifiedElements) {
-      const bbox = elementBboxPdfPt(el, ctx.pageHeightPt)
-      if (bbox) ops.push(emitMaskRectOp(bbox))
       const op = emitElementWithAncestors(el, layer, ctx, registry)
       if (op) ops.push(op)
     }
     for (const el of cls.newElements) {
       const op = emitElementWithAncestors(el, layer, ctx, registry)
       if (op) ops.push(op)
-    }
-    // Mask deleted-element bboxes (captured at snapshot time so we still
-    // know where they were even though the elements are gone from DOM).
-    for (const bboxMm of cls.removedBboxes) {
-      ops.push(emitMaskRectOp(mmBboxToPdfPt(bboxMm, ctx.pageHeightPt)))
     }
     return
   }

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseColor,
-  emitMaskRectOp,
   emitRect,
   emitLine,
   emitCircle,
@@ -81,27 +80,6 @@ describe('parseColor', () => {
   it('unknown formats → null (matches pdfExport MVP scope)', () => {
     expect(parseColor('rgb(1,2,3)')).toBeNull()
     expect(parseColor('purple')).toBeNull()
-  })
-})
-
-// ---------------------------------------------------------------------------
-// emitMaskRectOp — special case: axis-aligned PDF-pt rect, white fill
-// ---------------------------------------------------------------------------
-
-describe('emitMaskRectOp', () => {
-  it('emits white-fill q+rg+re+f+Q with integer coords', () => {
-    expect(emitMaskRectOp({ x: 10, y: 20, w: 30, h: 40 }))
-      .toBe('q\n1 1 1 rg\n10 20 30 40 re\nf\nQ\n')
-  })
-
-  it('preserves fractional coords (3 decimals, trailing zeros stripped)', () => {
-    expect(emitMaskRectOp({ x: 10.5, y: 20.25, w: 30.125, h: 40 }))
-      .toBe('q\n1 1 1 rg\n10.5 20.25 30.125 40 re\nf\nQ\n')
-  })
-
-  it('rounds to 3 decimals', () => {
-    expect(emitMaskRectOp({ x: 10.123456, y: 20, w: 30, h: 40 }))
-      .toBe('q\n1 1 1 rg\n10.123 20 30 40 re\nf\nQ\n')
   })
 })
 
