@@ -154,15 +154,19 @@ describe('exportPdfBytes — engine routing', () => {
       closeSourcePdfDoc(reloaded)
     })
 
-    it('uses graft engine when an imported element was DELETED (deletions-only mixed layer is graft-safe)', async () => {
+    it('falls back to pdf-lib when an imported element was DELETED (graft mask-overlay leaves text searchable — vectorfeld-enf)', async () => {
       const docSvg = svgRoot(DOC_VIEWBOX_50_30)
       const layer = docSvg.querySelector('g[data-layer-name]')!
       tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
       snapshotImportedElements(layer)
-      // Remove the rect from DOM. classifyLayer returns kind='mixed' with
-      // removedBboxes populated. d3o emits the mask op, 38q makes the
-      // bbox geometry accurate for tspan-wrapped text, so the routing
-      // gate now sends deletions-only mixed layers through graft.
+      // Remove the rect from DOM. classifyLayer returns kind='mixed'
+      // with removedBboxes populated, and the engine knows how to emit
+      // a white-fill mask. But the mask only covers visually — the
+      // grafted source content stream still contains the original
+      // operators, so pdfjs getTextContent / Ctrl+F / copy-paste find
+      // the "deleted" text. Routing stays on pdf-lib until
+      // vectorfeld-enf rewrites the source content stream to truly
+      // remove deleted operators.
       docSvg.querySelector('rect')!.remove()
 
       const store = new SourcePdfStore()
@@ -170,14 +174,14 @@ describe('exportPdfBytes — engine routing', () => {
       setActiveSourcePdfStore(store)
 
       const doc = createDocumentModel(docSvg)
-      const out = await exportPdfBytes(doc, { carlito: CARLITO, fonts: {} })
+      const out = await exportPdfBytes(doc, { fonts: {} })
 
       const reloaded = await openSourcePdfDoc(out)
       const PT = 72 / 25.4
       const { w, h } = pageSizePt(reloaded)
-      // graft output → page sized to the source PDF (80×60), not the doc viewBox.
-      expect(w).toBeCloseTo(80 * PT, 1)
-      expect(h).toBeCloseTo(60 * PT, 1)
+      // pdf-lib output → page sized to doc viewBox.
+      expect(w).toBeCloseTo(50 * PT, 1)
+      expect(h).toBeCloseTo(30 * PT, 1)
       closeSourcePdfDoc(reloaded)
     })
 

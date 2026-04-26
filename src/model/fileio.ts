@@ -162,33 +162,33 @@ export interface ExportPdfOpts {
 }
 
 /**
- * Conservative MVP routing rule (vectorfeld-u7r, deletion-relaxed by
- * vectorfeld-38q): use the graft engine when:
- *   - exactly one source PDF in primary, no background composites,
- *   - every layer is either pure-graft OR mixed-with-DELETIONS-ONLY.
+ * Conservative MVP routing rule (vectorfeld-u7r): use the graft engine
+ * only when every layer is pure-graft (untouched source content, no
+ * mixed/overlay/composite). Anything else falls back to pdf-lib.
  *
- * Modifications and additions still gate to pdf-lib because the graft
- * engine renders them in Carlito (no per-source font preservation),
- * which is a fidelity regression vs the pdf-lib pipeline. Backgrounds
- * are similarly gated. Both gaps close when `vectorfeld-yyj` ships
- * per-source font support.
+ * DELETIONS gate to pdf-lib (vectorfeld-enf): the graft engine
+ * currently "deletes" source elements by overlaying a white-fill mask
+ * rect on top of the grafted page. Visually hides the content but
+ * leaves the operators in the source content stream — pdfjs
+ * getTextContent(), Ctrl+F, copy-paste, and screen readers all still
+ * find the supposedly-deleted text. That's not a delete; it's a
+ * visual cover. Until the graft engine learns to rewrite the source
+ * content stream to actually remove deleted operators (vectorfeld-enf),
+ * deletions stay on pdf-lib for correctness.
  *
- * Deletions are now safe end-to-end: d3o tracks removed source
- * elements + their import-time bbox; 38q makes the bbox accurate for
- * MuPDF-imported tspan-wrapped text; the engine masks each removed
- * bbox with a white rect so the grafted source bytes don't keep
- * painting the removed content.
+ * MODIFICATIONS and ADDITIONS gate to pdf-lib because the graft
+ * engine renders new/edited text in Carlito (no per-source font
+ * preservation) — fidelity regression vs the pdf-lib pipeline. Closes
+ * when vectorfeld-yyj ships per-source font support.
+ *
+ * BACKGROUND COMPOSITES gate to pdf-lib until multi-graft-per-page is
+ * supported.
  */
 function shouldUseGraftEngine(doc: DocumentModel, store: SourcePdfStore): boolean {
   if (store.primary === null || store.backgrounds.size > 0) return false
   for (const layer of doc.getLayerElements()) {
     const cls = classifyLayer(layer, store)
-    if (cls.kind === 'graft') continue
-    if (cls.kind === 'mixed' && cls.modifiedElements.length === 0 && cls.newElements.length === 0) {
-      // mixed with ONLY deletions — graft engine handles this correctly.
-      continue
-    }
-    return false
+    if (cls.kind !== 'graft') return false
   }
   return true
 }
