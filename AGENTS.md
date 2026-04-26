@@ -24,18 +24,19 @@ Implications that shape every decision:
 - Scientific-diagram precision (rulers, mm-snap, Bézier authoring, TikZ) is NOT the target.
 - The owner is one specific person. No multi-user, no cloud, no auth.
 
-## Current state (2026-04-25, late session)
+## Current state (2026-04-26, late session)
 
-- **Build**: green. **746 tests** across **60 files**. Type check clean.
-- **Golden suites**: **10/10 gate stories ✓** (`npm run golden`) — gates 6–10 (PDF delete-text, composite, copy-paste-nudge, pen bezier, PDF text recolor) shipped this session; 10/10 milestones ✓ (`npm run golden:milestones`). Engine isn't yet on the production export path so the new gates lock the pdf-lib pipeline's behaviour and will need re-recording when `u7r` swaps in the graft engine.
+- **Build**: green. **778 tests** across **64 files**. Type check clean.
+- **Golden suites**: **10/10 gate stories ✓** (`npm run golden`); 10/10 milestones ✓ (`npm run golden:milestones`). Gate 06 (PDF delete-text) re-mastered through the graft engine after `vectorfeld-enf` shipped; story 06 carries an explicit pdfjs-text-absence assertion as defense-in-depth.
 - **Bundle** (`npm run build`): main JS **1,670 KB** (gzip 665 KB) + MuPDF JS **89 KB** + MuPDF WASM **10 MB** + Inter/JetBrainsMono woff2 **422 KB** + Carlito/Liberation Serif TTFs **2.7 MB** (embedded for pdf-lib font fidelity, see `vectorfeld-85m`).
 - **UI shell — Atrium** (shipped 2026-04-23): floating Panels over a radial-gradient root. `LeftRail` 9-slot rail + `⋯` overflow for keyboard-only tools, `TopBar` with brand + menu words + tab stub + coral Export PDF, `StatusBar` floating pill, `InspectorPanel` (Frame + Style + merged Layers/Pages tab). Token system in `src/index.css` (oklch) + `src/theme/atrium.ts`.
 - **PDF import**: MuPDF `text=text` mode in a Web Worker. Real `<text>`/`<tspan>`/`<image>` when MuPDF can preserve them; outlines otherwise. ⚠ "mostly-outlined" badge surfaces unrecoverable cases (`analyzeImportedSvg`). Each PDF lands as N direct layer children.
 - **PDF export — pdf-lib engine** (`src/model/pdfExport.ts`): handles text, path, rect, line, ellipse, circle, image, `<g transform>` with full affine matrix composition. Carlito + Liberation Serif embedded via `@pdf-lib/fontkit`. Per-character kerning honoured from MuPDF tspan `x`-arrays. `safeEncode` drops non-WinAnsi codepoints with named console.warn. Determinism pinned for golden-master byte stability.
+- **PDF export — graft engine** (`src/model/graftExport.ts`): production path for single-source-PDF documents (`shouldUseGraftEngine` in `fileio.ts`). Grafts the source page byte-for-byte via `mupdf.PDFDocument.graftPage`, applies redactions for any deleted source elements (excises text/line-art ops in the source content stream — NOT a visual mask), then appends an overlay stream. Routing now allows pure-graft AND deletions-only mixed layers; modifications/additions/backgrounds gate to pdf-lib until `vectorfeld-yyj` ships per-source font support.
 - **Compositing**: `File > Open PDF as Background Layer…` adds a named layer at the bottom of the z-stack without clearing the canvas. Three-click workflow: open foreground, open background layer, done.
 - **Z-order**: Arrange + Group/Ungroup + 6 Align items live in the Object menu with keyboard shortcuts right-aligned.
 - **Security**: SVG sanitizer strips `<script>`, `<foreignObject>`, `<iframe>`, `<object>`, `<embed>`, `on*` handlers, `javascript:`/`data:text/html` hrefs. Tauri CSP is an explicit allowlist (`src-tauri/tauri.conf.json`).
-- **Architecture**: DocumentState Phase 1 landed (per-document state isolation). Multi-doc UI (`vectorfeld-4w7`) is pending. The **graft-architecture rewrite** (epic `vectorfeld-ccl`, P1) is engine-complete: Phase 1 spikes proved `mupdf.PDFDocument.graftPage()` clones source PDFs byte-for-byte (0.0000% pixel diff) and overlays via appended content streams work. Phase 2 shipped 12 beads: `byq` (SourcePdfStore), `8v3` (back-refs), `5gk` (`Command.touchesSource()`), then `wjj` decomposed into 9 sub-beads (wjj-1..9 all green) culminating in `vectorfeld-hnj` — `exportViaGraft` in `src/model/graftExport.ts` walks layers, dispatches graft/mixed/overlay, emits via the graftCs primitives, returns `Uint8Array`. Engine has 8 integration tests proving each path including determinism. Pending before production wiring: `vectorfeld-1kp` (single-page-stacking — engine MVP is one-page-per-layer which would regress the composite case if wired in as-is) → `u7r` (wire into fileio) → `6d0` (real-flyer byte-diff test). See `scripts/spike/*.mjs`, `docs/spikes/`, and `docs/worklog/2026-04-25-graft-engine-complete.md`.
+- **Architecture**: DocumentState Phase 1 landed (per-document state isolation). Multi-doc UI (`vectorfeld-4w7`) is pending. The **graft-architecture rewrite** (epic `vectorfeld-ccl`, P1): engine end-to-end is wired into production via `fileio.shouldUseGraftEngine`. Pure-graft (no edits) and deletions-only mixed layers route through graft; modifications/additions/backgrounds fall back to pdf-lib. The **deletion path uses `mupdf.PDFPage.applyRedactions()` to truly excise content from the source content stream** (`vectorfeld-enf`, 2026-04-26) — the previous `emitMaskRectOp` band-aid was visually-only and left "deleted" text searchable via pdfjs/Ctrl+F/copy-paste. Phase 3 (`yyj`/`eb0`) for in-place source-font edits is the remaining gap before modifications can also route through graft. See `scripts/spike/*.mjs`, `docs/spikes/`, and recent worklogs.
 
 ### Round-trip status
 
@@ -50,10 +51,10 @@ Don't re-add these unless the use case changes. Ask first.
 
 ## Known open issues (beads)
 
-Run `bd ready` for the live queue. As of 2026-04-25:
+Run `bd ready` for the live queue. As of 2026-04-26:
 
 **P1 — load-bearing track:**
-- `vectorfeld-ccl` (epic) — Graft-based PDF round-trip. Phases 1–2 engine work complete (engine + 75 unit tests). Production wiring blocked on **`vectorfeld-1kp`** (single-page-stacking — engine MVP is one-page-per-layer; needs to merge layers onto a shared page before `u7r` can swap the production export without regressing the foreground+background composite case). Then `u7r` → `6d0`. Phase 3 (~500 LOC) is in-place source-font edits (`yyj`, `eb0`) — both now reachable since `wjj` epic closed.
+- `vectorfeld-ccl` (epic) — Graft-based PDF round-trip. Engine + production routing for pure-graft + deletions-only paths shipped. **Phase 3 (`yyj`, `eb0`) is the remaining gap**: in-place source-font edits so modifications can route through graft without falling back to Carlito. Closes the gate for modifications and additions.
 
 **P2 cluster:**
 - `vectorfeld-4w7` — Multi-document UI tabs + cross-document clipboard. Lights up the tab stub Atrium left in `TopBar`.
@@ -172,6 +173,7 @@ Session histories at `docs/worklog/`. Most recent first; load when working on th
 
 | Date | Session |
 |---|---|
+| 2026-04-26 | [graft-true-delete](docs/worklog/2026-04-26-graft-true-delete.md) — vectorfeld-enf shipped; graft engine deletes for real via applyRedactions |
 | 2026-04-25 | [gate-stories-6-10](docs/worklog/2026-04-25-gate-stories-6-10.md) — 5 new headed gates (10/10 green) |
 | 2026-04-25 | [graft-engine-complete](docs/worklog/2026-04-25-graft-engine-complete.md) — engine end-to-end (4 beads + epic) |
 | 2026-04-25 | [handoff](docs/worklog/2026-04-25-handoff.md) — tidy + 8 graft Phase 2 beads |

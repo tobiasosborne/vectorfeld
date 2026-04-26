@@ -82,3 +82,15 @@
 - The Explore subagent is read-only — it cannot Write/Edit files even when the prompt asks for output to a path
 - For tasks that must produce files (reports, refactors), use the general-purpose subagent OR plan to write the output yourself from the agent's response
 - When asked to delegate report-writing, prefer general-purpose; reserve Explore for "search and summarise back to me" tasks
+
+## Read the vendor's `.d.ts` before rolling your own
+
+- Before writing a custom parser, tokenizer, or serializer over a vendor SDK's data, **grep its `.d.ts` for the obvious feature names** (`redact`, `filter`, `process`, `transform`, `walk`, …). The C-level API often has the feature; the JS binding usually exposes a thin wrapper.
+- Concrete burn averted (`vectorfeld-enf`): we were about to roll a 250-LOC PDF content-stream tokenizer + ToUnicode CMap parser to truly delete source elements from a graft-output PDF. 30 minutes reading `node_modules/mupdf/dist/mupdf.d.ts` surfaced `PDFPage.applyRedactions()` exposed directly — exactly the API we needed, ~15 LOC primitive instead of 250.
+- Prompt the subagent specifically: ask it to *survey the d.ts surface* and quote the relevant lines before designing the implementation. The default behaviour is to design first, search second; for vendor-wrapped problems, that ordering often wastes a session.
+
+## Visual cover ≠ delete (in PDFs)
+
+- A "delete" implemented as a white-fill rect overlay (or any draw-op-based visual cover) **does not delete from the PDF's content stream**. The original draw ops are still there, just visually obscured. pdfjs `getTextContent`, Ctrl+F, copy-paste, accessibility tooling, and search engine indexing all still find the "deleted" text. For a PDF *editor*, this is the wrong mechanism.
+- The right mechanism is content-stream rewriting: either via the vendor's redaction API (mupdf `applyRedactions`), or by tokenizing and excising the relevant operators yourself.
+- Detection: assert deleted-text absence via the **same reader the user-visible tools use** — for the gate suite, that's pdfjs `getTextContent`. Byte-match alone won't catch this class of regression.
