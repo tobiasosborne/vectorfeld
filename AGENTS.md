@@ -54,7 +54,8 @@ Don't re-add these unless the use case changes. Ask first.
 Run `bd ready` for the live queue. As of 2026-04-26:
 
 **P1 — load-bearing track:**
-- `vectorfeld-ccl` (epic) — Graft-based PDF round-trip. Engine + production routing for pure-graft + deletions-only paths shipped. **Phase 3 (`yyj`, `eb0`) is the remaining gap**: in-place source-font edits so modifications can route through graft without falling back to Carlito. Closes the gate for modifications and additions.
+- `vectorfeld-yyj` (P1, planned + decomposed) — Full-OpenType text shaping in the graft engine: GSUB ligatures, GPOS kerning, contextual alternates, all standard features via fontkit + Type-0 CID font emission. 9 sub-beads filed (`yio`/`of4`/`7t7`/`33a`/`giz`/`87h`/`ufg`/`clw`/`ahx`); **start at `vectorfeld-yio` (yyj-1 spike)** — verifies mupdf's `addFont` produces a Type-0 Identity-H font with `/ToUnicode`. See `docs/worklog/2026-04-26-handoff-yyj.md` for the chain + risky-unknown analysis.
+- `vectorfeld-ccl` (epic) — Graft-based PDF round-trip. Engine + production routing for pure-graft + deletions-only paths shipped. After `yyj` lands, additions and modifications also route through graft. `eb0` (in-place source-font edits) is then the remaining gap.
 
 **P2 cluster:**
 - `vectorfeld-4w7` — Multi-document UI tabs + cross-document clipboard. Lights up the tab stub Atrium left in `TopBar`.
@@ -173,6 +174,7 @@ Session histories at `docs/worklog/`. Most recent first; load when working on th
 
 | Date | Session |
 |---|---|
+| 2026-04-26 | [handoff-yyj](docs/worklog/2026-04-26-handoff-yyj.md) — handoff: vectorfeld-yyj planned + 9 sub-beads filed; start at yyj-1 spike |
 | 2026-04-26 | [graft-true-delete](docs/worklog/2026-04-26-graft-true-delete.md) — vectorfeld-enf shipped; graft engine deletes for real via applyRedactions |
 | 2026-04-25 | [gate-stories-6-10](docs/worklog/2026-04-25-gate-stories-6-10.md) — 5 new headed gates (10/10 green) |
 | 2026-04-25 | [graft-engine-complete](docs/worklog/2026-04-25-graft-engine-complete.md) — engine end-to-end (4 beads + epic) |
