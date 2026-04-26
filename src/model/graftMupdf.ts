@@ -16,6 +16,7 @@
  */
 
 import type * as mupdfTypes from 'mupdf'
+import type { PdfRect } from './graftBbox'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let mupdfPromise: Promise<any> | null = null
@@ -135,4 +136,70 @@ export async function registerOverlayFont(
     resources.put('Font', fontsDict)
   }
   fontsDict.put(fontKey, fontRef)
+}
+
+/**
+ * Mark `rectsPdfPt` for removal on page `pageIdx` and apply the
+ * redactions immediately. Each rect becomes a Redact annotation
+ * (PDF spec §12.5.6.21) covering the area to remove; `applyRedactions`
+ * then rewrites the page's content stream — text-show operators (Tj,
+ * TJ) whose glyphs fall inside any marked rect are EXCISED, not just
+ * covered. Verified end-to-end in `scripts/spike/04-redactions.mjs`:
+ * both mupdf.toStructuredText and pdfjs.getTextContent confirm
+ * redacted text is gone from both extraction paths.
+ *
+ * Replaces the band-aid white-fill mask overlay path
+ * (`emitMaskRectOp` in graftCs.ts) for source-element deletions.
+ * The mask path was visually-only — pdfjs/Ctrl+F/copy-paste/screen
+ * readers all still found the "deleted" text. See vectorfeld-enf.
+ *
+ * Parameters:
+ *   - text_method = REDACT_TEXT_REMOVE (0): excise text-show ops.
+ *   - black_boxes = false: don't paint a visible black rect in place
+ *     of the redaction (we want the deleted area transparent).
+ *   - image_method = REDACT_IMAGE_NONE (0): leave images alone — we
+ *     only redact text-shaped source elements today; image deletion
+ *     would gate via classifyLayer separately.
+ *   - line_art_method = REDACT_LINE_ART_NONE (0): same reasoning.
+ *
+ * Coordinate convention: `PdfRect` is documented as PDF-spec
+ * bottom-left origin (consistent with the content-stream emission
+ * primitives in graftCs.ts). MuPDF's `Annotation.setRect` uses the
+ * mupdf-display top-left convention (matching the y-down coords
+ * its own `toStructuredText` walks emit). This primitive flips y
+ * across the page's MediaBox height so callers can stay in PdfRect
+ * convention end-to-end.
+ *
+ * No-op if `rectsPdfPt` is empty (avoids a useless mupdf round-trip).
+ *
+ * Note: createAnnotation('Redact') / applyRedactions are PDFPage
+ * methods, so we use `loadPage(pageIdx)` (which returns PDFPage on
+ * PDFDocument), not `findPage(pageIdx)` (which returns PDFObject).
+ */
+export async function applyRedactionsToPage(
+  outDoc: mupdfTypes.PDFDocument,
+  pageIdx: number,
+  rectsPdfPt: PdfRect[],
+): Promise<void> {
+  if (rectsPdfPt.length === 0) return
+  const page = outDoc.loadPage(pageIdx)
+  // Page bounds: [x0, y0, x1, y1] in mupdf coords. Height = y1 - y0.
+  // Used to flip PdfRect's bottom-up y into mupdf's top-down y.
+  const bounds = page.getBounds()
+  const pageHeightPt = bounds[3] - bounds[1]
+  for (const r of rectsPdfPt) {
+    const topDownY0 = pageHeightPt - (r.y + r.h)
+    const topDownY1 = pageHeightPt - r.y
+    const annot = page.createAnnotation('Redact')
+    annot.setRect([r.x, topDownY0, r.x + r.w, topDownY1])
+  }
+  // Constants documented inline rather than referenced via PDFPage.REDACT_*
+  // statics: those statics are present on the runtime class but the
+  // type-level static-readonly literals on PDFPage are class-side and
+  // accessing them from a typed instance compiles awkwardly. The integers
+  // are stable PDF-spec values (mupdf.d.ts:569-577).
+  const REDACT_IMAGE_NONE = 0
+  const REDACT_LINE_ART_NONE = 0
+  const REDACT_TEXT_REMOVE = 0
+  page.applyRedactions(false, REDACT_IMAGE_NONE, REDACT_LINE_ART_NONE, REDACT_TEXT_REMOVE)
 }
