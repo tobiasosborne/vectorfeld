@@ -162,28 +162,33 @@ export interface ExportPdfOpts {
 }
 
 /**
- * Conservative MVP routing rule (vectorfeld-u7r): use the graft engine
- * only for the cleanest case — a single primary source PDF with NO
- * edits whatsoever. Anything else falls back to the pdf-lib engine.
+ * Conservative MVP routing rule (vectorfeld-u7r, deletion-relaxed by
+ * vectorfeld-38q): use the graft engine when:
+ *   - exactly one source PDF in primary, no background composites,
+ *   - every layer is either pure-graft OR mixed-with-DELETIONS-ONLY.
  *
- * Even though d3o ships the engine-side mask emission for deleted
- * source elements, the gate stays strict on deletions for now: the
- * mask bbox comes from `graftBbox.textBox`, which uses element-level
- * y (not tspan-level y) and over-approximates text widths. For
- * MuPDF-imported text the resulting mask lands at the wrong place.
- * Will lift when `graftBbox.textBox` is rebuilt to honour tspan y +
- * x-array bounds (filed as a follow-up).
+ * Modifications and additions still gate to pdf-lib because the graft
+ * engine renders them in Carlito (no per-source font preservation),
+ * which is a fidelity regression vs the pdf-lib pipeline. Backgrounds
+ * are similarly gated. Both gaps close when `vectorfeld-yyj` ships
+ * per-source font support.
  *
- * Modifications and additions also still gate to pdf-lib because the
- * graft engine renders them in Carlito (no per-source font
- * preservation) — fidelity regression vs the pdf-lib pipeline. That
- * gap closes when `vectorfeld-yyj` ships per-source font support.
+ * Deletions are now safe end-to-end: d3o tracks removed source
+ * elements + their import-time bbox; 38q makes the bbox accurate for
+ * MuPDF-imported tspan-wrapped text; the engine masks each removed
+ * bbox with a white rect so the grafted source bytes don't keep
+ * painting the removed content.
  */
 function shouldUseGraftEngine(doc: DocumentModel, store: SourcePdfStore): boolean {
   if (store.primary === null || store.backgrounds.size > 0) return false
   for (const layer of doc.getLayerElements()) {
     const cls = classifyLayer(layer, store)
-    if (cls.kind !== 'graft') return false
+    if (cls.kind === 'graft') continue
+    if (cls.kind === 'mixed' && cls.modifiedElements.length === 0 && cls.newElements.length === 0) {
+      // mixed with ONLY deletions — graft engine handles this correctly.
+      continue
+    }
+    return false
   }
   return true
 }

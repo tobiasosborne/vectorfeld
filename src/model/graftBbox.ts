@@ -131,52 +131,78 @@ function aabbFromPoints(flat: number[]): BBox {
 
 /**
  * Conservative text bbox.
- * - Top of glyph: y - fontSize (ascender approx).
- * - Bottom of glyph: y + fontSize * 0.3 (descender approx).
+ * - Top of glyph: baseline_y - fontSize (ascender approx).
+ * - Bottom of glyph: baseline_y + fontSize * 0.3 (descender approx).
  * - Width: count chars × fontSize × 0.55 (approximate Latin glyph advance).
- * - When the element has tspan children with x-arrays, span the full x range.
+ * - When the element has tspan children, EACH tspan contributes its own
+ *   y / font-size / x-array; the bbox is the union of per-tspan boxes.
+ *   This matters for MuPDF-imported text where the parent <text> often
+ *   has default y=0 / font-size=12 and all the real values live on the
+ *   tspans (vectorfeld-38q).
  *
- * Real font metrics would shave off a few percent, but for masking we want
- * over-coverage so source glyphs don't poke through.
+ * Real font metrics would shave off a few percent, but for masking we
+ * want over-coverage so source glyphs don't poke through.
  */
 function textBox(el: Element): BBox | null {
-  const fontSize = num(el, 'font-size', 12)
+  const elFontSize = num(el, 'font-size', 12)
   const elX = num(el, 'x')
   const elY = num(el, 'y')
 
-  let minX = Infinity
-  let maxX = -Infinity
-  let charCount = 0
-
   const tspans = Array.from(el.children).filter((c) => c.tagName.toLowerCase() === 'tspan')
+
   if (tspans.length === 0) {
     const txt = el.textContent || ''
     if (!txt) return null
-    minX = elX
-    charCount = txt.length
-    maxX = elX + charCount * fontSize * 0.55
-  } else {
-    for (const tspan of tspans) {
-      const xAttr = tspan.getAttribute('x') ?? String(elX)
-      const xs = xAttr.trim().split(/\s+/).map(parseFloat)
-      const txt = tspan.textContent || ''
-      const tspanCount = txt.length
-      const localMin = Math.min(...xs)
-      const localMax = Math.max(...xs)
-      const advance = tspanCount * fontSize * 0.55
-      if (localMin < minX) minX = localMin
-      const tspanMax = (xs.length >= tspanCount ? localMax : localMax + advance)
-      if (tspanMax > maxX) maxX = tspanMax
-      charCount += tspanCount
+    return {
+      x: elX,
+      y: elY - elFontSize,
+      width: txt.length * elFontSize * 0.55,
+      height: elFontSize * 1.3,
     }
-    if (charCount === 0) return null
   }
+
+  let minX = Infinity
+  let maxX = -Infinity
+  let minTop = Infinity
+  let maxBottom = -Infinity
+  let charCount = 0
+
+  for (const tspan of tspans) {
+    const txt = tspan.textContent || ''
+    const tspanCount = txt.length
+    if (tspanCount === 0) continue
+
+    const xAttr = tspan.getAttribute('x') ?? String(elX)
+    const yAttr = tspan.getAttribute('y') ?? String(elY)
+    const xs = xAttr.trim().split(/\s+/).map(parseFloat).filter((n) => !Number.isNaN(n))
+    const ys = yAttr.trim().split(/\s+/).map(parseFloat).filter((n) => !Number.isNaN(n))
+    if (xs.length === 0 || ys.length === 0) continue
+    const tspanFontSize = parseFloat(tspan.getAttribute('font-size') ?? String(elFontSize))
+
+    const localMinX = Math.min(...xs)
+    const localMaxX = Math.max(...xs)
+    const advance = tspanCount * tspanFontSize * 0.55
+    const tspanMaxX = xs.length >= tspanCount ? localMaxX : localMaxX + advance
+    if (localMinX < minX) minX = localMinX
+    if (tspanMaxX > maxX) maxX = tspanMaxX
+
+    const minBaseline = Math.min(...ys)
+    const maxBaseline = Math.max(...ys)
+    const top = minBaseline - tspanFontSize
+    const bottom = maxBaseline + tspanFontSize * 0.3
+    if (top < minTop) minTop = top
+    if (bottom > maxBottom) maxBottom = bottom
+
+    charCount += tspanCount
+  }
+
+  if (charCount === 0) return null
 
   return {
     x: minX,
-    y: elY - fontSize,
+    y: minTop,
     width: maxX - minX,
-    height: fontSize * 1.3,
+    height: maxBottom - minTop,
   }
 }
 

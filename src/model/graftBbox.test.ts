@@ -64,6 +64,66 @@ describe('elementBboxMm — local bbox per element type', () => {
     const root = build(`<svg xmlns="${SVG_NS}"><g id="g"/></svg>`)
     expect(elementBboxMm(findById(root, 'g'))).toBeNull()
   })
+
+  describe('tspan-wrapped text (MuPDF import shape) — vectorfeld-38q', () => {
+    it('honours tspan y over element y when computing bbox top', () => {
+      // MuPDF emits text with no element-level y/font-size and instead
+      // puts everything on the tspan. Element-level y defaults to 0.
+      const root = build(
+        `<svg xmlns="${SVG_NS}"><g><text id="t"><tspan x="20" y="50" font-size="6">Hi</tspan></text></g></svg>`,
+      )
+      const b = elementBboxMm(findById(root, 't'))!
+      // Baseline at 50, fontSize 6 → top at 44 (NOT 0 - 12 = -12).
+      expect(b.y).toBeCloseTo(50 - 6)
+      expect(b.height).toBeCloseTo(6 * 1.3)
+    })
+
+    it('honours tspan font-size over element font-size', () => {
+      const root = build(
+        `<svg xmlns="${SVG_NS}"><g><text id="t" font-size="100"><tspan x="20" y="50" font-size="6">Hi</tspan></text></g></svg>`,
+      )
+      const b = elementBboxMm(findById(root, 't'))!
+      // Bbox should follow the tspan (size 6), NOT the element (size 100).
+      expect(b.height).toBeCloseTo(6 * 1.3)
+    })
+
+    it('multiple tspans at different y positions: bbox spans top of highest to bottom of lowest', () => {
+      const root = build(
+        `<svg xmlns="${SVG_NS}"><g><text id="t"><tspan x="0" y="20" font-size="4">A</tspan><tspan x="10" y="50" font-size="6">B</tspan></text></g></svg>`,
+      )
+      const b = elementBboxMm(findById(root, 't'))!
+      // Top: min(20-4, 50-6) = 16. Bottom: max(20+4*0.3, 50+6*0.3) = 51.8.
+      // y = 16, height = 51.8 - 16 = 35.8.
+      expect(b.y).toBeCloseTo(16)
+      expect(b.height).toBeCloseTo(35.8)
+    })
+
+    it('tspan y-array: takes min for top and max for bottom', () => {
+      const root = build(
+        `<svg xmlns="${SVG_NS}"><g><text id="t"><tspan x="0 5 10" y="10 15 20" font-size="4">ABC</tspan></text></g></svg>`,
+      )
+      const b = elementBboxMm(findById(root, 't'))!
+      // Highest baseline 10 → top 6. Lowest baseline 20 → bottom 21.2.
+      expect(b.y).toBeCloseTo(6)
+      expect(b.height).toBeCloseTo(15.2)
+    })
+
+    it('tspan inherits y from element when not set', () => {
+      const root = build(
+        `<svg xmlns="${SVG_NS}"><g><text id="t" y="40"><tspan x="20" font-size="6">Hi</tspan></text></g></svg>`,
+      )
+      const b = elementBboxMm(findById(root, 't'))!
+      expect(b.y).toBeCloseTo(40 - 6)
+    })
+
+    it('tspan inherits font-size from element when not set', () => {
+      const root = build(
+        `<svg xmlns="${SVG_NS}"><g><text id="t" font-size="8"><tspan x="20" y="40">Hi</tspan></text></g></svg>`,
+      )
+      const b = elementBboxMm(findById(root, 't'))!
+      expect(b.height).toBeCloseTo(8 * 1.3)
+    })
+  })
 })
 
 describe('elementBboxMm — composed ancestor transforms', () => {
