@@ -162,19 +162,18 @@ export interface ExportPdfOpts {
 }
 
 /**
- * Conservative MVP routing rule (vectorfeld-u7r): use the graft engine
- * only when every layer is pure-graft (untouched source content, no
- * mixed/overlay/composite). Anything else falls back to pdf-lib.
+ * Conservative MVP routing rule (vectorfeld-u7r, deletions enabled
+ * by vectorfeld-enf): use the graft engine when every layer is
+ * pure-graft OR mixed-with-deletions-only. Anything with
+ * modifications, new elements, or background composites falls back
+ * to pdf-lib.
  *
- * DELETIONS gate to pdf-lib (vectorfeld-enf): the graft engine
- * currently "deletes" source elements by overlaying a white-fill mask
- * rect on top of the grafted page. Visually hides the content but
- * leaves the operators in the source content stream — pdfjs
- * getTextContent(), Ctrl+F, copy-paste, and screen readers all still
- * find the supposedly-deleted text. That's not a delete; it's a
- * visual cover. Until the graft engine learns to rewrite the source
- * content stream to actually remove deleted operators (vectorfeld-enf),
- * deletions stay on pdf-lib for correctness.
+ * DELETIONS go through graft (closed by vectorfeld-enf): the graft
+ * engine now uses mupdf's applyRedactions to rewrite the source
+ * content stream — text-show ops and line-art subpaths inside the
+ * deleted element's bbox are excised, not visually masked. pdfjs
+ * getTextContent, Ctrl+F, copy-paste, and screen readers no longer
+ * find the deleted content.
  *
  * MODIFICATIONS and ADDITIONS gate to pdf-lib because the graft
  * engine renders new/edited text in Carlito (no per-source font
@@ -188,7 +187,12 @@ function shouldUseGraftEngine(doc: DocumentModel, store: SourcePdfStore): boolea
   if (store.primary === null || store.backgrounds.size > 0) return false
   for (const layer of doc.getLayerElements()) {
     const cls = classifyLayer(layer, store)
-    if (cls.kind !== 'graft') return false
+    if (cls.kind === 'graft') continue
+    // Deletions-only mixed layers are graft-safe after vectorfeld-enf.
+    if (cls.kind === 'mixed' && cls.modifiedElements.length === 0 && cls.newElements.length === 0) {
+      continue
+    }
+    return false
   }
   return true
 }

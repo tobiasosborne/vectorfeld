@@ -11,10 +11,19 @@
 //
 // Picks the largest-font multi-char text element (the only 24.96pt run
 // in this fixture) for deterministic targeting.
+//
+// Defense in depth (vectorfeld-enf): the byte-match alone won't catch
+// regressions where the deleted text is still present in the PDF's
+// text stream but the canonicalized JSON happens to align. Story
+// also asserts the deleted string is absent from pdfjs.getTextContent
+// — the same reader the canonicalizer uses, but a direct check lets
+// the failure name the cause ("deleted text still searchable") rather
+// than presenting as a generic byte diff.
 
 import { existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const FIXTURE = resolve(here, '..', '..', 'dogfood', 'fixtures', 'Flyer Swift Vortragscoaching 15.04.2026 noheader.pdf')
@@ -40,14 +49,14 @@ export async function run(page, h) {
   )
   await h.clickTool('select')
 
-  // Remove the headline text element directly. Returns the count of
-  // remaining text elements so the verification step can confirm one
-  // was actually removed (catches silent no-op).
+  // Remove the headline text element directly. Returns its content
+  // so the post-export check can assert that exact string is gone
+  // from the PDF (defense-in-depth beyond byte-match).
   const before = await page.evaluate(() => {
     const texts = Array.from(document.querySelectorAll('g[data-layer-name] text'))
     return texts.length
   })
-  const removed = await page.evaluate(() => {
+  const deletedText = await page.evaluate(() => {
     const texts = Array.from(document.querySelectorAll('g[data-layer-name] text'))
     let best = null
     let bestSize = 0
@@ -57,11 +66,12 @@ export async function run(page, h) {
         best = t; bestSize = size
       }
     }
-    if (!best) return false
+    if (!best) return null
+    const content = best.textContent || ''
     best.remove()
-    return true
+    return content
   })
-  if (!removed) throw new Error('06: no headline text element found to remove')
+  if (!deletedText) throw new Error('06: no headline text element found to remove')
   const after = await page.evaluate(() => {
     return document.querySelectorAll('g[data-layer-name] text').length
   })
@@ -71,5 +81,30 @@ export async function run(page, h) {
 
   const svg = await h.captureExportSvg()
   const pdf = await h.captureExportPdf()
+
+  // Assert the deleted text is absent from pdfjs text-extract.
+  // Catches regressions where the redaction silently breaks and the
+  // deleted text remains searchable / extractable / accessible.
+  //
+  // Probe: full deletedText with whitespace stripped — robust against
+  // pdfjs joining text items with extra spaces, AND specific enough
+  // not to false-match another text element that happens to share
+  // a short prefix (e.g. the headline starts with "Kurz" but the
+  // body has the unrelated word "kurzfristige").
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(pdf), useSystemFonts: false }).promise
+  try {
+    const p = await doc.getPage(1)
+    const tc = await p.getTextContent()
+    const joined = tc.items.map((it) => it.str || '').join('').replace(/\s+/g, '').toLowerCase()
+    const needle = deletedText.replace(/\s+/g, '').toLowerCase()
+    if (needle.length >= 8 && joined.includes(needle)) {
+      throw new Error(
+        `06: deleted text "${deletedText.slice(0, 30)}…" still present in pdfjs.getTextContent — vectorfeld-enf regression`,
+      )
+    }
+  } finally {
+    await doc.destroy()
+  }
+
   return { svg, pdf }
 }
