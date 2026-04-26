@@ -50,3 +50,20 @@ export async function extractPdfTextItems(
     await doc.destroy()
   }
 }
+
+/**
+ * Joined text content of a single page via pdfjs `getTextContent`.
+ *
+ * Used by the graft engine's deletion path (vectorfeld-enf) to assert
+ * that redacted source elements are gone from the PDF as it would be
+ * read by Ctrl+F / copy-paste / accessibility tooling — not just
+ * visually masked. pdfjs is the same reader the golden gate uses
+ * (`test/golden/canonicalize.mjs`), so this matches what the gate sees.
+ */
+export async function extractPdfText(
+  pdfBytes: Uint8Array,
+  pageIndex = 1
+): Promise<string> {
+  const items = await extractPdfTextItems(pdfBytes, pageIndex)
+  return items.map((it) => it.str).join('')
+}
