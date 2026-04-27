@@ -160,6 +160,18 @@ export async function exportViaGraft(
       await appendContentStream(out, pageIdx, ops.join(''))
     }
 
+    // 6. Subset every embedded font program down to just the glyphs
+    //    actually referenced by content streams. mupdf rewrites
+    //    content-stream TJ hex to match the post-subset glyph-ID
+    //    renumbering, so this is safe to run after our manual
+    //    emission. Verified end-to-end in spike-07: a "Hello"
+    //    overlay shrinks from 288 KB to 23 KB (≈92%) and both
+    //    mupdf.asText() and pdfjs.getTextContent() still round-trip.
+    //    The source PDF's own fonts are subset too, which is the
+    //    desired behavior — the output only needs the subset that
+    //    survived redaction + overlay composition.
+    out.subsetFonts()
+
     return out.saveToBuffer('compress=yes').asUint8Array().slice()
   } finally {
     closeSourcePdfDoc(out)
