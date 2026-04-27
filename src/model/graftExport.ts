@@ -399,11 +399,107 @@ function hasDescendantWithTag(el: Element, tags: Set<string>): boolean {
   return false
 }
 
-function makeSingleFontRegistry(fontkitFont: FontkitFont): FontRegistry {
+/** A single font entry in a multi-font registry: the page-resource
+ *  key the content stream references, plus the fontkit Font for shaping
+ *  + the SVG font-attr triple `(family, weight, style)` we match against
+ *  when emitText asks `resolveFontKey(family, style, weight)`. */
+export interface RegisteredFont {
+  /** Page-resource key (e.g. `VfCarlito`, `VfSrcF2`). What appears
+   *  after the `/` in `/VfCarlito 12 Tf` content-stream ops. */
+  key: string
+  /** SVG `font-family` to match against. Case-insensitive. */
+  family: string
+  /** SVG `font-weight`. `normal` matches '400'/'normal'/missing;
+   *  `bold` matches '700'/'bold'. Other numeric weights compare
+   *  literally. */
+  weight: 'normal' | 'bold' | string
+  /** SVG `font-style`. `normal` or `italic`. */
+  style: 'normal' | 'italic' | string
+  fontkitFont: FontkitFont
+}
+
+/**
+ * Build a `FontRegistry` that picks among multiple registered fonts
+ * by matching the SVG (family, weight, style) triple. Used by the
+ * graft engine to route new text through Carlito while routing
+ * source-text modifications through the matched source font
+ * (vectorfeld-eb0).
+ *
+ * Match rules (order):
+ *   1. Exact match on (lowercased family, weight, style).
+ *   2. Exact match on (family, weight=fallback-normal, style).
+ *   3. Exact match on (family) regardless of weight/style.
+ *   4. Fallback to `fallbackKey` (the overlay-Carlito slot).
+ *
+ * When no fonts are passed and `fallbackKey` is the only slot, the
+ * registry behaves like the previous single-font registry.
+ */
+export function makeFontRegistry(
+  fonts: readonly RegisteredFont[],
+  fallbackKey: string,
+): FontRegistry {
+  const byKey = new Map<string, FontkitFont>()
+  for (const f of fonts) byKey.set(f.key, f.fontkitFont)
+
+  // Lowercase all family strings for case-insensitive matching;
+  // SVG attribute values are case-sensitive but font-family is
+  // conventionally compared case-insensitively (CSS Fonts §3.1).
+  const slots = fonts.map((f) => ({
+    ...f,
+    family: f.family.toLowerCase(),
+  }))
+
   return {
-    resolveFontKey: () => OVERLAY_FONT_KEY,
-    getFontkitFont: () => fontkitFont,
+    resolveFontKey(family, style, weight) {
+      const fam = (family ?? '').toLowerCase()
+      const wgt = normalizeWeight(weight)
+      const sty = normalizeStyle(style)
+      // 1. exact triple match
+      const exact = slots.find((s) => s.family === fam && normalizeWeight(s.weight) === wgt && normalizeStyle(s.style) === sty)
+      if (exact) return exact.key
+      // 2. family + style, ignore weight (handles 100/300/400/500 → normal lookups)
+      const byStyle = slots.find((s) => s.family === fam && normalizeStyle(s.style) === sty)
+      if (byStyle) return byStyle.key
+      // 3. family only
+      const byFamily = slots.find((s) => s.family === fam)
+      if (byFamily) return byFamily.key
+      return fallbackKey
+    },
+    getFontkitFont(fontKey) {
+      const f = byKey.get(fontKey)
+      if (!f) {
+        throw new Error(
+          `graftExport: getFontkitFont(${JSON.stringify(fontKey)}) — key not registered. ` +
+          `Known keys: ${[...byKey.keys()].join(', ') || '(none)'}`,
+        )
+      }
+      return f
+    },
   }
+}
+
+function normalizeWeight(weight: string | null | undefined): string {
+  if (!weight) return 'normal'
+  const w = String(weight).trim().toLowerCase()
+  if (w === 'bold' || w === '700') return 'bold'
+  if (w === 'normal' || w === '400' || w === '') return 'normal'
+  return w
+}
+
+function normalizeStyle(style: string | null | undefined): string {
+  if (!style) return 'normal'
+  const s = String(style).trim().toLowerCase()
+  return s === 'italic' || s === 'oblique' ? 'italic' : 'normal'
+}
+
+/** Convenience: single-font registry retained as a wrapper around
+ *  `makeFontRegistry` so existing callers don't need to touch their
+ *  call sites. The single Carlito slot still serves overlay text. */
+function makeSingleFontRegistry(fontkitFont: FontkitFont): FontRegistry {
+  return makeFontRegistry(
+    [{ key: OVERLAY_FONT_KEY, family: 'Carlito', weight: 'normal', style: 'normal', fontkitFont }],
+    OVERLAY_FONT_KEY,
+  )
 }
 
 const THROWING_REGISTRY: FontRegistry = {
