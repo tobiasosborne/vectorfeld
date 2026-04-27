@@ -234,6 +234,107 @@ describe('exportViaGraft — mixed layer (modified source element)', () => {
   })
 })
 
+describe('exportViaGraft — source-font in-place edit (vectorfeld-eb0)', () => {
+  // The flyer fixture has real embedded Calibri variants — that's
+  // what the source-font extraction path actually works against.
+  // (pdf-lib's exportSvgStringToPdfBytes builds source PDFs that
+  // reference standard Helvetica without embedding, which the
+  // engine correctly skips via the hasEmbeddedProgram filter, but
+  // can't exercise the source-font registration path.)
+  const FLYER_PATH = resolve(
+    process.cwd(),
+    'test/dogfood/fixtures/Flyer Swift Vortragscoaching 15.04.2026 noheader.pdf',
+  )
+  let flyerBytes: Uint8Array
+  beforeAll(() => { flyerBytes = new Uint8Array(readFileSync(FLYER_PATH)) })
+
+  it('imports a real PDF and registers source fonts when text elements are modified', async () => {
+    // Drive the import path directly: openSourcePdfDoc → page 0 →
+    // structured-text walk → build an SVG-shape that mirrors what
+    // production import would produce (a layer of text elements
+    // with data-src-* tags). Since the structured-text helper isn't
+    // trivially repro'd here, this test takes a shortcut: a stub
+    // <text> with the right font-family + tags + snapshot.
+    const docXml = `<svg xmlns="${SVG_NS}" viewBox="0 0 210 297">
+      <g data-layer-name="L">
+        <text id="hello" x="10" y="20" font-family="Calibri" font-weight="bold" font-size="24.96">x</text>
+      </g>
+    </svg>`
+    const docSvg = svgRoot(docXml)
+    const layer = docSvg.querySelector('g[data-layer-name]')!
+    tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
+    snapshotImportedElements(layer)
+    docSvg.querySelector('#hello')!.setAttribute('fill', '#ff0000')
+
+    const doc = createDocumentModel(docSvg)
+    const store = new SourcePdfStore()
+    store.setPrimary({ bytes: flyerBytes, filename: 'flyer.pdf', pageCount: 1 })
+
+    const out = await exportViaGraft(doc, store, { carlito: CARLITO })
+    const reloaded = await openSourcePdfDoc(out)
+    try {
+      const fontsDict = reloaded.findPage(0).get('Resources').resolve().get('Font')
+      expect(fontsDict.isDictionary()).toBe(true)
+
+      // Walk fontsDict — at least one key must start with VfSrc
+      // (the source-font slot) and VfCarlito (the fallback) must
+      // also be present.
+      let foundSourceFontKey: string | null = null
+      let foundCarlito = false
+      fontsDict.forEach((_v, k) => {
+        const ks = String(k)
+        if (ks.startsWith('VfSrc')) foundSourceFontKey = ks
+        if (ks === 'VfCarlito') foundCarlito = true
+      })
+      expect(foundSourceFontKey).not.toBeNull()
+      expect(foundCarlito).toBe(true)
+
+      // The matched source font for `family=Calibri weight=bold`
+      // should be a Calibri-Bold variant.
+      expect(foundSourceFontKey).toContain('Calibri')
+      expect(foundSourceFontKey).toContain('Bold')
+    } finally {
+      closeSourcePdfDoc(reloaded)
+    }
+  })
+
+  it('falls back to Carlito when source-text family does not match an embedded source font', async () => {
+    // Modify a source text whose font-family doesn't appear in the
+    // flyer's embedded fonts. matchSvgFontToSource returns null →
+    // gatherSourceFontSlots adds nothing → emitText resolves to the
+    // Carlito fallback via the registry's family-only fallback.
+    const docXml = `<svg xmlns="${SVG_NS}" viewBox="0 0 210 297">
+      <g data-layer-name="L">
+        <text id="t" x="10" y="20" font-family="Garamond" font-size="6">x</text>
+      </g>
+    </svg>`
+    const docSvg = svgRoot(docXml)
+    const layer = docSvg.querySelector('g[data-layer-name]')!
+    tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
+    snapshotImportedElements(layer)
+    docSvg.querySelector('#t')!.setAttribute('fill', '#ff0000')
+
+    const doc = createDocumentModel(docSvg)
+    const store = new SourcePdfStore()
+    store.setPrimary({ bytes: flyerBytes, filename: 'flyer.pdf', pageCount: 1 })
+
+    const out = await exportViaGraft(doc, store, { carlito: CARLITO })
+    const reloaded = await openSourcePdfDoc(out)
+    try {
+      const fontsDict = reloaded.findPage(0).get('Resources').resolve().get('Font')
+      // No VfSrc key — Carlito-only fallback path.
+      let sawVfSrc = false
+      fontsDict.forEach((_v, k) => {
+        if (String(k).startsWith('VfSrc')) sawVfSrc = true
+      })
+      expect(sawVfSrc).toBe(false)
+      expect(fontsDict.get('VfCarlito').isIndirect()).toBe(true)
+    } finally {
+      closeSourcePdfDoc(reloaded)
+    }
+  })
+})
+
 describe('exportViaGraft — determinism', () => {
   it('produces byte-identical output across two calls with the same input', async () => {
     const doc = createDocumentModel(svgRoot(`<svg xmlns="${SVG_NS}" viewBox="0 0 50 30"><g data-layer-name="L"><rect x="5" y="5" width="10" height="10" fill="black"/></g></svg>`))

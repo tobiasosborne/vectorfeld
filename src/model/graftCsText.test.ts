@@ -135,8 +135,12 @@ describe('emitText — plain text (no tspans)', () => {
     )
     const reg = mockRegistry({ Carlito: 'CarRegKey' })
     emitText(findById(root, 't'), ctx(), reg)
-    expect(reg.calls).toHaveLength(1)
-    expect(reg.calls[0]).toEqual({ family: 'Carlito', style: 'italic', weight: 'bold' })
+    // emitText also calls resolveFontKey(null, null, null) to get
+    // the fallback key for the coverage check (vectorfeld-eb0).
+    // Filter those out and assert the element triple was forwarded.
+    const realCalls = reg.calls.filter((c) => c.family !== null)
+    expect(realCalls).toHaveLength(1)
+    expect(realCalls[0]).toEqual({ family: 'Carlito', style: 'italic', weight: 'bold' })
   })
 })
 

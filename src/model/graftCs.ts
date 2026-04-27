@@ -336,6 +336,20 @@ function emitTjArrayItems(text: string, font: FontkitFont): string[] {
   return items
 }
 
+/** True iff `font`'s cmap maps every code point in `text` to a real
+ *  glyph (i.e., none resolve to .notdef = gid 0). Source-PDF fonts
+ *  are usually subset programs, so a recolored heading might cover
+ *  the existing chars but a NEW char the user types could miss the
+ *  subset — we'd silently render .notdef boxes. Coverage check
+ *  catches that and lets the caller fall back to a complete font
+ *  (Carlito). */
+function fontCoversText(font: FontkitFont, text: string): boolean {
+  for (const ch of text) {
+    if (font.glyphForCodePoint(ch.codePointAt(0)!).id === 0) return false
+  }
+  return true
+}
+
 function collectTextRuns(el: Element, ctx: Ctx, registry: FontRegistry): TextRun[] {
   const elX = num(el, 'x')
   const elY = num(el, 'y')
@@ -425,6 +439,21 @@ function collectTextRuns(el: Element, ctx: Ctx, registry: FontRegistry): TextRun
 export function emitText(el: Element, ctx: Ctx, registry: FontRegistry): string {
   const runs = collectTextRuns(el, ctx, registry)
   if (runs.length === 0) return ''
+
+  // Coverage post-processing: if a run resolved to a source font that
+  // doesn't cover every codepoint in the run's text (subset gaps), fall
+  // back to the registry's family/weight/style-agnostic fallback (the
+  // overlay Carlito slot). resolveFontKey(null, null, null) walks the
+  // match chain and lands on the registry's fallbackKey when nothing
+  // else fits — that's our complete-coverage anchor. (vectorfeld-eb0)
+  const fallbackKey = registry.resolveFontKey(null, null, null)
+  for (const run of runs) {
+    if (run.fontKey === fallbackKey) continue
+    const font = registry.getFontkitFont(run.fontKey)
+    if (!fontCoversText(font, run.text)) {
+      run.fontKey = fallbackKey
+    }
+  }
 
   const lines: string[] = ['q', 'BT']
   let curFontKey: string | null = null

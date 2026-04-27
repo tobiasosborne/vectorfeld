@@ -45,6 +45,11 @@ import {
   applyRedactionsToPage,
 } from './graftMupdf'
 import type { FontkitFont } from './graftShape'
+import {
+  extractEmbeddedFontBytes,
+  matchSvgFontToSource,
+  parsePostScriptName,
+} from './sourceFont'
 import { classifyLayer, type ClassifiedLayer } from './graftClassify'
 import { elementBboxPdfPt, mmBboxToPdfPt, type PdfRect } from './graftBbox'
 import {
@@ -138,12 +143,16 @@ export async function exportViaGraft(
       await applyRedactionsToPage(out, pageIdx, redactRects)
     }
 
-    // 4. Register the overlay font NOW (after redactions, before
-    //    overlay emission) so applyRedactions doesn't prune it.
+    // 4. Register fonts on the page NOW (after redactions, before
+    //    overlay emission) so applyRedactions doesn't prune them.
+    //    Source fonts (one per unique embedded font referenced by
+    //    a modified text element) get registered alongside the
+    //    Carlito overlay fallback. (vectorfeld-eb0)
     const registry = await ensureFontIfNeeded(
       out,
       pageIdx,
-      classificationsNeedFont(classifications, foundIdx),
+      classifications,
+      foundIdx,
       opts,
     )
 
@@ -335,9 +344,11 @@ async function addBlankPage(out: mupdfTypes.PDFDocument, widthPt: number, height
 async function ensureFontIfNeeded(
   out: mupdfTypes.PDFDocument,
   pageIdx: number,
-  needed: boolean,
+  classifications: ClassifiedEntry[],
+  foundIdx: number,
   opts: ExportViaGraftOpts,
 ): Promise<FontRegistry> {
+  const needed = classificationsNeedFont(classifications, foundIdx)
   if (!needed) return THROWING_REGISTRY
   if (!opts.carlito) {
     throw new Error(
@@ -345,12 +356,90 @@ async function ensureFontIfNeeded(
       'Pass opts.carlito with Carlito-Regular bytes to enable overlay text rendering.',
     )
   }
-  // Type-0 / Identity-H so emitText can produce shaped TJ ops with
-  // GSUB ligatures, GPOS kerning, etc. (vectorfeld-yyj). The same
-  // bytes are loaded into fontkit by registerCidFont and exposed
-  // through the registry for shaping.
-  const { fontkitFont } = await registerCidFont(out, pageIdx, OVERLAY_FONT_KEY, opts.carlito)
-  return makeSingleFontRegistry(fontkitFont)
+
+  // Source-font slots — only the foundation mixed layer's modified
+  // text elements feed this. The goal: a recolored or string-edited
+  // source-text element re-emits in its ORIGINAL font (Calibri, …)
+  // instead of overlaying Carlito, so the edit blends invisibly.
+  // (vectorfeld-eb0)
+  const slots: RegisteredFont[] = []
+  if (foundIdx !== -1 && classifications[foundIdx].cls.kind === 'mixed') {
+    const found = classifications[foundIdx].cls as Extract<ClassifiedLayer, { kind: 'mixed' }>
+    const sourceSlots = await gatherSourceFontSlots(out, pageIdx, found)
+    slots.push(...sourceSlots)
+  }
+
+  // Carlito slot — fallback for new content + coverage gaps
+  // (chars the source-font subset doesn't have). Always registered
+  // when text emission is needed.
+  const { fontkitFont: carlitoFont } = await registerCidFont(
+    out, pageIdx, OVERLAY_FONT_KEY, opts.carlito,
+  )
+  slots.push({
+    key: OVERLAY_FONT_KEY,
+    family: 'Carlito',
+    weight: 'normal',
+    style: 'normal',
+    fontkitFont: carlitoFont,
+  })
+
+  return makeFontRegistry(slots, OVERLAY_FONT_KEY)
+}
+
+/**
+ * For every modified text element on the foundation mixed layer,
+ * find its matching source font, extract the program bytes, register
+ * a CID font on the output page, and return one `RegisteredFont` per
+ * UNIQUE source font seen. Text elements without a matchable / non-
+ * embedded source font are silently skipped — emitText will fall
+ * back to Carlito for those runs via the registry's family-only +
+ * fallback chain.
+ *
+ * Re-opens the source PDF doc (it was closed at the end of
+ * `bootstrapPage`) — cheap because the bytes are already in memory
+ * via `sourceEntry.bytes`.
+ */
+async function gatherSourceFontSlots(
+  out: mupdfTypes.PDFDocument,
+  pageIdx: number,
+  found: Extract<ClassifiedLayer, { kind: 'mixed' }>,
+): Promise<RegisteredFont[]> {
+  const slots: RegisteredFont[] = []
+  const seenFontKeys = new Set<string>()
+
+  const src = await openSourcePdfDoc(found.sourceEntry.bytes)
+  try {
+    for (const el of found.modifiedElements) {
+      if (el.tagName.toLowerCase() !== 'text') continue
+      const match = matchSvgFontToSource(el, src, 0)
+      if (!match) continue
+      if (seenFontKeys.has(match.fontKey)) continue
+      const extracted = extractEmbeddedFontBytes(src, 0, match.fontKey)
+      if (!extracted) continue
+      seenFontKeys.add(match.fontKey)
+
+      const parsed = parsePostScriptName(extracted.baseFont)
+      // Sanitize the BaseFont into a PDF-safe page-resource key.
+      // PDF /Name objects allow most ASCII but the simple
+      // alphanumeric form avoids escaping headaches in content
+      // streams.
+      const pageKey = `VfSrc${extracted.baseFont.replace(/[^A-Za-z0-9]/g, '_')}`
+      const { fontkitFont } = await registerCidFont(
+        out, pageIdx, pageKey, extracted.bytes,
+      )
+      slots.push({
+        key: pageKey,
+        family: parsed.family,
+        weight: parsed.weight,
+        style: parsed.style,
+        fontkitFont,
+      })
+    }
+  } finally {
+    closeSourcePdfDoc(src)
+  }
+
+  return slots
 }
 
 // ---------------------------------------------------------------------------
@@ -490,16 +579,6 @@ function normalizeStyle(style: string | null | undefined): string {
   if (!style) return 'normal'
   const s = String(style).trim().toLowerCase()
   return s === 'italic' || s === 'oblique' ? 'italic' : 'normal'
-}
-
-/** Convenience: single-font registry retained as a wrapper around
- *  `makeFontRegistry` so existing callers don't need to touch their
- *  call sites. The single Carlito slot still serves overlay text. */
-function makeSingleFontRegistry(fontkitFont: FontkitFont): FontRegistry {
-  return makeFontRegistry(
-    [{ key: OVERLAY_FONT_KEY, family: 'Carlito', weight: 'normal', style: 'normal', fontkitFont }],
-    OVERLAY_FONT_KEY,
-  )
 }
 
 const THROWING_REGISTRY: FontRegistry = {

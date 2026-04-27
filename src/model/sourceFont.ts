@@ -90,12 +90,16 @@ export function listPageFonts(
       ? descriptorHost.get('BaseFont').asName()
       : 'unknown'
 
-    const fontDescriptor = descriptorHost.get('FontDescriptor').resolve()
-    const hasEmbeddedProgram = fontDescriptor.isDictionary() && (
+    // Standard 14 fonts (Times-Roman, Helvetica, Courier, ZapfDingbats,
+    // Symbol) skip /FontDescriptor; the .get() returns the static
+    // PDFObject.Null whose .resolve() throws (no _doc). Guard explicitly.
+    const rawFontDescriptor = descriptorHost.get('FontDescriptor')
+    const fontDescriptor = rawFontDescriptor.isNull() ? null : rawFontDescriptor.resolve()
+    const hasEmbeddedProgram = !!(fontDescriptor && fontDescriptor.isDictionary() && (
       fontDescriptor.get('FontFile').isStream() ||
       fontDescriptor.get('FontFile2').isStream() ||
       fontDescriptor.get('FontFile3').isStream()
-    )
+    ))
 
     out.push({
       fontKey: String(key),
@@ -150,7 +154,9 @@ export function extractEmbeddedFontBytes(
     ? descriptorHost.get('BaseFont').asName()
     : 'unknown'
 
-  const fontDescriptor = descriptorHost.get('FontDescriptor').resolve()
+  const rawDescriptor = descriptorHost.get('FontDescriptor')
+  if (rawDescriptor.isNull()) return null
+  const fontDescriptor = rawDescriptor.resolve()
   if (!fontDescriptor.isDictionary()) return null
 
   // Try FontFile2 first (TrueType — most common for modern PDFs),
