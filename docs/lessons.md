@@ -110,3 +110,15 @@
 - `pdfjs.getDocument({ data: pdfBytes })` transfers ownership of the backing `ArrayBuffer`. After the load resolves, `pdfBytes` is detached — `Buffer.from(pdfBytes)` produces 0 bytes; `pdfBytes.slice()` throws "Cannot perform %TypedArray%.prototype.slice on a detached ArrayBuffer".
 - Concrete burn (golden runner): `verify()` called `canonicalizePdf(out.pdf)` (which calls getDocument), then `writeFileSync(p.rawPdf, Buffer.from(out.pdf))` for forensic triage. The pending PDF was always 0 bytes, blocking any analysis of why the canonical drifted.
 - Rule: when you need both the canonical AND the raw bytes, **snapshot bytes BEFORE the first pdfjs call** (`const raw = Buffer.from(out.pdf)` or `const raw = new Uint8Array(out.pdf)`). For multiple pdfjs sessions, do all assertions inside one `getDocument` block — don't try to reopen the same buffer twice.
+
+## mupdf `PDFObject.Null.resolve()` throws — guard with `.isNull()` first
+
+- `PDFObject.get(key)` on a missing dict key returns the static singleton `PDFObject.Null`, whose `_doc` field is `null`. Calling `.resolve()` on Null throws `TypeError: Cannot read properties of null (reading '_fromPDFObjectKeep')`.
+- Concrete burn (eb0-1 / sourceFont.ts): `descriptorHost.get('FontDescriptor').resolve()` throws when iterating fonts that lack a FontDescriptor (standard 14 fonts often do). Same for unknown font keys passed to `extractEmbeddedFontBytes`.
+- Rule: before calling `.resolve()` on the result of `.get()`, check `.isNull()` and return null/skip. The `.isDictionary()` / `.isStream()` / etc. type guards work fine on `PDFObject.Null` — they all return false — but `.resolve()` does not.
+
+## Synthetic source PDFs (`exportSvgStringToPdfBytes`) don't embed standard fonts
+
+- pdf-lib defaults Helvetica/Times/Courier to the standard 14 references — they appear in the page's `/Resources/Font` but with no `/FontDescriptor/FontFile{,2,3}` stream. The graft engine's source-font extraction path correctly skips them via `hasEmbeddedProgram=false`, but tests built on synthetic pdf-lib source PDFs can't exercise extraction at all.
+- Rule for graft-engine integration tests that need to verify source-font handling: use the flyer fixture (or any real-PDF fixture under `test/dogfood/fixtures/`), or build an explicit fixture via `mupdf.addFont(carlitoBytes)` so an embedded program is actually present.
+- Detection: if `listPageFonts(synthDoc, 0)` returns one entry with `hasEmbeddedProgram=false` and a standard-font BaseFont (`Helvetica`, `Times-Roman`, `Courier`), the test setup is wrong for source-font work.
