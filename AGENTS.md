@@ -24,19 +24,19 @@ Implications that shape every decision:
 - Scientific-diagram precision (rulers, mm-snap, Bézier authoring, TikZ) is NOT the target.
 - The owner is one specific person. No multi-user, no cloud, no auth.
 
-## Current state (2026-04-26, late session)
+## Current state (2026-04-27, late session)
 
-- **Build**: green. **778 tests** across **64 files**. Type check clean.
-- **Golden suites**: **10/10 gate stories ✓** (`npm run golden`); 10/10 milestones ✓ (`npm run golden:milestones`). Gate 06 (PDF delete-text) re-mastered through the graft engine after `vectorfeld-enf` shipped; story 06 carries an explicit pdfjs-text-absence assertion as defense-in-depth.
+- **Build**: green. **789 tests** across **66 files**. Type check clean.
+- **Golden suites**: **11/11 gate stories ✓** (`npm run golden`); 10/10 milestones ✓. Gate 11 (graft-text-shaping) added with `vectorfeld-ufg` — locks GSUB ligature + GPOS kern emission with three-layer assertion (byte-match + pdfjs reads "office"/"Ta"/"WA" via /ToUnicode + at least one shaped showText op carries inline kern adjustments). Gate 10 (PDF text-recolor) re-mastered through graft.
 - **Bundle** (`npm run build`): main JS **1,670 KB** (gzip 665 KB) + MuPDF JS **89 KB** + MuPDF WASM **10 MB** + Inter/JetBrainsMono woff2 **422 KB** + Carlito/Liberation Serif TTFs **2.7 MB** (embedded for pdf-lib font fidelity, see `vectorfeld-85m`).
 - **UI shell — Atrium** (shipped 2026-04-23): floating Panels over a radial-gradient root. `LeftRail` 9-slot rail + `⋯` overflow for keyboard-only tools, `TopBar` with brand + menu words + tab stub + coral Export PDF, `StatusBar` floating pill, `InspectorPanel` (Frame + Style + merged Layers/Pages tab). Token system in `src/index.css` (oklch) + `src/theme/atrium.ts`.
 - **PDF import**: MuPDF `text=text` mode in a Web Worker. Real `<text>`/`<tspan>`/`<image>` when MuPDF can preserve them; outlines otherwise. ⚠ "mostly-outlined" badge surfaces unrecoverable cases (`analyzeImportedSvg`). Each PDF lands as N direct layer children.
-- **PDF export — pdf-lib engine** (`src/model/pdfExport.ts`): handles text, path, rect, line, ellipse, circle, image, `<g transform>` with full affine matrix composition. Carlito + Liberation Serif embedded via `@pdf-lib/fontkit`. Per-character kerning honoured from MuPDF tspan `x`-arrays. `safeEncode` drops non-WinAnsi codepoints with named console.warn. Determinism pinned for golden-master byte stability.
-- **PDF export — graft engine** (`src/model/graftExport.ts`): production path for single-source-PDF documents (`shouldUseGraftEngine` in `fileio.ts`). Grafts the source page byte-for-byte via `mupdf.PDFDocument.graftPage`, applies redactions for any deleted source elements (excises text/line-art ops in the source content stream — NOT a visual mask), then appends an overlay stream. Routing now allows pure-graft AND deletions-only mixed layers; modifications/additions/backgrounds gate to pdf-lib until `vectorfeld-yyj` ships per-source font support.
+- **PDF export — pdf-lib engine** (`src/model/pdfExport.ts`): handles text, path, rect, line, ellipse, circle, image, `<g transform>` with full affine matrix composition. Carlito + Liberation Serif embedded via `@pdf-lib/fontkit`. Per-character kerning honoured from MuPDF tspan `x`-arrays. Used as fallback only — overlay-only docs (no source) and any document with backgrounds.
+- **PDF export — graft engine** (`src/model/graftExport.ts`): production path for ALL single-source-PDF documents post-`vectorfeld-yyj`. Grafts the source page byte-for-byte via `mupdf.PDFDocument.graftPage`, applies redactions for deleted/modified source elements (excises text/line-art ops — NOT a visual mask), registers a Type-0 / Identity-H Carlito font on the page, then appends a shaped-TJ overlay content stream. **Order matters: redact BEFORE registerCidFont** — `applyRedactions` prunes /Resources/Font, see lessons.md. Text emission goes through `shape()` (fontkit) → `emitTjArrayItems()` (Identity-H hex + GPOS kern adjustments).
 - **Compositing**: `File > Open PDF as Background Layer…` adds a named layer at the bottom of the z-stack without clearing the canvas. Three-click workflow: open foreground, open background layer, done.
 - **Z-order**: Arrange + Group/Ungroup + 6 Align items live in the Object menu with keyboard shortcuts right-aligned.
 - **Security**: SVG sanitizer strips `<script>`, `<foreignObject>`, `<iframe>`, `<object>`, `<embed>`, `on*` handlers, `javascript:`/`data:text/html` hrefs. Tauri CSP is an explicit allowlist (`src-tauri/tauri.conf.json`).
-- **Architecture**: DocumentState Phase 1 landed (per-document state isolation). Multi-doc UI (`vectorfeld-4w7`) is pending. The **graft-architecture rewrite** (epic `vectorfeld-ccl`, P1): engine end-to-end is wired into production via `fileio.shouldUseGraftEngine`. Pure-graft (no edits) and deletions-only mixed layers route through graft; modifications/additions/backgrounds fall back to pdf-lib. The **deletion path uses `mupdf.PDFPage.applyRedactions()` to truly excise content from the source content stream** (`vectorfeld-enf`, 2026-04-26) — the previous `emitMaskRectOp` band-aid was visually-only and left "deleted" text searchable via pdfjs/Ctrl+F/copy-paste. Phase 3 (`yyj`/`eb0`) for in-place source-font edits is the remaining gap before modifications can also route through graft. See `scripts/spike/*.mjs`, `docs/spikes/`, and recent worklogs.
+- **Architecture**: DocumentState Phase 1 landed (per-document state isolation). Multi-doc UI (`vectorfeld-4w7`) is pending. The **graft-architecture rewrite** (epic `vectorfeld-ccl`, P1) is functionally complete — `vectorfeld-yyj` (full-OpenType shaping) shipped 2026-04-27 with all 7 load-bearing sub-beads (`yio`, `of4`, `7t7`, `33a`, `87h`, `ufg`, `giz`-as-unneeded). Routing now sends pure-graft + ALL mixed-layer kinds (deletions / modifications / additions) through graft; only overlay-only-with-no-source and backgrounds gate to pdf-lib. Outstanding: `clw` (font subsetting, P3 optimization) and `eb0` (in-place source-font edits — preserves source font when modifying source elements rather than overlaying Carlito). See `scripts/spike/*.mjs`, `docs/spikes/`, and recent worklogs.
 
 ### Round-trip status
 
@@ -51,11 +51,10 @@ Don't re-add these unless the use case changes. Ask first.
 
 ## Known open issues (beads)
 
-Run `bd ready` for the live queue. As of 2026-04-26:
+Run `bd ready` for the live queue. As of 2026-04-27:
 
 **P1 — load-bearing track:**
-- `vectorfeld-yyj` (P1, planned + decomposed) — Full-OpenType text shaping in the graft engine: GSUB ligatures, GPOS kerning, contextual alternates, all standard features via fontkit + Type-0 CID font emission. 9 sub-beads filed (`yio`/`of4`/`7t7`/`33a`/`giz`/`87h`/`ufg`/`clw`/`ahx`); **start at `vectorfeld-yio` (yyj-1 spike)** — verifies mupdf's `addFont` produces a Type-0 Identity-H font with `/ToUnicode`. See `docs/worklog/2026-04-26-handoff-yyj.md` for the chain + risky-unknown analysis.
-- `vectorfeld-ccl` (epic) — Graft-based PDF round-trip. Engine + production routing for pure-graft + deletions-only paths shipped. After `yyj` lands, additions and modifications also route through graft. `eb0` (in-place source-font edits) is then the remaining gap.
+- `vectorfeld-ccl` (epic) — Graft-based PDF round-trip. After `yyj` shipped (2026-04-27) the engine handles pure-graft + all mixed-layer kinds (deletions, modifications, additions) with shaped Carlito overlays. Remaining gap: `vectorfeld-eb0` — in-place source-font edits (preserve source font when modifying source elements rather than overlaying Carlito) — and `vectorfeld-clw` (font subsetting via mupdf.subsetFonts, currently bundles ~600KB Carlito per export).
 
 **P2 cluster:**
 - `vectorfeld-4w7` — Multi-document UI tabs + cross-document clipboard. Lights up the tab stub Atrium left in `TopBar`.
@@ -64,12 +63,11 @@ Run `bd ready` for the live queue. As of 2026-04-26:
 - Pre-pivot pen-tool / properties polish: `9hu`, `t7u`, `els`, `vj5`, `ptz`. Drive-by territory.
 
 **P3:**
+- `vectorfeld-clw` (yyj-8) — Font subsetting via `mupdf.subsetFonts()`. Output PDFs currently embed full ~600KB Carlito; subset → expected >50% drop.
 - `vectorfeld-qj7` — Expose `window.__vfTest` hook so gate stories 06/10 can use UI selection instead of direct DOM mutation.
-
-**P3:**
 - `vectorfeld-ah8` — bundle cleanup (rip unused `jspdf` + `svg2pdf.js`).
 - `vectorfeld-pr9` — hybrid pdfjs-dist text overlay for Type 3 charproc PDFs. Defer until a Type 3 fixture exists.
-- `vectorfeld-sqr` — subset bundled fonts. Becomes moot once `ccl` lands.
+- `vectorfeld-sqr` — subset bundled fonts. Becomes moot once `clw` lands.
 
 ## Workflow — how to make changes here
 
@@ -174,6 +172,7 @@ Session histories at `docs/worklog/`. Most recent first; load when working on th
 
 | Date | Session |
 |---|---|
+| 2026-04-27 | [yyj-shipped](docs/worklog/2026-04-27-yyj-shipped.md) — vectorfeld-yyj shipped: full-OpenType graft text shaping (7 sub-beads) + critical applyRedactions/Resources-Font fix |
 | 2026-04-26 | [handoff-yyj](docs/worklog/2026-04-26-handoff-yyj.md) — handoff: vectorfeld-yyj planned + 9 sub-beads filed; start at yyj-1 spike |
 | 2026-04-26 | [graft-true-delete](docs/worklog/2026-04-26-graft-true-delete.md) — vectorfeld-enf shipped; graft engine deletes for real via applyRedactions |
 | 2026-04-25 | [gate-stories-6-10](docs/worklog/2026-04-25-gate-stories-6-10.md) — 5 new headed gates (10/10 green) |

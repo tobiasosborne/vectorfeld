@@ -4,6 +4,7 @@ Chronological session logs. Each file describes one working session: what shippe
 
 | Date | Session | One-line |
 |---|---|---|
+| 2026-04-27 | [yyj-shipped](2026-04-27-yyj-shipped.md) | **vectorfeld-yyj shipped** — full-OpenType graft text shaping (Type-0/Identity-H, GSUB ligatures, GPOS kerning); 7 sub-beads + critical applyRedactions/Resources-Font fix |
 | 2026-04-26 | [handoff-yyj](2026-04-26-handoff-yyj.md) | **Handoff** — vectorfeld-yyj (graft text shaping) planned + 9 sub-beads filed; start with yyj-1 spike |
 | 2026-04-26 | [graft-true-delete](2026-04-26-graft-true-delete.md) | **vectorfeld-enf shipped** — graft engine deletes for real via `applyRedactions` (no more mask band-aid) |
 | 2026-04-25 | [gate-stories-6-10](2026-04-25-gate-stories-6-10.md) | **5 new gates green** — 06/07/08/09/10 (PDF edit, composite, copy-paste, pen, recolor) |

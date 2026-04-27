@@ -94,3 +94,19 @@
 - A "delete" implemented as a white-fill rect overlay (or any draw-op-based visual cover) **does not delete from the PDF's content stream**. The original draw ops are still there, just visually obscured. pdfjs `getTextContent`, Ctrl+F, copy-paste, accessibility tooling, and search engine indexing all still find the "deleted" text. For a PDF *editor*, this is the wrong mechanism.
 - The right mechanism is content-stream rewriting: either via the vendor's redaction API (mupdf `applyRedactions`), or by tokenizing and excising the relevant operators yourself.
 - Detection: assert deleted-text absence via the **same reader the user-visible tools use** — for the gate suite, that's pdfjs `getTextContent`. Byte-match alone won't catch this class of regression.
+
+## `mupdf.applyRedactions` rewrites /Resources/Font
+
+- `PDFPage.applyRedactions()` doesn't only excise text-show ops from the content stream — it ALSO **prunes the page's `/Resources/Font` dict**, removing any font key whose glyphs aren't currently referenced in the (post-redaction) content stream.
+- Concrete burn (`vectorfeld-87h` triage): the graft engine registered the overlay font (Carlito Type-0/Identity-H) BEFORE applying redactions, then appended the overlay content stream that uses it. The font ref stayed embedded in the doc's xref table, but the page's `/Resources/Font` no longer pointed to it. pdfjs read the overlay text bytes against an unknown font → garbage ` `-laden codepoints. The font dict had `BaseFont/VfCarlito` and `/ToUnicode` intact (verified via mupdf, raw byte grep) — only the page-level Resources reference was missing.
+- Rule: in any pipeline that combines `applyRedactions` with new font registration, the order MUST be:
+  1. `applyRedactions(...)` (rewrites content stream + Resources/Font)
+  2. `registerCidFont(...)` / `registerOverlayFont(...)`
+  3. `appendContentStream(overlayOps)` referencing the just-registered font
+- Detection: if pdfjs `getTextContent()` returns garbage for an overlay font despite the spike confirming `/ToUnicode` round-trip, **inspect the page's `/Resources/Font` keys** before suspecting `/ToUnicode` itself. The signature is "font object exists in xref + raw bytes contain font name + page Resources/Font dict missing the key".
+
+## pdfjs detaches the input buffer on `getDocument`
+
+- `pdfjs.getDocument({ data: pdfBytes })` transfers ownership of the backing `ArrayBuffer`. After the load resolves, `pdfBytes` is detached — `Buffer.from(pdfBytes)` produces 0 bytes; `pdfBytes.slice()` throws "Cannot perform %TypedArray%.prototype.slice on a detached ArrayBuffer".
+- Concrete burn (golden runner): `verify()` called `canonicalizePdf(out.pdf)` (which calls getDocument), then `writeFileSync(p.rawPdf, Buffer.from(out.pdf))` for forensic triage. The pending PDF was always 0 bytes, blocking any analysis of why the canonical drifted.
+- Rule: when you need both the canonical AND the raw bytes, **snapshot bytes BEFORE the first pdfjs call** (`const raw = Buffer.from(out.pdf)` or `const raw = new Uint8Array(out.pdf)`). For multiple pdfjs sessions, do all assertions inside one `getDocument` block — don't try to reopen the same buffer twice.
