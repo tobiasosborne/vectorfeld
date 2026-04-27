@@ -104,25 +104,26 @@ export async function exportViaGraft(
     const pageHeightPt = await bootstrapPage(out, doc, foundIdx, classifications)
     const pageIdx = 0
 
-    // 3. Decide whether to register a font on this page.
-    const registry = await ensureFontIfNeeded(
-      out,
-      pageIdx,
-      classificationsNeedFont(classifications, foundIdx),
-      opts,
-    )
-
-    // 4. Apply content-stream redactions for foundation+mixed
-    //    deletions and modifications BEFORE appending the overlay
-    //    stream (vectorfeld-enf). Order matters: redaction rewrites
-    //    the foundation page's content stream to excise text-show
-    //    ops inside each marked rect; appending the overlay
-    //    afterward adds a NEW stream on top of the rewritten
-    //    foundation, so the overlay's text isn't redacted by the
-    //    same pass. The previous emitMaskRectOp band-aid covered
-    //    visually but left the operators in the stream — pdfjs /
-    //    Ctrl+F / copy-paste / screen readers still found "deleted"
-    //    text. Redaction removes it for real.
+    // 3. Apply content-stream redactions for foundation+mixed
+    //    deletions and modifications BEFORE registering the overlay
+    //    font or appending the overlay stream (vectorfeld-enf).
+    //    Order matters in two ways:
+    //      a) Redaction rewrites the foundation page's content stream
+    //         to excise text-show ops inside each marked rect;
+    //         appending the overlay afterward adds a NEW stream on
+    //         top of the rewritten foundation, so the overlay's text
+    //         isn't redacted by the same pass.
+    //      b) `mupdf.applyRedactions` ALSO rewrites the page's
+    //         /Resources/Font, pruning any font key whose glyphs
+    //         are not currently referenced in the content stream.
+    //         Registering the overlay font BEFORE applyRedactions
+    //         results in the font being pruned (no overlay content
+    //         stream exists yet to use it). So: redact first, then
+    //         register the font, then emit the overlay that uses it.
+    //    The previous emitMaskRectOp band-aid covered visually but
+    //    left the operators in the stream — pdfjs / Ctrl+F /
+    //    copy-paste / screen readers still found "deleted" text.
+    //    Redaction removes it for real.
     const ctx: Ctx = { matrix: identityMatrix(), pageHeightPt }
     if (foundIdx !== -1 && classifications[foundIdx].cls.kind === 'mixed') {
       const found = classifications[foundIdx].cls as Extract<ClassifiedLayer, { kind: 'mixed' }>
@@ -136,6 +137,15 @@ export async function exportViaGraft(
       }
       await applyRedactionsToPage(out, pageIdx, redactRects)
     }
+
+    // 4. Register the overlay font NOW (after redactions, before
+    //    overlay emission) so applyRedactions doesn't prune it.
+    const registry = await ensureFontIfNeeded(
+      out,
+      pageIdx,
+      classificationsNeedFont(classifications, foundIdx),
+      opts,
+    )
 
     // 5. Build the overlay content stream (modifications re-rendered
     //    on top of the redacted area; new elements appended). Pure-

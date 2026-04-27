@@ -162,23 +162,24 @@ export interface ExportPdfOpts {
 }
 
 /**
- * Conservative MVP routing rule (vectorfeld-u7r, deletions enabled
- * by vectorfeld-enf): use the graft engine when every layer is
- * pure-graft OR mixed-with-deletions-only. Anything with
- * modifications, new elements, or background composites falls back
- * to pdf-lib.
+ * Routing rule after vectorfeld-yyj's text-shaping landed: every
+ * single-source document goes through the graft engine. Pure-graft,
+ * deletions-only, modifications, and new additions all route through
+ * graft because the engine now emits shaped Identity-H TJ ops via
+ * fontkit (vectorfeld-33a / yyj-4) — no fidelity regression vs.
+ * pdf-lib for new/edited text. Background composites still gate to
+ * pdf-lib until multi-graft-per-page lands (vectorfeld-eb0 territory).
  *
- * DELETIONS go through graft (closed by vectorfeld-enf): the graft
- * engine now uses mupdf's applyRedactions to rewrite the source
- * content stream — text-show ops and line-art subpaths inside the
- * deleted element's bbox are excised, not visually masked. pdfjs
- * getTextContent, Ctrl+F, copy-paste, and screen readers no longer
- * find the deleted content.
+ * DELETIONS via mupdf.applyRedactions (vectorfeld-enf): excise the
+ * source content stream — pdfjs getTextContent, Ctrl+F, copy-paste,
+ * and screen readers don't find deleted content.
  *
- * MODIFICATIONS and ADDITIONS gate to pdf-lib because the graft
- * engine renders new/edited text in Carlito (no per-source font
- * preservation) — fidelity regression vs the pdf-lib pipeline. Closes
- * when vectorfeld-yyj ships per-source font support.
+ * MODIFICATIONS / ADDITIONS via shaped Carlito overlays
+ * (vectorfeld-33a): GSUB ligatures, GPOS kerning, contextual
+ * alternates supported via fontkit. Source-font preservation for
+ * in-place edits (vectorfeld-eb0) is the remaining gap; until then,
+ * modified glyphs render in Carlito which is acceptable for the
+ * Word-PDF use case.
  *
  * BACKGROUND COMPOSITES gate to pdf-lib until multi-graft-per-page is
  * supported.
@@ -187,11 +188,12 @@ function shouldUseGraftEngine(doc: DocumentModel, store: SourcePdfStore): boolea
   if (store.primary === null || store.backgrounds.size > 0) return false
   for (const layer of doc.getLayerElements()) {
     const cls = classifyLayer(layer, store)
-    if (cls.kind === 'graft') continue
-    // Deletions-only mixed layers are graft-safe after vectorfeld-enf.
-    if (cls.kind === 'mixed' && cls.modifiedElements.length === 0 && cls.newElements.length === 0) {
-      continue
-    }
+    // Pure-graft and any mixed (deletions, modifications, additions)
+    // are all graft-safe post-vectorfeld-yyj. Overlay-only layers and
+    // anything classifyLayer can't categorize as graft/mixed (e.g.
+    // freshly authored layers with no source link) still route to
+    // pdf-lib.
+    if (cls.kind === 'graft' || cls.kind === 'mixed') continue
     return false
   }
   return true

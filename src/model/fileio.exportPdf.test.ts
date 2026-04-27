@@ -130,7 +130,7 @@ describe('exportPdfBytes — engine routing', () => {
     let srcBytes: Uint8Array
     beforeAll(async () => { srcBytes = await exportSvgStringToPdfBytes(SOURCE_VIEWBOX_80_60) })
 
-    it('falls back to pdf-lib when an imported element was MODIFIED (graft can mask but mixed not yet wired through gate)', async () => {
+    it('uses graft engine when an imported element was MODIFIED (vectorfeld-yyj — shaped Carlito overlay)', async () => {
       const docSvg = svgRoot(DOC_VIEWBOX_50_30)
       const layer = docSvg.querySelector('g[data-layer-name]')!
       tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
@@ -143,14 +143,14 @@ describe('exportPdfBytes — engine routing', () => {
       setActiveSourcePdfStore(store)
 
       const doc = createDocumentModel(docSvg)
-      const out = await exportPdfBytes(doc, { fonts: {} })
+      const out = await exportPdfBytes(doc, { carlito: CARLITO, fonts: {} })
 
       const reloaded = await openSourcePdfDoc(out)
       const PT = 72 / 25.4
       const { w, h } = pageSizePt(reloaded)
-      // pdf-lib output → page sized to doc viewBox (50×30), not source.
-      expect(w).toBeCloseTo(50 * PT, 1)
-      expect(h).toBeCloseTo(30 * PT, 1)
+      // graft output → page sized to the source PDF (80×60), not the doc viewBox.
+      expect(w).toBeCloseTo(80 * PT, 1)
+      expect(h).toBeCloseTo(60 * PT, 1)
       closeSourcePdfDoc(reloaded)
     })
 
@@ -184,7 +184,7 @@ describe('exportPdfBytes — engine routing', () => {
       closeSourcePdfDoc(reloaded)
     })
 
-    it('falls back to pdf-lib when a NEW user element was added to the imported layer', async () => {
+    it('uses graft engine when a NEW user element was added to the imported layer (vectorfeld-yyj)', async () => {
       const docSvg = svgRoot(DOC_VIEWBOX_50_30)
       const layer = docSvg.querySelector('g[data-layer-name]')!
       tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
@@ -204,13 +204,14 @@ describe('exportPdfBytes — engine routing', () => {
       setActiveSourcePdfStore(store)
 
       const doc = createDocumentModel(docSvg)
-      const out = await exportPdfBytes(doc, { fonts: {} })
+      const out = await exportPdfBytes(doc, { carlito: CARLITO, fonts: {} })
 
       const reloaded = await openSourcePdfDoc(out)
       const PT = 72 / 25.4
       const { w, h } = pageSizePt(reloaded)
-      expect(w).toBeCloseTo(50 * PT, 1)
-      expect(h).toBeCloseTo(30 * PT, 1)
+      // graft output → source (80×60), not doc viewBox (50×30).
+      expect(w).toBeCloseTo(80 * PT, 1)
+      expect(h).toBeCloseTo(60 * PT, 1)
       closeSourcePdfDoc(reloaded)
     })
   })

@@ -114,6 +114,12 @@ async function verify(story, page) {
     return { ok: false, reason: 'no-master' }
   }
   const out = await runStoryOnce(story, page)
+  // pdfjs.getDocument transfers ownership of the data buffer (the
+  // backing ArrayBuffer is detached after the load resolves), so any
+  // post-canonicalize writeFileSync on out.pdf would land 0 bytes.
+  // Snapshot the bytes upfront — small cost, avoids the detached-buffer
+  // pitfall when triaging gate drift.
+  const rawPdfBytes = Buffer.from(out.pdf)
   const svgCanonical = canonicalizeSvg(out.svg)
   const pdfCanonical = await canonicalizePdf(out.pdf)
   const svgMaster = readFileSync(svgMasterPath, 'utf8')
@@ -129,7 +135,7 @@ async function verify(story, page) {
   writeFileSync(p.svg, svgCanonical)
   writeFileSync(p.pdf, pdfCanonical)
   writeFileSync(p.rawSvg, out.svg)
-  writeFileSync(p.rawPdf, Buffer.from(out.pdf))
+  writeFileSync(p.rawPdf, rawPdfBytes)
   console.error(`  ✗ ${story.name}${svgOk ? '' : ' SVG'}${pdfOk ? '' : ' PDF'} drift`)
   console.error(`      master : ${svgMasterPath}`)
   console.error(`      pending: ${p.svg}`)

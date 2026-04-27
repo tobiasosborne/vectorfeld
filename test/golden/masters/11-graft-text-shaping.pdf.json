@@ -90,7 +90,7 @@
           "fontName": "g_f2"
         },
         {
-          "str": "K",
+          "str": "Kurzfristige Hilfe bei englischen Vorträgen",
           "transform": [
             24.96,
             0,
@@ -99,35 +99,7 @@
             79.46,
             629.5
           ],
-          "width": 13.65,
-          "height": 24.96,
-          "fontName": "g_f2"
-        },
-        {
-          "str": " ",
-          "transform": [
-            24.96,
-            0,
-            0,
-            24.96,
-            93.12,
-            629.5
-          ],
-          "width": 408.97,
-          "height": 0,
-          "fontName": "g_f2"
-        },
-        {
-          "str": "n",
-          "transform": [
-            24.96,
-            0,
-            0,
-            24.96,
-            502.09,
-            629.5
-          ],
-          "width": 13.4,
+          "width": 436.03,
           "height": 24.96,
           "fontName": "g_f2"
         },
@@ -624,29 +596,29 @@
         {
           "str": "",
           "transform": [
-            24.96,
+            17.01,
             0,
             0,
-            24.96,
-            93.14,
-            629.5
+            17.01,
+            56.69,
+            48.22
           ],
           "width": 0,
           "height": 0,
           "fontName": "g_f6"
         },
         {
-          "str": "urzfristige Hilfe bei englischen Vorträgen",
+          "str": "office Ta WA",
           "transform": [
-            24.96,
+            17.01,
             0,
             0,
-            24.96,
-            93.14,
-            629.5
+            17.01,
+            56.69,
+            48.22
           ],
-          "width": 422.05,
-          "height": 24.96,
+          "width": 85.29,
+          "height": 17.01,
           "fontName": "g_f6"
         }
       ],
@@ -765,18 +737,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -791,6 +751,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -828,18 +800,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -854,6 +814,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -891,18 +863,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -917,6 +877,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -954,18 +926,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -980,6 +940,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -1017,18 +989,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -1043,6 +1003,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -1080,18 +1052,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -1106,6 +1066,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -1154,18 +1126,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -1186,6 +1146,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
           ]
         },
         {
@@ -1245,18 +1217,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -1271,6 +1231,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
           ]
         },
         {
@@ -1330,18 +1302,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -1362,6 +1322,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#5b9bd5"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#5b9bd5"
           ]
         },
         {
@@ -1396,18 +1368,6 @@
               "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
             ],
             "[obj]"
-          ]
-        },
-        {
-          "op": "setFillRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#5b9bd5"
           ]
         },
         {
@@ -1434,6 +1394,18 @@
           ]
         },
         {
+          "op": "setFillRGBColor",
+          "args": [
+            "#5b9bd5"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#5b9bd5"
+          ]
+        },
+        {
           "op": "showText",
           "args": [
             [
@@ -1468,18 +1440,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -1494,6 +1454,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
           ]
         },
         {
@@ -1558,18 +1530,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -1584,6 +1544,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
           ]
         },
         {
@@ -1621,18 +1593,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -1647,6 +1607,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
           ]
         },
         {
@@ -1703,18 +1675,6 @@
               "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
             ],
             "[obj]"
-          ]
-        },
-        {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
           ]
         },
         {
@@ -1738,6 +1698,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -1808,18 +1780,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#00a4de"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#00a4de"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -1834,6 +1794,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#00a4de"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#00a4de"
           ]
         },
         {
@@ -1871,18 +1843,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#00a4de"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#00a4de"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -1900,10 +1860,69 @@
           ]
         },
         {
+          "op": "setFillRGBColor",
+          "args": [
+            "#00a4de"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#00a4de"
+          ]
+        },
+        {
           "op": "showText",
           "args": [
             [
-              -16384,
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              -3,
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              -2,
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              -2,
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              -5,
+              "[object Object]",
+              "[object Object]",
+              -2,
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              -2,
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              -4,
+              "[object Object]",
               "[object Object]"
             ]
           ]
@@ -1935,18 +1954,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#00a4de"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#00a4de"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -1961,6 +1968,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#00a4de"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#00a4de"
           ]
         },
         {
@@ -2009,18 +2028,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -2035,6 +2042,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
           ]
         },
         {
@@ -2083,18 +2102,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -2112,66 +2119,15 @@
           ]
         },
         {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "endText",
-          "args": []
-        },
-        {
-          "op": "restore",
-          "args": []
-        },
-        {
-          "op": "save",
-          "args": []
-        },
-        {
-          "op": "eoClip",
-          "args": []
-        },
-        {
-          "op": "constructPath",
-          "args": [
-            28,
-            [
-              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
-            ],
-            "[obj]"
-          ]
-        },
-        {
           "op": "setFillRGBColor",
           "args": [
-            "#2f5496"
+            "#5b9bd5"
           ]
         },
         {
           "op": "setStrokeRGBColor",
           "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "beginText",
-          "args": []
-        },
-        {
-          "op": "setFont",
-          "args": [
-            "g_f2",
-            15.96
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
+            "#5b9bd5"
           ]
         },
         {
@@ -2209,6 +2165,23 @@
           ]
         },
         {
+          "op": "beginText",
+          "args": []
+        },
+        {
+          "op": "setFont",
+          "args": [
+            "g_f2",
+            15.96
+          ]
+        },
+        {
+          "op": "setTextMatrix",
+          "args": [
+            "[obj]"
+          ]
+        },
+        {
           "op": "setFillRGBColor",
           "args": [
             "#2f5496"
@@ -2218,6 +2191,40 @@
           "op": "setStrokeRGBColor",
           "args": [
             "#2f5496"
+          ]
+        },
+        {
+          "op": "showText",
+          "args": [
+            [
+              "[object Object]"
+            ]
+          ]
+        },
+        {
+          "op": "endText",
+          "args": []
+        },
+        {
+          "op": "restore",
+          "args": []
+        },
+        {
+          "op": "save",
+          "args": []
+        },
+        {
+          "op": "eoClip",
+          "args": []
+        },
+        {
+          "op": "constructPath",
+          "args": [
+            28,
+            [
+              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
+            ],
+            "[obj]"
           ]
         },
         {
@@ -2235,6 +2242,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
           ]
         },
         {
@@ -2316,18 +2335,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -2345,66 +2352,15 @@
           ]
         },
         {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "endText",
-          "args": []
-        },
-        {
-          "op": "restore",
-          "args": []
-        },
-        {
-          "op": "save",
-          "args": []
-        },
-        {
-          "op": "eoClip",
-          "args": []
-        },
-        {
-          "op": "constructPath",
-          "args": [
-            28,
-            [
-              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
-            ],
-            "[obj]"
-          ]
-        },
-        {
           "op": "setFillRGBColor",
           "args": [
-            "#2f5496"
+            "#5b9bd5"
           ]
         },
         {
           "op": "setStrokeRGBColor",
           "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "beginText",
-          "args": []
-        },
-        {
-          "op": "setFont",
-          "args": [
-            "g_f2",
-            15.96
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
+            "#5b9bd5"
           ]
         },
         {
@@ -2442,6 +2398,23 @@
           ]
         },
         {
+          "op": "beginText",
+          "args": []
+        },
+        {
+          "op": "setFont",
+          "args": [
+            "g_f2",
+            15.96
+          ]
+        },
+        {
+          "op": "setTextMatrix",
+          "args": [
+            "[obj]"
+          ]
+        },
+        {
           "op": "setFillRGBColor",
           "args": [
             "#2f5496"
@@ -2451,6 +2424,40 @@
           "op": "setStrokeRGBColor",
           "args": [
             "#2f5496"
+          ]
+        },
+        {
+          "op": "showText",
+          "args": [
+            [
+              "[object Object]"
+            ]
+          ]
+        },
+        {
+          "op": "endText",
+          "args": []
+        },
+        {
+          "op": "restore",
+          "args": []
+        },
+        {
+          "op": "save",
+          "args": []
+        },
+        {
+          "op": "eoClip",
+          "args": []
+        },
+        {
+          "op": "constructPath",
+          "args": [
+            28,
+            [
+              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
+            ],
+            "[obj]"
           ]
         },
         {
@@ -2468,6 +2475,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
           ]
         },
         {
@@ -2528,6 +2547,23 @@
           ]
         },
         {
+          "op": "beginText",
+          "args": []
+        },
+        {
+          "op": "setFont",
+          "args": [
+            "g_f3",
+            15.96
+          ]
+        },
+        {
+          "op": "setTextMatrix",
+          "args": [
+            "[obj]"
+          ]
+        },
+        {
           "op": "setFillRGBColor",
           "args": [
             "#5b9bd5"
@@ -2537,6 +2573,166 @@
           "op": "setStrokeRGBColor",
           "args": [
             "#5b9bd5"
+          ]
+        },
+        {
+          "op": "showText",
+          "args": [
+            [
+              "[object Object]"
+            ]
+          ]
+        },
+        {
+          "op": "endText",
+          "args": []
+        },
+        {
+          "op": "restore",
+          "args": []
+        },
+        {
+          "op": "save",
+          "args": []
+        },
+        {
+          "op": "eoClip",
+          "args": []
+        },
+        {
+          "op": "constructPath",
+          "args": [
+            28,
+            [
+              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
+            ],
+            "[obj]"
+          ]
+        },
+        {
+          "op": "beginText",
+          "args": []
+        },
+        {
+          "op": "setFont",
+          "args": [
+            "g_f2",
+            15.96
+          ]
+        },
+        {
+          "op": "setTextMatrix",
+          "args": [
+            "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "showText",
+          "args": [
+            [
+              "[object Object]"
+            ]
+          ]
+        },
+        {
+          "op": "endText",
+          "args": []
+        },
+        {
+          "op": "restore",
+          "args": []
+        },
+        {
+          "op": "save",
+          "args": []
+        },
+        {
+          "op": "eoClip",
+          "args": []
+        },
+        {
+          "op": "constructPath",
+          "args": [
+            28,
+            [
+              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
+            ],
+            "[obj]"
+          ]
+        },
+        {
+          "op": "beginText",
+          "args": []
+        },
+        {
+          "op": "setFont",
+          "args": [
+            "g_f2",
+            15.96
+          ]
+        },
+        {
+          "op": "setTextMatrix",
+          "args": [
+            "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "showText",
+          "args": [
+            [
+              "[object Object]"
+            ]
+          ]
+        },
+        {
+          "op": "endText",
+          "args": []
+        },
+        {
+          "op": "restore",
+          "args": []
+        },
+        {
+          "op": "save",
+          "args": []
+        },
+        {
+          "op": "eoClip",
+          "args": []
+        },
+        {
+          "op": "constructPath",
+          "args": [
+            28,
+            [
+              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
+            ],
+            "[obj]"
           ]
         },
         {
@@ -2557,166 +2753,6 @@
           ]
         },
         {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "endText",
-          "args": []
-        },
-        {
-          "op": "restore",
-          "args": []
-        },
-        {
-          "op": "save",
-          "args": []
-        },
-        {
-          "op": "eoClip",
-          "args": []
-        },
-        {
-          "op": "constructPath",
-          "args": [
-            28,
-            [
-              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
-            ],
-            "[obj]"
-          ]
-        },
-        {
-          "op": "setFillRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "beginText",
-          "args": []
-        },
-        {
-          "op": "setFont",
-          "args": [
-            "g_f2",
-            15.96
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "endText",
-          "args": []
-        },
-        {
-          "op": "restore",
-          "args": []
-        },
-        {
-          "op": "save",
-          "args": []
-        },
-        {
-          "op": "eoClip",
-          "args": []
-        },
-        {
-          "op": "constructPath",
-          "args": [
-            28,
-            [
-              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
-            ],
-            "[obj]"
-          ]
-        },
-        {
-          "op": "setFillRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "beginText",
-          "args": []
-        },
-        {
-          "op": "setFont",
-          "args": [
-            "g_f2",
-            15.96
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "endText",
-          "args": []
-        },
-        {
-          "op": "restore",
-          "args": []
-        },
-        {
-          "op": "save",
-          "args": []
-        },
-        {
-          "op": "eoClip",
-          "args": []
-        },
-        {
-          "op": "constructPath",
-          "args": [
-            28,
-            [
-              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
-            ],
-            "[obj]"
-          ]
-        },
-        {
           "op": "setFillRGBColor",
           "args": [
             "#5b9bd5"
@@ -2729,13 +2765,47 @@
           ]
         },
         {
+          "op": "showText",
+          "args": [
+            [
+              "[object Object]"
+            ]
+          ]
+        },
+        {
+          "op": "endText",
+          "args": []
+        },
+        {
+          "op": "restore",
+          "args": []
+        },
+        {
+          "op": "save",
+          "args": []
+        },
+        {
+          "op": "eoClip",
+          "args": []
+        },
+        {
+          "op": "constructPath",
+          "args": [
+            28,
+            [
+              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
+            ],
+            "[obj]"
+          ]
+        },
+        {
           "op": "beginText",
           "args": []
         },
         {
           "op": "setFont",
           "args": [
-            "g_f3",
+            "g_f2",
             15.96
           ]
         },
@@ -2743,6 +2813,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
           ]
         },
         {
@@ -2780,18 +2862,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -2809,40 +2879,6 @@
           ]
         },
         {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "endText",
-          "args": []
-        },
-        {
-          "op": "restore",
-          "args": []
-        },
-        {
-          "op": "save",
-          "args": []
-        },
-        {
-          "op": "eoClip",
-          "args": []
-        },
-        {
-          "op": "constructPath",
-          "args": [
-            28,
-            [
-              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
-            ],
-            "[obj]"
-          ]
-        },
-        {
           "op": "setFillRGBColor",
           "args": [
             "#2f5496"
@@ -2852,23 +2888,6 @@
           "op": "setStrokeRGBColor",
           "args": [
             "#2f5496"
-          ]
-        },
-        {
-          "op": "beginText",
-          "args": []
-        },
-        {
-          "op": "setFont",
-          "args": [
-            "g_f2",
-            15.96
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
           ]
         },
         {
@@ -2939,18 +2958,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#2f5496"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -2965,6 +2972,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
           ]
         },
         {
@@ -2999,18 +3018,6 @@
               "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
             ],
             "[obj]"
-          ]
-        },
-        {
-          "op": "setFillRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#5b9bd5"
           ]
         },
         {
@@ -3031,6 +3038,18 @@
           ]
         },
         {
+          "op": "setFillRGBColor",
+          "args": [
+            "#5b9bd5"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#5b9bd5"
+          ]
+        },
+        {
           "op": "showText",
           "args": [
             [
@@ -3065,18 +3084,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -3091,6 +3098,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -3139,18 +3158,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -3168,25 +3175,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -3249,18 +3238,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -3278,67 +3255,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -3415,18 +3332,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -3444,7 +3349,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -3494,18 +3399,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -3520,6 +3413,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -3557,18 +3462,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -3583,6 +3476,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -3620,18 +3525,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -3649,67 +3542,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -3786,18 +3619,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -3812,6 +3633,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -3849,18 +3682,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -3875,6 +3696,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -3914,18 +3747,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -3943,7 +3764,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -3996,18 +3817,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -4025,73 +3834,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -4167,18 +3910,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -4196,25 +3927,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -4277,18 +3990,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -4303,6 +4004,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -4340,18 +4053,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -4366,6 +4067,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -4403,6 +4116,23 @@
           ]
         },
         {
+          "op": "beginText",
+          "args": []
+        },
+        {
+          "op": "setFont",
+          "args": [
+            "g_f5",
+            14.04
+          ]
+        },
+        {
+          "op": "setTextMatrix",
+          "args": [
+            "[obj]"
+          ]
+        },
+        {
           "op": "setFillRGBColor",
           "args": [
             "#000000"
@@ -4413,10 +4143,6 @@
           "args": [
             "#000000"
           ]
-        },
-        {
-          "op": "beginText",
-          "args": []
         },
         {
           "op": "setCharSpacing",
@@ -4425,19 +4151,6 @@
           ]
         },
         {
-          "op": "setFont",
-          "args": [
-            "g_f5",
-            14.04
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
           "op": "showText",
           "args": [
             [
@@ -4473,18 +4186,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -4499,6 +4200,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -4538,18 +4251,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -4567,7 +4268,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -4617,18 +4318,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -4646,31 +4335,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -4732,18 +4397,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -4761,19 +4414,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -4834,18 +4475,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -4860,6 +4489,12 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -4906,18 +4541,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -4932,6 +4555,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -4969,18 +4604,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -4995,6 +4618,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -5029,18 +4664,6 @@
               "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
             ],
             "[obj]"
-          ]
-        },
-        {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
           ]
         },
         {
@@ -5061,6 +4684,18 @@
           ]
         },
         {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
           "op": "showText",
           "args": [
             [
@@ -5095,18 +4730,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -5124,7 +4747,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -5176,18 +4799,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -5205,103 +4816,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -5405,26 +4920,8 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
-        },
-        {
-          "op": "setCharSpacing",
-          "args": [
-            -0.12
-          ]
         },
         {
           "op": "setFont",
@@ -5437,6 +4934,24 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setCharSpacing",
+          "args": [
+            -0.12
           ]
         },
         {
@@ -5475,18 +4990,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -5501,6 +5004,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -5538,18 +5053,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -5567,79 +5070,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -5725,18 +5156,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -5754,223 +5173,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -6118,18 +5321,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -6144,6 +5335,12 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -6191,18 +5388,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -6220,7 +5405,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -6273,26 +5458,8 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
-        },
-        {
-          "op": "setCharSpacing",
-          "args": [
-            0.07
-          ]
         },
         {
           "op": "setFont",
@@ -6305,6 +5472,24 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setCharSpacing",
+          "args": [
+            0.07
           ]
         },
         {
@@ -6343,18 +5528,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -6372,13 +5545,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -6433,18 +5600,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -6462,13 +5617,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -6520,18 +5669,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -6549,121 +5686,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -6772,18 +5795,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -6801,73 +5812,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -6948,18 +5893,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -6974,6 +5907,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -7011,18 +5956,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -7040,133 +5973,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -7275,26 +6082,8 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
-        },
-        {
-          "op": "dependency",
-          "args": [
-            "g_f5"
-          ]
         },
         {
           "op": "setFont",
@@ -7307,6 +6096,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -7344,18 +6145,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -7370,6 +6159,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -7476,18 +6277,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -7502,6 +6291,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -7550,18 +6351,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -7579,145 +6368,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -7821,18 +6472,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -7850,37 +6489,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -7943,18 +6552,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -7972,97 +6569,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -8152,18 +6659,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -8178,6 +6673,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -8226,26 +6733,8 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
-        },
-        {
-          "op": "dependency",
-          "args": [
-            "g_f3"
-          ]
         },
         {
           "op": "setFont",
@@ -8261,40 +6750,6 @@
           ]
         },
         {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "endText",
-          "args": []
-        },
-        {
-          "op": "restore",
-          "args": []
-        },
-        {
-          "op": "save",
-          "args": []
-        },
-        {
-          "op": "eoClip",
-          "args": []
-        },
-        {
-          "op": "constructPath",
-          "args": [
-            28,
-            [
-              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
-            ],
-            "[obj]"
-          ]
-        },
-        {
           "op": "setFillRGBColor",
           "args": [
             "#5b9bd5"
@@ -8304,29 +6759,6 @@
           "op": "setStrokeRGBColor",
           "args": [
             "#5b9bd5"
-          ]
-        },
-        {
-          "op": "beginText",
-          "args": []
-        },
-        {
-          "op": "dependency",
-          "args": [
-            "g_f2"
-          ]
-        },
-        {
-          "op": "setFont",
-          "args": [
-            "g_f2",
-            15.96
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
           ]
         },
         {
@@ -8364,15 +6796,66 @@
           ]
         },
         {
+          "op": "beginText",
+          "args": []
+        },
+        {
+          "op": "setFont",
+          "args": [
+            "g_f2",
+            15.96
+          ]
+        },
+        {
+          "op": "setTextMatrix",
+          "args": [
+            "[obj]"
+          ]
+        },
+        {
           "op": "setFillRGBColor",
           "args": [
-            "#2f5496"
+            "#5b9bd5"
           ]
         },
         {
           "op": "setStrokeRGBColor",
           "args": [
-            "#2f5496"
+            "#5b9bd5"
+          ]
+        },
+        {
+          "op": "showText",
+          "args": [
+            [
+              "[object Object]"
+            ]
+          ]
+        },
+        {
+          "op": "endText",
+          "args": []
+        },
+        {
+          "op": "restore",
+          "args": []
+        },
+        {
+          "op": "save",
+          "args": []
+        },
+        {
+          "op": "eoClip",
+          "args": []
+        },
+        {
+          "op": "constructPath",
+          "args": [
+            28,
+            [
+              "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
+            ],
+            "[obj]"
           ]
         },
         {
@@ -8390,6 +6873,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#2f5496"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#2f5496"
           ]
         },
         {
@@ -8475,18 +6970,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -8501,6 +6984,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#5b9bd5"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#5b9bd5"
           ]
         },
         {
@@ -8535,18 +7030,6 @@
               "0,0.00000887100031832233,0,1,595.3200073242188,0,1,595.3200073242188,841.9199829101562,1,0.00000887100031832233,841.9199829101562,4"
             ],
             "[obj]"
-          ]
-        },
-        {
-          "op": "setFillRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#5b9bd5"
           ]
         },
         {
@@ -8567,6 +7050,18 @@
           ]
         },
         {
+          "op": "setFillRGBColor",
+          "args": [
+            "#5b9bd5"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#5b9bd5"
+          ]
+        },
+        {
           "op": "showText",
           "args": [
             [
@@ -8601,18 +7096,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#5b9bd5"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -8627,6 +7110,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#5b9bd5"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#5b9bd5"
           ]
         },
         {
@@ -8675,18 +7170,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -8704,157 +7187,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -8971,18 +7304,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -9000,109 +7321,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -9200,20 +7419,14 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
+        },
+        {
+          "op": "dependency",
+          "args": [
+            "g_f5"
+          ]
         },
         {
           "op": "setFont",
@@ -9229,133 +7442,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -9474,18 +7561,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -9500,6 +7575,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -9537,18 +7624,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -9566,55 +7641,7 @@
           ]
         },
         {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
+          "op": "setFillRGBColor",
           "args": [
             "#000000"
           ]
@@ -9698,18 +7725,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -9724,6 +7739,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -9761,18 +7788,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -9787,6 +7802,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -9835,18 +7862,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -9861,6 +7876,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -9909,18 +7936,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -9935,6 +7950,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -9983,18 +8010,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10009,6 +8024,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -10057,18 +8084,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10083,6 +8098,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -10131,18 +8158,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10157,6 +8172,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -10205,18 +8232,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10231,6 +8246,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -10279,18 +8306,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10305,6 +8320,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -10353,18 +8380,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10379,6 +8394,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -10427,18 +8454,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10453,6 +8468,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -10501,18 +8528,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10527,6 +8542,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -10575,18 +8602,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10601,6 +8616,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -10649,18 +8676,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10675,6 +8690,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -10723,18 +8750,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10749,6 +8764,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -10797,18 +8824,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10823,6 +8838,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -10871,18 +8898,6 @@
           ]
         },
         {
-          "op": "setFillRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
-          "op": "setStrokeRGBColor",
-          "args": [
-            "#000000"
-          ]
-        },
-        {
           "op": "beginText",
           "args": []
         },
@@ -10897,6 +8912,18 @@
           "op": "setTextMatrix",
           "args": [
             "[obj]"
+          ]
+        },
+        {
+          "op": "setFillRGBColor",
+          "args": [
+            "#000000"
+          ]
+        },
+        {
+          "op": "setStrokeRGBColor",
+          "args": [
+            "#000000"
           ]
         },
         {
@@ -11058,13 +9085,13 @@
           "op": "setFont",
           "args": [
             "g_f6",
-            24.96
+            17.01
           ]
         },
         {
           "op": "setFillRGBColor",
           "args": [
-            "#ff0000"
+            "#0033cc"
           ]
         },
         {
@@ -11077,580 +9104,17 @@
           "op": "showText",
           "args": [
             [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
-              "[object Object]"
-            ]
-          ]
-        },
-        {
-          "op": "setTextMatrix",
-          "args": [
-            "[obj]"
-          ]
-        },
-        {
-          "op": "showText",
-          "args": [
-            [
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              78.13,
+              "[object Object]",
+              "[object Object]",
+              "[object Object]",
+              45.41,
               "[object Object]"
             ]
           ]
