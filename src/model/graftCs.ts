@@ -26,6 +26,7 @@
 import { applyMatrixToPoint, type Matrix } from './matrix'
 import { parsePathD, type PathCommand } from './pathOps'
 import { ellipseToPathD, rectToPathD, lineToPathD } from './shapeToPath'
+import { shape, type FontkitFont } from './graftShape'
 
 const MM_TO_PT = 72 / 25.4
 
@@ -250,15 +251,19 @@ export function emitPath(el: Element, ctx: Ctx): string {
 
 /**
  * Resolves an SVG (font-family, font-style, font-weight) tuple to the page-
- * registered font key the text run should reference. The graft engine builds
+ * registered font key the text run should reference, AND returns the
+ * fontkit `Font` matching that key for shaping. The graft engine builds
  * the registry by registering one or more fonts on the page (via
- * `graftMupdf.registerOverlayFont`) and exposes a registry that maps SVG
- * font attributes to those keys.
+ * `graftMupdf.registerCidFont`, which embeds the TTF as a Type-0 /
+ * Identity-H font and also returns the same bytes loaded into fontkit
+ * — the two views agree on glyph IDs because they're the same TTF
+ * program).
  *
  * `emitText` is intentionally agnostic to how the registry is populated
  * (single Carlito-only registry; full pickFont-style 5-slot registry; or a
  * registry that picks an existing source font key for back-compat) — its
- * only contract is "give me a key for this triple, and I'll emit `/key Tf`".
+ * only contract is "give me a key + a fontkit Font for this triple, and
+ * I'll shape and emit Identity-H TJ ops referencing /key".
  */
 export interface FontRegistry {
   resolveFontKey(
@@ -266,6 +271,11 @@ export interface FontRegistry {
     fontStyle: string | null,
     fontWeight: string | null,
   ): string
+  /** The fontkit `Font` for `fontKey`. Used to shape text into a GID stream
+   *  + GPOS-adjusted advances; the glyph IDs returned by the shaper match
+   *  the Identity-H emission of the page's `/Resources/Font/<fontKey>`
+   *  Type-0 font. */
+  getFontkitFont(fontKey: string): FontkitFont
 }
 
 interface TextRun {
@@ -279,11 +289,51 @@ interface TextRun {
   fill: RGB
 }
 
-/** Escape `\\`, `(`, `)` for a PDF literal string `(...)`. Caller is
- *  responsible for ensuring the input is encodable in the resolved font;
- *  this helper does not validate codepoint coverage. */
-function escapePdfString(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)')
+/**
+ * Shape `text` through fontkit and emit the per-glyph items of a TJ
+ * array — `<hex>` chunks for runs of glyphs without inline adjustment,
+ * separated by numeric GPOS adjustments (in 1000ths of an em — see PDF
+ * spec §9.4.3, "thousandths of a unit of text space"; positive values
+ * subtract from pen position = tighter spacing).
+ *
+ * Glyph IDs are 4-hex-digit big-endian, matching the Identity-H
+ * encoding mupdf's `addFont` produces (verified end-to-end in
+ * spike-05). Ligature substitution and contextual alternates happen
+ * inside fontkit's shaper; we don't peek inside.
+ *
+ * Adjustment math:
+ *   delta_units = glyph[i].advanceWidth - position[i].xAdvance
+ *   tjNum       = 1000 * delta_units / unitsPerEm
+ * Tighter kerning (xAdvance < advanceWidth) → positive tjNum →
+ * pen moves left → next glyph rendered closer. Verified in the
+ * graftCsText "Ta" kerning test.
+ *
+ * xOffset / yOffset on a glyph would shift the glyph's render position
+ * relative to the pen without changing the pen advance. Latin shaping
+ * almost never produces these (they're a feature of complex scripts and
+ * combining marks). When seen, the current emitter ignores them — a
+ * follow-up bead would break the TJ to emit a per-glyph Tm. Not in
+ * yyj-4 scope.
+ */
+function emitTjArrayItems(text: string, font: FontkitFont): string[] {
+  const run = shape(text, font)
+  if (run.glyphs.length === 0) return []
+  const items: string[] = []
+  let pendingHex = ''
+  for (let i = 0; i < run.glyphs.length; i++) {
+    const g = run.glyphs[i]
+    pendingHex += g.id.toString(16).padStart(4, '0')
+    if (i === run.glyphs.length - 1) break
+    const deltaUnits = g.advanceWidth - run.positions[i].xAdvance
+    if (deltaUnits !== 0) {
+      items.push(`<${pendingHex}>`)
+      const tjNum = (1000 * deltaUnits) / run.unitsPerEm
+      items.push(fmt(tjNum))
+      pendingHex = ''
+    }
+  }
+  if (pendingHex) items.push(`<${pendingHex}>`)
+  return items
 }
 
 function collectTextRuns(el: Element, ctx: Ctx, registry: FontRegistry): TextRun[] {
@@ -353,7 +403,7 @@ function collectTextRuns(el: Element, ctx: Ctx, registry: FontRegistry): TextRun
 
 /**
  * Emit a `<text>` element as a self-contained `q ... BT ... ET ... Q` block
- * of PDF text-positioning + show ops. Mirrors pdfExport.drawText (line 388):
+ * of PDF text-positioning + show ops. Mirrors pdfExport.drawText for
  * tspan attribute inheritance, single vs per-char position, default black
  * fill, font-size scaled by ctx.matrix.sx. State-change ops (Tf, rg) are
  * suppressed when consecutive runs share the same value.
@@ -361,6 +411,14 @@ function collectTextRuns(el: Element, ctx: Ctx, registry: FontRegistry): TextRun
  * Position uses absolute Tm (text matrix) — `1 0 0 1 x y Tm` — for each
  * run. Tm is simpler than tracking Td deltas under per-char arrays and
  * matches drawText's "every drawText call resets position" semantics.
+ *
+ * Text emission goes through fontkit's shaper to produce a GID stream
+ * with GPOS-adjusted advances, then emits an Identity-H TJ array
+ * referencing the registered Type-0 font (see vectorfeld-yyj). This
+ * is what unlocks GSUB ligatures, GPOS kerning, contextual alternates
+ * and other OpenType features for graft-engine output. The previous
+ * `(text) Tj` simple-encoded path is gone — text emission now requires
+ * a registry that supplies a fontkit `Font` per font key.
  *
  * Returns "" for empty/all-whitespace content.
  */
@@ -385,7 +443,8 @@ export function emitText(el: Element, ctx: Ctx, registry: FontRegistry): string 
       curFill = fillStr
     }
     lines.push(`1 0 0 1 ${fmt(run.pos.x)} ${fmt(run.pos.y)} Tm`)
-    lines.push(`(${escapePdfString(run.text)}) Tj`)
+    const items = emitTjArrayItems(run.text, registry.getFontkitFont(run.fontKey))
+    if (items.length > 0) lines.push(`[${items.join(' ')}] TJ`)
   }
 
   lines.push('ET', 'Q')

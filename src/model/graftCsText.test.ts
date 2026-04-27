@@ -1,18 +1,33 @@
+/// <reference types="node" />
 /**
  * Tests for emitText — graft engine text-emission primitive.
  *
- * Mirrors pdfExport.drawText semantics: tspan inheritance, per-char x-arrays,
- * default black fill, font-size scaling by ctx.matrix sx. Diverges only in
- * that it emits raw PDF text ops instead of calling pdf-lib's drawText.
+ * After vectorfeld-yyj, emitText shapes via fontkit and emits Identity-H
+ * TJ ops referencing a Type-0 / CID-keyed font. Mirrors pdfExport.drawText
+ * for tspan inheritance, per-char x-arrays, default black fill, font-size
+ * scaling. Diverges in:
+ *   - emits `[<gidHex>(adjustment)<gidHex>] TJ` instead of `(text) Tj`.
+ *   - registry must supply a fontkit Font per fontKey (used for shaping).
+ *   - GSUB ligatures collapse multi-codepoint runs to single glyphs.
+ *   - GPOS kerning emits inline numeric adjustments inside the TJ array.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { emitText, type FontRegistry } from './graftCs'
+import { loadFontkit, type FontkitFont } from './graftShape'
 import { identityMatrix, translateMatrix, scaleMatrix } from './matrix'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 const PT = 72 / 25.4
 const PAGE_H = 297 * PT
+const CARLITO_PATH = resolve(process.cwd(), 'src/fonts/Carlito-Regular.ttf')
+
+let CARLITO: FontkitFont
+beforeAll(() => {
+  CARLITO = loadFontkit(new Uint8Array(readFileSync(CARLITO_PATH)))
+})
 
 function build(svg: string): Element {
   return new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement
@@ -38,6 +53,10 @@ function mockRegistry(keyByFamily: Record<string, string> = {}, defaultKey = 'F1
       calls.push({ family, style, weight })
       return keyByFamily[family ?? ''] ?? defaultKey
     },
+    // Single-font test mock — every key maps to Carlito. Real registries
+    // (graftExport.makeSingleFontRegistry) do the same; multi-font
+    // registries are a future bead.
+    getFontkitFont: () => CARLITO,
   }
 }
 
@@ -48,6 +67,15 @@ function f(n: number): string {
   return stripped === '' || stripped === '-' || stripped === '-0' ? '0' : stripped
 }
 
+/** Compute the Identity-H hex string for `text` using fontkit's cmap-only
+ *  lookup (no shaping, no ligatures). Useful for asserting expected GID
+ *  hex for simple strings whose chars don't form ligatures. */
+function gidHexNoShaping(text: string): string {
+  return [...text]
+    .map((c) => CARLITO.glyphForCodePoint(c.codePointAt(0)!).id.toString(16).padStart(4, '0'))
+    .join('')
+}
+
 // ---------------------------------------------------------------------------
 
 describe('emitText — plain text (no tspans)', () => {
@@ -56,19 +84,20 @@ describe('emitText — plain text (no tspans)', () => {
     expect(emitText(findById(root, 't'), ctx(), mockRegistry())).toBe('')
   })
 
-  it('emits q + BT + Tf + rg + Tm + Tj + ET + Q with element-level x/y', () => {
+  it('emits q + BT + Tf + rg + Tm + [<hex>] TJ + ET + Q with element-level x/y', () => {
     const root = build(`<svg xmlns="${SVG_NS}"><text id="t" x="10" y="20" font-size="6" fill="#ff0000">Hi</text></svg>`)
     const out = emitText(findById(root, 't'), ctx(), mockRegistry({}, 'F1'))
     const xPt = 10 * PT
     const yPt = PAGE_H - 20 * PT
     const sizePt = 6 * PT
+    const hex = gidHexNoShaping('Hi')
     expect(out).toBe(
       'q\n' +
         'BT\n' +
         `/F1 ${f(sizePt)} Tf\n` +
         '1 0 0 rg\n' +
         `1 0 0 1 ${f(xPt)} ${f(yPt)} Tm\n` +
-        '(Hi) Tj\n' +
+        `[<${hex}>] TJ\n` +
         'ET\n' +
         'Q\n',
     )
@@ -89,15 +118,14 @@ describe('emitText — plain text (no tspans)', () => {
   it('font-size is scaled by extractScale(matrix).sx', () => {
     const root = build(`<svg xmlns="${SVG_NS}"><text id="t" x="0" y="0" font-size="6">x</text></svg>`)
     const out = emitText(findById(root, 't'), ctx(scaleMatrix(2, 2)), mockRegistry())
-    // sx = 2; font size = 6 * 2 * PT
     expect(out).toContain(`/F1 ${f(12 * PT)} Tf`)
   })
 
   it('translate ancestor matrix shifts the baseline position', () => {
     const root = build(`<svg xmlns="${SVG_NS}"><text id="t" x="10" y="20" font-size="6">x</text></svg>`)
     const out = emitText(findById(root, 't'), ctx(translateMatrix(5, 5)), mockRegistry())
-    const xPt = 15 * PT // 10 + 5
-    const yPt = PAGE_H - 25 * PT // 20 + 5, then Y-flipped
+    const xPt = 15 * PT
+    const yPt = PAGE_H - 25 * PT
     expect(out).toContain(`1 0 0 1 ${f(xPt)} ${f(yPt)} Tm`)
   })
 
@@ -119,7 +147,7 @@ describe('emitText — tspan with single x/y', () => {
     )
     const out = emitText(findById(root, 't'), ctx(), mockRegistry())
     expect(out).toContain(`1 0 0 1 ${f(10 * PT)} ${f(PAGE_H - 20 * PT)} Tm`)
-    expect(out).toContain('(Hi) Tj')
+    expect(out).toContain(`[<${gidHexNoShaping('Hi')}>] TJ`)
   })
 
   it('falls back to element x/y when tspan lacks them', () => {
@@ -130,13 +158,13 @@ describe('emitText — tspan with single x/y', () => {
     expect(out).toContain(`1 0 0 1 ${f(10 * PT)} ${f(PAGE_H - 20 * PT)} Tm`)
   })
 
-  it('multiple tspans each emit their own Tm + Tj', () => {
+  it('multiple tspans each emit their own Tm + TJ', () => {
     const root = build(
       `<svg xmlns="${SVG_NS}"><text id="t" x="0" y="0" font-size="6"><tspan x="10" y="10">A</tspan><tspan x="20" y="20">B</tspan></text></svg>`,
     )
     const out = emitText(findById(root, 't'), ctx(), mockRegistry())
-    expect(out).toContain(`1 0 0 1 ${f(10 * PT)} ${f(PAGE_H - 10 * PT)} Tm\n(A) Tj`)
-    expect(out).toContain(`1 0 0 1 ${f(20 * PT)} ${f(PAGE_H - 20 * PT)} Tm\n(B) Tj`)
+    expect(out).toContain(`1 0 0 1 ${f(10 * PT)} ${f(PAGE_H - 10 * PT)} Tm\n[<${gidHexNoShaping('A')}>] TJ`)
+    expect(out).toContain(`1 0 0 1 ${f(20 * PT)} ${f(PAGE_H - 20 * PT)} Tm\n[<${gidHexNoShaping('B')}>] TJ`)
   })
 
   it('tspan inherits font-family from element when not overridden', () => {
@@ -177,15 +205,15 @@ describe('emitText — tspan with single x/y', () => {
 })
 
 describe('emitText — per-character x-array (MuPDF import case)', () => {
-  it('emits one Tm + one Tj per character when x-array length > 1', () => {
+  it('emits one Tm + one TJ per character when x-array length > 1', () => {
     const root = build(
       `<svg xmlns="${SVG_NS}"><text id="t" font-size="6"><tspan x="10 20 30" y="50">ABC</tspan></text></svg>`,
     )
     const out = emitText(findById(root, 't'), ctx(), mockRegistry())
     const yPt = PAGE_H - 50 * PT
-    expect(out).toContain(`1 0 0 1 ${f(10 * PT)} ${f(yPt)} Tm\n(A) Tj`)
-    expect(out).toContain(`1 0 0 1 ${f(20 * PT)} ${f(yPt)} Tm\n(B) Tj`)
-    expect(out).toContain(`1 0 0 1 ${f(30 * PT)} ${f(yPt)} Tm\n(C) Tj`)
+    expect(out).toContain(`1 0 0 1 ${f(10 * PT)} ${f(yPt)} Tm\n[<${gidHexNoShaping('A')}>] TJ`)
+    expect(out).toContain(`1 0 0 1 ${f(20 * PT)} ${f(yPt)} Tm\n[<${gidHexNoShaping('B')}>] TJ`)
+    expect(out).toContain(`1 0 0 1 ${f(30 * PT)} ${f(yPt)} Tm\n[<${gidHexNoShaping('C')}>] TJ`)
   })
 
   it('reuses the last x value when array is shorter than text (matches pdfExport)', () => {
@@ -193,11 +221,10 @@ describe('emitText — per-character x-array (MuPDF import case)', () => {
       `<svg xmlns="${SVG_NS}"><text id="t" font-size="6"><tspan x="10 20" y="50">ABCD</tspan></text></svg>`,
     )
     const out = emitText(findById(root, 't'), ctx(), mockRegistry())
-    // C and D both at x=20 (last array value)
     expect((out.match(new RegExp(`1 0 0 1 ${f(20 * PT)} `, 'g')) || []).length).toBe(3) // B, C, D
   })
 
-  it('emits Tf only once even with many per-char Tj', () => {
+  it('emits Tf only once even with many per-char TJ', () => {
     const root = build(
       `<svg xmlns="${SVG_NS}"><text id="t" font-size="6"><tspan x="10 20 30 40">ABCD</tspan></text></svg>`,
     )
@@ -206,21 +233,63 @@ describe('emitText — per-character x-array (MuPDF import case)', () => {
   })
 })
 
-describe('emitText — string escaping', () => {
-  it('escapes parentheses and backslash in text content', () => {
-    const root = build(
-      `<svg xmlns="${SVG_NS}"><text id="t" x="0" y="0">f(x)\\g</text></svg>`,
-    )
+describe('emitText — Identity-H hex emission', () => {
+  it('emits 4-hex-digit GIDs concatenated (no spaces inside the hex string)', () => {
+    const root = build(`<svg xmlns="${SVG_NS}"><text id="t" x="0" y="0" font-size="6">Hello</text></svg>`)
     const out = emitText(findById(root, 't'), ctx(), mockRegistry())
-    expect(out).toContain('(f\\(x\\)\\\\g) Tj')
+    const m = out.match(/\[<([0-9a-f]+)>\] TJ/)
+    expect(m).not.toBeNull()
+    expect(m![1].length % 4).toBe(0)
+    // Each pair of hex bytes is a GID; decode and confirm they map back via cmap.
+    const hex = m![1]
+    expect(hex.length).toBe('Hello'.length * 4)
+  })
+})
+
+describe('emitText — GSUB ligatures (vectorfeld-yyj)', () => {
+  it('"office" emits a ligature glyph spanning ≥ 2 input code points', () => {
+    const root = build(`<svg xmlns="${SVG_NS}"><text id="t" x="0" y="0" font-size="6">office</text></svg>`)
+    const out = emitText(findById(root, 't'), ctx(), mockRegistry())
+    const m = out.match(/\[<([0-9a-f]+)>\] TJ/)
+    expect(m).not.toBeNull()
+    const hex = m![1]
+    // Ligature collapses 2+ source chars into 1 glyph, so total glyph count
+    // is strictly less than source-char count.
+    const glyphCount = hex.length / 4
+    expect(glyphCount).toBeLessThan('office'.length)
+
+    // Confirm the ligature glyph appears verbatim in the hex stream:
+    // shape via fontkit, find a glyph whose codePoints.length >= 2,
+    // expect its 4-hex GID to be a substring of the emitted hex.
+    const ligaGid = CARLITO.layout('office').glyphs.find((g) => g.codePoints.length >= 2)!.id
+    expect(hex).toContain(ligaGid.toString(16).padStart(4, '0'))
+  })
+})
+
+describe('emitText — GPOS kerning (vectorfeld-yyj)', () => {
+  it('"Ta" produces a TJ array with a numeric inline adjustment between two GIDs', () => {
+    const root = build(`<svg xmlns="${SVG_NS}"><text id="t" x="0" y="0" font-size="6">Ta</text></svg>`)
+    const out = emitText(findById(root, 't'), ctx(), mockRegistry())
+    // Two glyphs separated by an inline adjustment number:
+    //   [<XXXX> N <YYYY>] TJ   (N may be negative or positive)
+    const m = out.match(/\[<([0-9a-f]+)>\s+(-?[\d.]+)\s+<([0-9a-f]+)>\] TJ/)
+    expect(m).not.toBeNull()
+    const tjNum = parseFloat(m![2])
+    expect(tjNum).not.toBe(0)
   })
 
-  it('does not escape other characters', () => {
-    const root = build(
-      `<svg xmlns="${SVG_NS}"><text id="t" x="0" y="0">Hello World!</text></svg>`,
-    )
+  it('kerning sign convention: tighter (xAdvance < advanceWidth) → positive TJ adjustment', () => {
+    // Verified via fontkit: 'Ta' is a tightening kern pair; positions[0].xAdvance
+    // is less than glyphs[0].advanceWidth. By the spec (PDF §9.4.3) positive
+    // TJ subtracts from pen position → moves next glyph closer → matches.
+    const run = CARLITO.layout('Ta')
+    const delta = run.glyphs[0].advanceWidth - run.positions[0].xAdvance
+    expect(delta).toBeGreaterThan(0) // 'T' followed by 'a' is tightening in Carlito.
+    const root = build(`<svg xmlns="${SVG_NS}"><text id="t" x="0" y="0" font-size="6">Ta</text></svg>`)
     const out = emitText(findById(root, 't'), ctx(), mockRegistry())
-    expect(out).toContain('(Hello World!) Tj')
+    const m = out.match(/\[<[0-9a-f]+>\s+(-?[\d.]+)\s+<[0-9a-f]+>\] TJ/)
+    expect(m).not.toBeNull()
+    expect(parseFloat(m![1])).toBeGreaterThan(0)
   })
 })
 

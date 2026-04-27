@@ -41,9 +41,10 @@ import {
   createEmptyPdfDoc,
   graftSourcePageInto,
   appendContentStream,
-  registerOverlayFont,
+  registerCidFont,
   applyRedactionsToPage,
 } from './graftMupdf'
+import type { FontkitFont } from './graftShape'
 import { classifyLayer, type ClassifiedLayer } from './graftClassify'
 import { elementBboxPdfPt, mmBboxToPdfPt, type PdfRect } from './graftBbox'
 import {
@@ -322,8 +323,12 @@ async function ensureFontIfNeeded(
       'Pass opts.carlito with Carlito-Regular bytes to enable overlay text rendering.',
     )
   }
-  await registerOverlayFont(out, pageIdx, OVERLAY_FONT_KEY, opts.carlito)
-  return SINGLE_FONT_REGISTRY
+  // Type-0 / Identity-H so emitText can produce shaped TJ ops with
+  // GSUB ligatures, GPOS kerning, etc. (vectorfeld-yyj). The same
+  // bytes are loaded into fontkit by registerCidFont and exposed
+  // through the registry for shaping.
+  const { fontkitFont } = await registerCidFont(out, pageIdx, OVERLAY_FONT_KEY, opts.carlito)
+  return makeSingleFontRegistry(fontkitFont)
 }
 
 // ---------------------------------------------------------------------------
@@ -372,12 +377,18 @@ function hasDescendantWithTag(el: Element, tags: Set<string>): boolean {
   return false
 }
 
-const SINGLE_FONT_REGISTRY: FontRegistry = {
-  resolveFontKey: () => OVERLAY_FONT_KEY,
+function makeSingleFontRegistry(fontkitFont: FontkitFont): FontRegistry {
+  return {
+    resolveFontKey: () => OVERLAY_FONT_KEY,
+    getFontkitFont: () => fontkitFont,
+  }
 }
 
 const THROWING_REGISTRY: FontRegistry = {
   resolveFontKey: () => {
     throw new Error('graftExport: text encountered on a layer that was not classified as needing a font')
+  },
+  getFontkitFont: () => {
+    throw new Error('graftExport: getFontkitFont called on a layer that was not classified as needing a font')
   },
 }

@@ -92,7 +92,8 @@ describe('exportViaGraft — overlay-only document (no source PDFs)', () => {
     const doc = createDocumentModel(svgRoot(`<svg xmlns="${SVG_NS}" viewBox="0 0 50 30"><g data-layer-name="L"><text x="5" y="20" font-size="6">Hi</text></g></svg>`))
     const out = await exportViaGraft(doc, new SourcePdfStore(), { carlito: CARLITO })
     const content = await pageContent(out)
-    expect(content).toContain('(Hi) Tj')
+    // After vectorfeld-yyj: shaped Identity-H TJ ops, not simple-encoded Tj.
+    expect(content).toMatch(/\[<[0-9a-f]+>\] TJ/)
     expect(content).toContain('/VfCarlito')
   })
 
@@ -364,7 +365,7 @@ describe('exportViaGraft — single-page-stacking (1kp)', () => {
 
     const out = await exportViaGraft(doc, store, { carlito: CARLITO })
     const content = await pageContent(out)
-    expect(content).toContain('(Hi) Tj')
+    expect(content).toMatch(/\[<[0-9a-f]+>\] TJ/)
     expect(content).toContain('/VfCarlito')
   })
 })
