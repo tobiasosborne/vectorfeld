@@ -195,3 +195,155 @@ function resolveType0DescendantFont(
   }
   return type0Dict
 }
+
+/** Parsed shape of a PostScript font name like
+ *  `BCDEEE+Calibri-BoldItalic`: subset prefix stripped, family +
+ *  weight + style separated. PostScript naming follows the
+ *  "Family-Suffix" convention (PostScript Language Reference §5.2);
+ *  the suffix encodes weight + style: `Bold`, `Italic`, `Oblique`,
+ *  `BoldItalic`, `BoldOblique`, `Light`, `Black`, … */
+export interface ParsedPostScriptName {
+  family: string
+  /** "normal", "bold", or another weight token if present. */
+  weight: string
+  /** "normal" or "italic". */
+  style: string
+}
+
+/** Strip a 6-letter subset prefix (e.g. "BCDEEE+") and parse the
+ *  PostScript name into (family, weight, style). Embeds the most
+ *  common Latin face naming conventions (Bold / Italic / Oblique /
+ *  BoldItalic / Regular / Roman). Unknown suffixes fall through to
+ *  family-only with weight=normal style=normal — matching still
+ *  works against the SVG triple via family-only fallback. */
+export function parsePostScriptName(baseFont: string): ParsedPostScriptName {
+  // Subset prefix: 6 uppercase letters + "+". Strip if present.
+  const stripped = baseFont.replace(/^[A-Z]{6}\+/, '')
+  // Most fonts use Family-Suffix; some use no hyphen (TimesNewRomanPSMT,
+  // ArialMT). When no hyphen, treat the whole thing as family.
+  const dashIdx = stripped.indexOf('-')
+  if (dashIdx === -1) {
+    return { family: stripped, weight: 'normal', style: 'normal' }
+  }
+  const family = stripped.slice(0, dashIdx)
+  const suffix = stripped.slice(dashIdx + 1)
+  return { family, ...parseFontSuffix(suffix) }
+}
+
+function parseFontSuffix(suffix: string): { weight: string; style: string } {
+  const s = suffix.toLowerCase()
+  // Order matters — check combined forms (BoldItalic) before
+  // their components.
+  if (s === 'bolditalic' || s === 'boldoblique' || s === 'heavyitalic') {
+    return { weight: 'bold', style: 'italic' }
+  }
+  if (s === 'bold') return { weight: 'bold', style: 'normal' }
+  if (s === 'italic' || s === 'oblique') return { weight: 'normal', style: 'italic' }
+  if (s === 'regular' || s === 'roman' || s === 'book') {
+    return { weight: 'normal', style: 'normal' }
+  }
+  // Other weights (Light, Medium, Black, Thin, …) — preserve
+  // the lowercase token as the weight so matchSvgFontToSource
+  // can do a literal compare. The graft engine doesn't currently
+  // emit these as SVG attrs but might in the future.
+  if (s.includes('italic') || s.includes('oblique')) {
+    const weightToken = s.replace(/italic|oblique/g, '').trim() || 'normal'
+    return { weight: weightToken, style: 'italic' }
+  }
+  return { weight: s, style: 'normal' }
+}
+
+/** Read the inheritable font triple off an SVG element. Walks up
+ *  ancestors so a `<tspan>` inherits from its parent `<text>` and so
+ *  on. Mirrors the cascade emitText uses. */
+export function readSvgFontTriple(el: Element): {
+  family: string | null
+  weight: string | null
+  style: string | null
+} {
+  let family: string | null = null
+  let weight: string | null = null
+  let style: string | null = null
+  for (let cur: Element | null = el; cur !== null; cur = cur.parentElement) {
+    if (family === null) family = cur.getAttribute('font-family')
+    if (weight === null) weight = cur.getAttribute('font-weight')
+    if (style === null) style = cur.getAttribute('font-style')
+    if (family !== null && weight !== null && style !== null) break
+  }
+  return { family, weight, style }
+}
+
+/** Find the source-PDF font key whose embedded font best matches
+ *  `textEl`'s SVG (font-family, font-weight, font-style) triple.
+ *  Matches by parsed PostScript name. Returns `null` when:
+ *    - the element has no `font-family`,
+ *    - no source font's parsed family matches,
+ *    - the best match has no embedded program (e.g. TimesNewRoman).
+ *
+ *  Matching priority mirrors `makeFontRegistry`:
+ *    1. exact (family, weight, style)
+ *    2. (family, style) — weight differs (closest available cut)
+ *    3. family — anything in that family
+ *
+ *  Family comparison is case-insensitive. SVG and PostScript both
+ *  use the family name conventionally without case sensitivity. */
+export function matchSvgFontToSource(
+  textEl: Element,
+  srcDoc: mupdfTypes.PDFDocument,
+  srcPageIdx: number,
+): EmbeddedFontInfo | null {
+  const { family, weight, style } = readSvgFontTriple(textEl)
+  if (!family) return null
+
+  const svgFamily = family.toLowerCase()
+  const svgWeight = normalizeWeight(weight)
+  const svgStyle = normalizeStyle(style)
+
+  const candidates = listPageFonts(srcDoc, srcPageIdx).filter(
+    (f) => f.hasEmbeddedProgram,
+  )
+  if (candidates.length === 0) return null
+
+  // Annotate each candidate with parsed naming for matching.
+  const parsed = candidates.map((c) => ({
+    info: c,
+    parsed: parsePostScriptName(c.baseFont),
+  }))
+
+  // 1. exact triple
+  const exact = parsed.find((p) =>
+    p.parsed.family.toLowerCase() === svgFamily &&
+    p.parsed.weight === svgWeight &&
+    p.parsed.style === svgStyle,
+  )
+  if (exact) return exact.info
+
+  // 2. family + style
+  const byStyle = parsed.find((p) =>
+    p.parsed.family.toLowerCase() === svgFamily &&
+    p.parsed.style === svgStyle,
+  )
+  if (byStyle) return byStyle.info
+
+  // 3. family only
+  const byFamily = parsed.find((p) =>
+    p.parsed.family.toLowerCase() === svgFamily,
+  )
+  if (byFamily) return byFamily.info
+
+  return null
+}
+
+function normalizeWeight(weight: string | null | undefined): string {
+  if (!weight) return 'normal'
+  const w = String(weight).trim().toLowerCase()
+  if (w === 'bold' || w === '700') return 'bold'
+  if (w === 'normal' || w === '400' || w === '') return 'normal'
+  return w
+}
+
+function normalizeStyle(style: string | null | undefined): string {
+  if (!style) return 'normal'
+  const s = String(style).trim().toLowerCase()
+  return s === 'italic' || s === 'oblique' ? 'italic' : 'normal'
+}
