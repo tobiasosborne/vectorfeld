@@ -17,6 +17,7 @@
 
 import type * as mupdfTypes from 'mupdf'
 import type { PdfRect } from './graftBbox'
+import { loadFontkit, type FontkitFont } from './graftShape'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let mupdfPromise: Promise<any> | null = null
@@ -136,6 +137,65 @@ export async function registerOverlayFont(
     resources.put('Font', fontsDict)
   }
   fontsDict.put(fontKey, fontRef)
+}
+
+/** Result of registerCidFont: the mupdf-side indirect ref to install in
+ *  TJ-emitting content streams, plus a fontkit `Font` loaded from the same
+ *  bytes for shaping. The caller passes `fontkitFont` to `shape()` and uses
+ *  `ref` (already wired into page Resources/Font under `fontKey`) by name
+ *  in the content stream. Both views agree on glyph IDs because they're
+ *  the same TTF program. */
+export interface CidFontRegistration {
+  ref: mupdfTypes.PDFObject
+  fontkitFont: FontkitFont
+}
+
+/**
+ * Embed `fontBytes` as a Type-0 / CID-keyed font (Identity-H encoding,
+ * /ToUnicode CMap auto-attached) and register it in page `pageIdx`'s
+ * `/Resources/Font` dict under `fontKey`. Returns both the mupdf
+ * indirect ref and a fontkit-loaded `Font` for shaping.
+ *
+ * The Type-0 wrapper is what makes Identity-H TJ glyph-index emission
+ * legal — content streams reference glyphs as 2-byte big-endian GIDs
+ * and `addFont` builds the matching /Type0 + /CIDFontType2 +
+ * /Encoding /Identity-H + /DescendantFonts + /W + /ToUnicode shape.
+ * Verified end-to-end in `scripts/spike/05-cid-fonts.mjs` —
+ * `mupdf.asText()` AND `pdfjs.getTextContent()` both round-trip the
+ * source string after a TJ-hex content stream is saved and reopened.
+ *
+ * Use this for any text the graft engine emits via shaped TJ ops.
+ * `registerOverlayFont` (the simple-font flavour) stays for legacy
+ * call sites that don't need shaping but is otherwise superseded.
+ *
+ * If the page has no `/Resources` or no `/Resources/Font` dict, both
+ * are created (mirrors `registerOverlayFont` exactly).
+ */
+export async function registerCidFont(
+  outDoc: mupdfTypes.PDFDocument,
+  pageIdx: number,
+  fontKey: string,
+  fontBytes: Uint8Array,
+): Promise<CidFontRegistration> {
+  const m = await loadMuPDF()
+  const font = new m.Font(fontKey, fontBytes)
+  const ref = outDoc.addFont(font)
+
+  const page = outDoc.findPage(pageIdx)
+  let resources = page.get('Resources').resolve()
+  if (!resources.isDictionary()) {
+    resources = outDoc.newDictionary()
+    page.put('Resources', resources)
+  }
+  let fontsDict = resources.get('Font')
+  if (!fontsDict.isDictionary()) {
+    fontsDict = outDoc.newDictionary()
+    resources.put('Font', fontsDict)
+  }
+  fontsDict.put(fontKey, ref)
+
+  const fontkitFont = loadFontkit(fontBytes)
+  return { ref, fontkitFont }
 }
 
 /**
