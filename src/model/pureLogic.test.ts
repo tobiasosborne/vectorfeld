@@ -43,6 +43,18 @@ describe('defaultStyle', () => {
     expect(style.strokeWidth).toBe('1') // unchanged
   })
 
+  it('setDefaultStyle transitions cleanly between solid fill and none (vectorfeld-ptz)', () => {
+    // Regression: fill bleed when toggling fill modes. Switching from a
+    // solid color to 'none' must overwrite, not merge-into the previous
+    // value. Synthetic test for the chaos-monkey-era setFillNone() flow.
+    setDefaultStyle({ fill: '#ff00ff' })
+    expect(getDefaultStyle().fill).toBe('#ff00ff')
+    setDefaultStyle({ fill: 'none' })
+    expect(getDefaultStyle().fill).toBe('none')
+    setDefaultStyle({ fill: '#00ff00' })
+    expect(getDefaultStyle().fill).toBe('#00ff00')
+  })
+
   it('getDefaultStyle returns a copy (mutating does not affect internal state)', () => {
     const copy = getDefaultStyle()
     copy.stroke = '#ffffff'
