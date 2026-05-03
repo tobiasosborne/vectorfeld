@@ -173,6 +173,24 @@ describe('PropertiesPanel', () => {
     expect(screen.getByText('SW')).toBeInTheDocument()
   })
 
+  it('shows Corners (rx/ry) inputs for rect elements (vectorfeld-els)', () => {
+    const rect = makeSvgElement('rect', { x: '0', y: '0', width: '100', height: '50', rx: '5', ry: '3' })
+    mockGetSelection.mockReturnValue([rect])
+
+    render(<PropertiesPanel />)
+    expect(screen.getByText('Corners')).toBeInTheDocument()
+    expect(screen.getByText('Rx')).toBeInTheDocument()
+    expect(screen.getByText('Ry')).toBeInTheDocument()
+  })
+
+  it('does not show Corners section for non-rect elements', () => {
+    const ellipse = makeSvgElement('ellipse', { cx: '50', cy: '60', rx: '30', ry: '20' })
+    mockGetSelection.mockReturnValue([ellipse])
+
+    render(<PropertiesPanel />)
+    expect(screen.queryByText('Corners')).not.toBeInTheDocument()
+  })
+
   it('stroke ColorPicker allows None so users can set stroke=none (vectorfeld-vj5)', () => {
     const rect = makeSvgElement('rect', { x: '0', y: '0', width: '100', height: '50', stroke: '#ff0000', 'stroke-width': '2' })
     mockGetSelection.mockReturnValue([rect])

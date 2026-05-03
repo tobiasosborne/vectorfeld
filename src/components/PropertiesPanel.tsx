@@ -278,6 +278,24 @@ export function PropertiesPanel({ embedded = false }: PropertiesPanelProps = {})
               })()}
             </div>
 
+            {tag === 'rect' && (
+              <div>
+                <div className="text-xs font-medium text-chrome-600 mb-1">Corners</div>
+                <div className="space-y-1">
+                  <PropertyInput
+                    label="Rx"
+                    value={getAttr(el, 'rx') || '0'}
+                    onChange={(v) => applyAttr(el, 'rx', v)}
+                  />
+                  <PropertyInput
+                    label="Ry"
+                    value={getAttr(el, 'ry') || '0'}
+                    onChange={(v) => applyAttr(el, 'ry', v)}
+                  />
+                </div>
+              </div>
+            )}
+
             {(tag === 'rect' || tag === 'ellipse' || tag === 'image') && (
               <div>
                 <div className="text-xs font-medium text-chrome-600 mb-1 flex items-center justify-between">
