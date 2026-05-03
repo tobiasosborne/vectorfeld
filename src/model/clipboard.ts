@@ -32,10 +32,19 @@ export function cutSelection(clipboard: { current: string[] }, history: CommandH
 }
 
 /**
- * Paste elements from clipboard into the active layer with a 5mm offset.
- * Uses computeTranslateAttrs from geometry.ts for position offset.
+ * Paste elements from clipboard into the active layer.
+ *
+ * `offset` controls how far the pasted copy is shifted from the original.
+ * Defaults to PASTE_OFFSET (5mm, Illustrator-style duplicate). Pass `0`
+ * for "Paste in Place" — exact-overlay behaviour used when compositing
+ * imported PDF elements onto an existing background.
  */
-export function pasteClipboard(clipboard: { current: string[] }, history: CommandHistory, doc: DocumentModel): void {
+export function pasteClipboard(
+  clipboard: { current: string[] },
+  history: CommandHistory,
+  doc: DocumentModel,
+  offset: number = PASTE_OFFSET,
+): void {
   if (clipboard.current.length === 0) return
   const layer = doc.getActiveLayer()
   if (!layer) return
@@ -54,11 +63,14 @@ export function pasteClipboard(clipboard: { current: string[] }, history: Comman
       attrs[attr.name] = attr.value
     }
 
-    // Apply paste offset via computeTranslateAttrs
+    // Apply paste offset via computeTranslateAttrs (skip if offset=0 for
+    // Paste in Place — preserves exact source coordinates).
     const tag = original.tagName
-    const changes = computeTranslateAttrs(original, PASTE_OFFSET, PASTE_OFFSET)
-    for (const [key, value] of changes) {
-      attrs[key] = value
+    if (offset !== 0) {
+      const changes = computeTranslateAttrs(original, offset, offset)
+      for (const [key, value] of changes) {
+        attrs[key] = value
+      }
     }
 
     attrs.id = generateId()

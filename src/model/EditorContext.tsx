@@ -81,6 +81,9 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       } else if (e.ctrlKey && k === 'v' && !e.shiftKey) {
         e.preventDefault()
         if (docRef.current) pasteClipboard(clipboardRef, history, docRef.current)
+      } else if (e.ctrlKey && k === 'v' && e.shiftKey) {
+        e.preventDefault()
+        if (docRef.current) pasteClipboard(clipboardRef, history, docRef.current, 0)
       } else if (e.ctrlKey && k === 'd' && !e.shiftKey) {
         if (getSelection().length > 0 && docRef.current) {
           e.preventDefault()
