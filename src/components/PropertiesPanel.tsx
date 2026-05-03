@@ -496,7 +496,7 @@ export function PropertiesPanel({ embedded = false }: PropertiesPanelProps = {})
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-chrome-500 w-8">Str</span>
-                  <ColorPicker testid="stroke" value={getAttr(el, 'stroke') || '#000000'} onChange={(v) => applyAttr(el, 'stroke', v)} allowNone={false} />
+                  <ColorPicker testid="stroke" value={getAttr(el, 'stroke') || '#000000'} onChange={(v) => applyAttr(el, 'stroke', v)} />
                 </div>
                 <PropertyInput label="SW" value={getAttr(el, 'stroke-width') || '1'} onChange={(v) => applyAttr(el, 'stroke-width', v)} />
                 <div className="space-y-1">

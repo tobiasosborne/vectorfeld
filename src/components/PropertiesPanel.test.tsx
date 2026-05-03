@@ -22,8 +22,13 @@ vi.mock('../model/EditorContext', () => ({
 }))
 
 vi.mock('./ColorPicker', () => ({
-  ColorPicker: ({ value }: { value: string }) => (
-    <span data-testid="color-picker">{value}</span>
+  ColorPicker: ({ value, allowNone, testid }: { value: string; allowNone?: boolean; testid?: string }) => (
+    <span
+      data-testid={testid ? `color-picker-${testid}` : 'color-picker'}
+      data-allow-none={String(allowNone ?? true)}
+    >
+      {value}
+    </span>
   ),
 }))
 
@@ -166,6 +171,15 @@ describe('PropertiesPanel', () => {
     expect(screen.getByText('Style')).toBeInTheDocument()
     expect(screen.getByText('Str')).toBeInTheDocument()
     expect(screen.getByText('SW')).toBeInTheDocument()
+  })
+
+  it('stroke ColorPicker allows None so users can set stroke=none (vectorfeld-vj5)', () => {
+    const rect = makeSvgElement('rect', { x: '0', y: '0', width: '100', height: '50', stroke: '#ff0000', 'stroke-width': '2' })
+    mockGetSelection.mockReturnValue([rect])
+
+    render(<PropertiesPanel />)
+    const stroke = screen.getByTestId('color-picker-stroke')
+    expect(stroke.getAttribute('data-allow-none')).toBe('true')
   })
 
   it('shows Font section for text elements', () => {
