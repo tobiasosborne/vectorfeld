@@ -299,6 +299,7 @@ async function drawImage(el: Element, ctx: Ctx): Promise<void> {
   const w = parseFloat(el.getAttribute('width') || '0')
   const h = parseFloat(el.getAttribute('height') || '0')
   const href = el.getAttribute('href') || el.getAttribute('xlink:href')
+  console.log('[pdfExport] drawImage', { x, y, w, h, hasHref: !!href, hrefStart: href?.slice(0, 30) })
   if (!href || w <= 0 || h <= 0) return
   const decoded = decodeDataUrl(href)
   if (!decoded) return // remote URLs not supported in this MVP — they would require network access
@@ -307,13 +308,15 @@ async function drawImage(el: Element, ctx: Ctx): Promise<void> {
     img = decoded.mime === 'image/jpeg' || decoded.mime === 'image/jpg'
       ? await ctx.pdf.embedJpg(decoded.bytes)
       : await ctx.pdf.embedPng(decoded.bytes)
-  } catch {
+  } catch (err) {
+    console.warn('[pdfExport] failed to embed image', { mime: decoded.mime, bytes: decoded.bytes.length, err })
     return
   }
   const { sx, sy } = extractScale(ctx.matrix)
   const wPt = w * sx * MM_TO_PT
   const hPt = h * sy * MM_TO_PT
   const tl = svgPtToPdf(x, y, ctx)
+  console.log('[pdfExport] drawImage emit', { tlx: tl.x, tly: tl.y, wPt, hPt, drawY: tl.y - hPt, sx, sy, ctxMatrix: ctx.matrix })
   ctx.page.drawImage(img, {
     x: tl.x,
     y: tl.y - hPt,
