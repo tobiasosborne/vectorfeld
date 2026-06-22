@@ -1,0 +1,5 @@
+# Regenerable / large review artifacts — keep scripts + JSON findings, drop binaries
+shots/
+*.pdf
+*.ppm
+*.png

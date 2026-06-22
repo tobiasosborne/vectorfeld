@@ -1,0 +1,1585 @@
+{
+  "critical": [
+    {
+      "src": "audit",
+      "sev": "critical",
+      "kind": "bug",
+      "title": "Free-transform rotate on a non-<g> element drops its existing translate/scale/matrix transform",
+      "file": "src/tools/freeTransformTool.ts",
+      "impact": "Any non-group element whose transform carries translation or scale — notably MuPDF PDF-imported text/paths which arrive as matrix(...) — has that translate/scale thrown away the instant you rotate it with the Q tool. Only the decomposed rotation angle and skew are preserved; the element jumps to a wrong position/size. This is silent geometry corruption that persists into export.",
+      "area": "select-transform"
+    },
+    {
+      "src": "audit",
+      "sev": "critical",
+      "kind": "interlock",
+      "title": "directSelectTool uses a second, incompatible path parser that mangles relative commands and drops H/V/S/Q/T/A",
+      "file": "src/tools/directSelectTool.ts",
+      "impact": "Direct-selecting/dragging a node on any path containing relative segments places anchors at absurd absolute positions (and the inverse delta math in updatePathAnchor then corrupts the d). Direct-selecting a path with H/V/S/Q/T/A (extremely common in imported SVGs and in paths produced by the app's own shapeToPath / convert-to-path) and then moving ANY node rebuilds the d with those segments deleted — permanent geometry loss committed via ModifyAttributeCommand. Note the rest of the app (selectTool, freeTransformTool, knife, joinPaths, pdfExport) uses the robust parsePathD which DOES normalize all of these; so a shape converted to a path and then node-edited gets silently destroyed.",
+      "area": "node-editing"
+    },
+    {
+      "src": "audit",
+      "sev": "critical",
+      "kind": "interlock",
+      "title": "Text editing does not suppress global Ctrl shortcuts (undo/copy/paste/select-all fire mid-edit)",
+      "file": "src/model/EditorContext.tsx",
+      "impact": "User typing text presses Ctrl+Z expecting to undo a typo and instead silently undoes a previously-committed shape; Ctrl+A, Ctrl+C/V behave wildly. Data-corruption-class confusion: the document mutates underneath an in-progress edit that itself isn't on the undo stack.",
+      "area": "draw-tools"
+    },
+    {
+      "src": "exp",
+      "sev": "critical",
+      "kind": "",
+      "title": "Ungroup silently discards the group's transform, moving every child (data corruption)",
+      "file": "src/model/commands.ts",
+      "impact": "Any ungroup of a transformed group corrupts the document: shapes teleport and de-rotate. Because grouping then moving a group is a normal workflow, this loses user work silently with no warning and no error.",
+      "area": "exp-align-zorder"
+    },
+    {
+      "src": "exp",
+      "sev": "critical",
+      "kind": "",
+      "title": "Imported PDF text content cannot be edited by ANY path (no edit affordance exists)",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/geometry.ts",
+      "impact": "The product's stated core use case — editing text in a Word-generated PDF — is completely non-functional. A user cannot fix even a single typo. This makes the editable-PDF value proposition false.",
+      "area": "exp-pdf-text-edit"
+    },
+    {
+      "src": "exp",
+      "sev": "critical",
+      "kind": "",
+      "title": "Hit test selects the wrapping <g>, never the inner <text> — blocks all text-specific UI",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/geometry.ts",
+      "impact": "Even if the user wanted to change font/size/letter-spacing of imported text, those controls are unreachable because the selectable element is always a group. This is the structural root cause feeding the recolor and edit failures.",
+      "area": "exp-pdf-text-edit"
+    },
+    {
+      "src": "exp",
+      "sev": "critical",
+      "kind": "",
+      "title": "Eraser drag across multiple shapes: undo throws and restores nothing (permanent data loss)",
+      "file": "/home/tobias/Projects/vectorfeld/src/tools/eraserTool.ts",
+      "impact": "Core destructive operation with no undo = data loss. A user who drag-erases and changes their mind cannot recover their work.",
+      "area": "exp-misc-tools"
+    },
+    {
+      "src": "exp",
+      "sev": "critical",
+      "kind": "",
+      "title": "File > Open PDF... silently destroys the entire current document and is NOT undoable (data loss)",
+      "file": "src/model/pdfImport.ts",
+      "impact": "A user with an in-progress drawing who chooses 'Open PDF...' (reasonable mental model: open a PDF to trace/annotate) instantly loses all their work with no undo and no confirmation dialog. Pure, silent data loss from a top-level File menu action.",
+      "area": "exp-chaos"
+    }
+  ],
+  "high": [
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "bug",
+      "title": "Reflect H/V uses a doc-space AABB center against local-space attributes for transformed elements",
+      "file": "src/model/reflect.ts",
+      "impact": "getElementAABB() returns the transform-applied (doc-space) bounding box, but the new x/y/d/points are computed in the element's local attribute space. For any rect/text/image/path/polyline that carries a transform (rotation, translate, scale, or PDF matrix()), Flip Horizontal/Vertical places the element in the wrong location — it reflects across the wrong axis. Only works correctly for untransformed elements. The <g> branch is fine (it composes a scale transform), exposing the inconsistency.",
+      "area": "select-transform"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "bug",
+      "title": "Multi-select scale ignores per-element transforms (anchor stays in doc space, geometry mutated in local space)",
+      "file": "src/tools/selectTool.ts",
+      "impact": "When two or more elements are selected and any of them has its own transform, the scale anchor (from unionBBox, in doc space) and the mouse point are never mapped into each element's local space, yet scaleElement() writes local attributes (x/width/cx/r/...). Scaling a multi-selection that contains a rotated or translated shape produces wrong sizes/positions for those members. unionBBox is also used as origBBox so sx/sy are derived from a doc-space box while applied to local coords.",
+      "area": "select-transform"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "Auto-convert-to-path in direct-select holds a stale element ref across undo",
+      "file": "src/tools/directSelectTool.ts",
+      "impact": "Convert-shape-to-path via direct-select then undo leaves the node editor operating on a ghost element: edits appear to do nothing, the undo stack gets a bogus ModifyAttributeCommand, and redo/undo can desync the history. Classic chained-failure: one feature (auto-convert) leaves state that breaks undo and later edits.",
+      "area": "node-editing"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "bug",
+      "title": "updatePathAnchor double-moves a control handle when an anchor is endpoint of one C and start of the next C",
+      "file": "src/tools/directSelectTool.ts",
+      "impact": "Dragging an anchor on a polybezier authored as a single multi-segment C command (e.g. `C c1 c2 p1 c3 c4 p2`) shifts a shared control handle by 2x the drag, kinking the curve. Wrong output on a common path shape.",
+      "area": "node-editing"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "bug",
+      "title": "Committed text uses font-size 16 in mm document space (~45pt giant glyphs)",
+      "file": "src/tools/textTool.ts",
+      "impact": "Every text object created with the text tool is comically oversized for an A4 page; users must manually shrink font-size to ~3-4 every time. Caret/selection visuals (textTool.ts:99-100, DEFAULT_FONT_SIZE*0.8) inherit the same wrong scale.",
+      "area": "draw-tools"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "bug",
+      "title": "Eraser multi-element undo can throw NotFoundError (insertBefore references a not-yet-restored sibling)",
+      "file": "src/tools/eraserTool.ts",
+      "impact": "Erasing several overlapping/adjacent shapes in one drag, then Ctrl+Z, throws and aborts the undo (partial restore / broken history). Even when it doesn't throw, restoring in forward order against captured siblings can scramble z-order.",
+      "area": "draw-tools"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "Ctrl combos leak into document/history while editing text (chained-failure interlock)",
+      "file": "src/model/EditorContext.tsx",
+      "impact": "User is mid-typing a text label; presses Ctrl+Z expecting to undo a typo and instead undoes the last DOCUMENT command (or pops history mid-edit). Ctrl+X deletes the previously-selected shape; Ctrl+V pastes shapes into the canvas; Ctrl+C copies the old selection. Classic 'state one feature left in a bad shape breaks the next' — text-edit capture is too coarse to protect the editor shortcuts.",
+      "area": "tool-infra"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "Gradient creation bypasses command history — undo desync + orphan-gradient leak",
+      "file": "src/components/PropertiesPanel.tsx",
+      "impact": "Switching fill-type to Linear/Radial appends a gradient straight into <defs> with no undo entry. Ctrl+Z reverts only the element's fill attribute, leaving the gradient stranded in the document; redo cannot recreate it if it had been removed. Toggling the fill-type select repeatedly (solid->linear->solid->linear) leaks a brand-new gradient every time because nothing reuses or GCs the previous one (no defs garbage collector exists — confirmed by grep). Over an editing session <defs> bloats with dead gradients that ship in the exported SVG/PDF.",
+      "area": "properties-ui"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "bug",
+      "title": "Setting rotation to 0 on a matrix-transformed element discards scale/translate (data loss)",
+      "file": "src/components/ControlBar.tsx",
+      "impact": "When an element carries a matrix() transform (e.g. produced by free-transform scaling) and the user types 0 into the R: field, the entire transform attribute is cleared to ''. Any non-identity scale or translate baked into that matrix is destroyed, so the element jumps/resizes. The guard only checks rotate==0 and skewX, ignoring decomp.scaleX/scaleY/translate. This is the classic 'matrix composition' fault-line.",
+      "area": "properties-ui"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "Document Setup is a no-op: ArtboardDialog updates React state but never the artboard model Canvas reads",
+      "file": "src/App.tsx",
+      "impact": "Changing page size via File > Document Setup does nothing visible: the white artboard rect keeps its old size and the viewBox is re-set to the same old bounds. The displayed `dimensions` prop is also never used for the viewBox (computeDocumentBounds ignores it), so the prop and the model are permanently out of sync.",
+      "area": "app-shell"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "bug",
+      "title": "Ruler drag-to-guide emits guides on the wrong coordinate axis",
+      "file": "src/components/Ruler.tsx",
+      "impact": "Dragging a guide off either ruler places it at a meaningless position (the orthogonal coordinate). Guides land far from where the user dropped them; the feature is effectively unusable.",
+      "area": "app-shell"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "Keyboard shortcuts fire while a <select> dropdown is focused (input guard misses SELECT and contentEditable)",
+      "file": "src/model/EditorContext.tsx",
+      "impact": "User opens a Properties dropdown, presses Backspace/Delete or an arrow to navigate options, and instead deletes/nudges the selected element. Ctrl+C/V also leak. This is a recurrence of the known 'inputs swallowing/leaking shortcuts' fault-line, on the other side (input leaking into editor).",
+      "area": "app-shell"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "bug",
+      "title": "New bold/italic overlay text always renders as Carlito-Regular (multi-slot registry exists but is never populated)",
+      "file": "src/model/graftExport.ts",
+      "impact": "Every user-authored bold or italic text run in a graft/mixed export renders in upright regular weight. The makeFontRegistry multi-slot routing (graftExport.fontRegistry.test.ts) is fully built and tested but receives only one slot in production. Source-text edits keep their original face (gatherSourceFontSlots), so this only bites NEW text — but that is the common 'add a bold heading' case.",
+      "area": "graft-engine"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "Deleting a background-PDF layer never removes its bytes/source-entry from SourcePdfStore",
+      "file": "src/components/LayersPanel.tsx",
+      "impact": "After importing a background PDF and deleting its layer, the original ~10MB PDF bytes stay pinned in the store for the document's lifetime (memory leak). Worse, the orphaned background entry still keys by the old layer name; re-importing a PDF whose name sanitizes to the same key, or re-adding a layer with that data-src-layer-id, makes the graft engine clone content from the wrong/deleted source. Undo of the delete also won't re-tie state correctly.",
+      "area": "pdf-io"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "Open SVG / New Document leave stale SourcePdfStore.primary set",
+      "file": "src/model/fileio.ts",
+      "impact": "Sequence: Open PDF (sets store.primary + ~10MB bytes) → Open SVG → store.primary still references the discarded PDF. Today this is masked because the freshly-imported SVG layers carry no data-src tags so classifyLayer returns 'overlay' and exportPdf falls back to pdf-lib (fileio.ts:188-199). But the bytes leak, and the routing is one stray data-src attribute away from grafting from a document that no longer exists. The store's own doc-comment claims 'a fresh primary import replaces the whole document' — Open SVG is also a whole-document replace and is not covered.",
+      "area": "pdf-io"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "bug",
+      "title": "pdf-lib fallback drops rotation, skew, and non-uniform shear on every non-text element",
+      "file": "src/model/pdfExport.ts",
+      "impact": "Any rotated rect/ellipse/circle/image in the document exports unrotated and mis-placed via the pdf-lib path (background composites, freshly authored docs). drawPath is fine (full matrix applied to every point); the primitives are not. Word/Designer PDFs with rotated logos/photos export wrong.",
+      "area": "pdf-io"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "Moving a source element to another layer is misreported as a deletion (false mask)",
+      "file": "src/model/sourceSnapshot.ts",
+      "impact": "Removal is judged purely by 'is this element still inside THIS layer'. If the user drags a source element into a different layer (a normal operation), layer.contains(el) is false even though the element is alive and visible. The graft engine then paints a white mask rect over its original location while the element renders at its new spot — on export the content is whited-out/duplicated. Same false positive if reparented under a <g> the walk misses. The element-still-alive deref check is computed but the cross-layer case is not distinguished from true deletion.",
+      "area": "fonts"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "Documented 'text content tracked at Command level' contract is unwired (commandTouchesSource consumed nowhere)",
+      "file": "src/model/sourceSnapshot.ts",
+      "impact": "isElementModified is attribute-only by design and explicitly defers text-content edits to a Command signal that is never read. There is also no text-content edit command in commands.ts (textTool only ADDS new overlay text). The contract is fiction. When Phase-3 in-place source-text editing lands (mutating an existing source <text>'s textContent without changing attributes), isElementModified returns false, findModifiedSourceElements omits it, classifyLayer returns 'graft', and export grafts the PRISTINE source bytes — the user's text edit is silently lost on PDF export.",
+      "area": "fonts"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "Paste re-IDs only the top element; transferred descendants keep original ids → duplicate ids in document",
+      "file": "src/model/clipboard.ts",
+      "impact": "After pasting any element that has children with ids (groups, multi-tspan PDF text, compound shapes), the document contains duplicate ids. doc.getElement(id) uses svg.querySelector('#'+id) (document.ts:88) which silently returns the FIRST match, so later selection-by-id, layer lookups, and graft/export keyed on ids resolve to the wrong element. Duplicate ids also make exported SVG/PDF non-conformant.",
+      "area": "commands-state"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "GroupCommand undo re-parents children to sel[0]'s parent, not their original parents (cross-layer group corrupts layers)",
+      "file": "src/model/commands.ts",
+      "impact": "Group elements from two layers, then undo: every grouped element is dumped into the first element's layer. The other layer silently loses its content; undo does not restore the prior document structure. Data/structure corruption that survives further edits and export.",
+      "area": "commands-state"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "Layer visibility/lock toggles bypass command history: not undoable, not dirty, but DO affect export",
+      "file": "src/components/LayersPanel.tsx",
+      "impact": "User hides a layer, exports/saves SVG with style.display:none baked in (fileio/serialize reads the live DOM), but the app shows no dirty dot and 'Saved', and Ctrl+Z will NOT restore the hidden layer. Hidden content silently disappears from exports with no undo and no dirty signal — a data-divergence / lost-work trap.",
+      "area": "panels-chrome"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "interlock",
+      "title": "addLayer repositions the new layer OUTSIDE the AddElementCommand, so redo restores wrong z-order",
+      "file": "src/components/LayersPanel.tsx",
+      "impact": "Undo then redo of 'add layer' leaves the layer above the overlay (wrong stacking / rendered above selection handles), diverging from the post-create state. Z-order corruption across undo/redo.",
+      "area": "panels-chrome"
+    },
+    {
+      "src": "audit",
+      "sev": "high",
+      "kind": "bug",
+      "title": "Layer list shown in raw DOM/paint order (bottom layer on top); move-up/down arrows are inverted vs z-order",
+      "file": "src/components/LayersPanel.tsx",
+      "impact": "Every design tool (Illustrator/Figma/Sketch) lists the top-most painted layer at the top. Here it is inverted, and the up/down arrows move layers opposite to what the visual list implies. Users will reorder layers the wrong way and mis-stack content.",
+      "area": "panels-chrome"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Frame (top X/Y/W/H/R) readout goes stale after any property edit or nudge — shows wrong coordinates until you re-select",
+      "file": "src/components/ControlBar.tsx",
+      "impact": "The Frame block is the prominent top-of-inspector coordinate readout. After essentially every edit (drag-nudge, numeric edit in either panel) it lies about the object position/size until the user re-selects. Two panels (Frame vs Position/Size) simultaneously display contradictory values for the identical attribute.",
+      "area": "exp-properties"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Negative / zero W/H accepted into rect, producing invalid SVG, invisible shape, broken selection overlay, and console errors",
+      "file": "src/components/PropertiesPanel.tsx",
+      "impact": "User can put the document into an invalid render state with garbage geometry and a broken selection overlay. Invalid attributes can also corrupt downstream export.",
+      "area": "exp-properties"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Layer hide/lock are not undoable; Ctrl+Z after hide reverts the previous edit and silently deletes drawn content",
+      "file": "/home/tobias/Projects/vectorfeld/src/components/LayersPanel.tsx",
+      "impact": "Data loss against the user's mental model: a user toggles layer visibility, then hits undo (a reflex), and loses the last shape they drew while the visibility change persists. Visibility and lock are core layer operations and are completely outside the history system.",
+      "area": "exp-layers-pages"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Hiding a layer leaves a live selection box and 'RECT · 1 SELECTED' inspector on the now-invisible element",
+      "file": "/home/tobias/Projects/vectorfeld/src/components/LayersPanel.tsx",
+      "impact": "You can select, drag, resize and edit a shape you cannot see (it's on a hidden layer). Overlay shows phantom geometry; edits land invisibly. This is the same selection-not-cleared family as the owner's confirmed bug #1, triggered by the hide path. toggleVisibility() in LayersPanel mutates style.display without clearing or re-validating selection.",
+      "area": "exp-layers-pages"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Pasting/duplicating a group produces duplicate element IDs (group children keep original IDs) — corrupts exported SVG",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/clipboard.ts",
+      "impact": "Duplicate IDs in exported SVG are invalid (id must be unique per document). Downstream consumers (browsers, getElementById, CSS #id selectors, other editors, re-import) bind to the first match only, so the second copy's children become unaddressable / can mis-render or break url(#...) references (gradients, clip-paths, masks defined inside a copied group would all collide). Internally, selection/lookup by id can target the wrong element. This is silent data corruption that scales: each paste of an N-child group adds N more colliding ids.",
+      "area": "exp-clipboard"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Pen tool cannot create asymmetric/cusp handles — Alt is completely ignored, handles always force-mirrored",
+      "file": "/home/tobias/Projects/vectorfeld/src/tools/penTool.ts",
+      "impact": "You cannot draw cusps, corners with one straight + one curved side, or any asymmetric bezier with the pen. Every node is forced smooth/symmetric. Authoring real vector art requires asymmetric handles; the only workaround is to draw symmetric then re-edit each side in Direct Select, which is tedious and non-discoverable. This is a core feature gap for a vector editor.",
+      "area": "exp-pen-bezier"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Corner scale handles are overlapped by invisible rotation zones; clicking the handle center/outer-half rotates instead of scaling",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/selection.ts (lines 208-258: scale handles 10px centered on corner; rotation zones hs*2=20px appended after, overlapping the corner-facing half + center of each scale handle)",
+      "impact": "Core resize gesture is unreliable: users aiming at the corner handle frequently rotate the shape by a tiny amount (e.g. rotate(-0.138...)) instead of scaling, silently corrupting the transform and producing no visible resize. This is the actual reason on-canvas corner-scale 'looks broken'.",
+      "area": "exp-transform"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Selection overlay and inspector ignore an ancestor group's transform",
+      "file": "src/model/selection.ts",
+      "impact": "Once a group has any transform, you cannot reliably select/scale/rotate it on canvas — the handles are in the wrong place and the inspector lies about rotation. Compounds the ungroup bug: users can't even tell the group is transformed.",
+      "area": "exp-align-zorder"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Grouping reorders children by selection (click) order, corrupting z-order",
+      "file": "src/model/commands.ts",
+      "impact": "Grouping visibly changes the rendered stacking whenever the user's click order differs from document order — which is common. Group should be a no-op for appearance; here it silently restacks overlapping shapes.",
+      "area": "exp-align-zorder"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Plain click on an already-selected element does not collapse a multi-selection to one",
+      "file": "src/tools/selectTool.ts",
+      "impact": "You cannot drill from a multi-selection down to a single element by clicking — a core interaction. This directly breaks the align/z-order journey: after Ctrl+A a user clicking one shape still has all selected, so Object>Bring-to-Front etc. silently no-op (z-order requires sel.length===1), giving a confusing dead-end. Verified separately that z-order menu items are enabled at selCount>0 but bringToFront/etc. in src/model/zOrder.ts early-return unless exactly 1 is selected.",
+      "area": "exp-align-zorder"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Stale selection persists after undo: 3 phantom selection boxes + 8 handles + \"3 SELECTED\" inspector float over a fully empty canvas",
+      "file": "src/model/commands.ts (CommandHistory.undo/redo lines 43-57 never touch selection) + src/model/selection.ts (selected[] holds raw detached Element refs; updateOverlay draws boxes via getBBox which still succeeds on detached nodes, lines 146-178) + src/model/EditorContext.tsx (lines 118,121 call history.undo()/redo() with no clearSelection/prune)",
+      "impact": "User is shown a UI that claims 3 objects are selected over a blank document. Every selection-dependent control (Align, Distribute, nudge, group, style edits) is live and clickable against geometry that no longer exists. Erodes trust and is the gateway to the data-resurrection bug below.",
+      "area": "exp-undo-redo"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Data resurrection: Ctrl+D on a phantom (post-undo) selection clones the deleted element back into the live document",
+      "file": "src/model/clipboard.ts:102 duplicateSelection -> getSelection() returns stale detached refs with no live-node filter; underlying cause is the unreconciled selection from finding 01.",
+      "impact": "Silent injection of ghost geometry into a document the user believed they had emptied via undo. The resurrected element is a normal node that exports straight into the PDF/SVG. A user who undoes a delete and then duplicates (a very common motion) gets a stray object they did not author. Corrupts WYSIWYG and the exported artifact.",
+      "area": "exp-undo-redo"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Escape during rectangle drag is a no-op AND the rect still commits on mouseup (cannot abort a rectangle)",
+      "file": "src/tools/rectTool.ts",
+      "impact": "There is no keyboard way to abort an in-progress rectangle. Users expect Escape to cancel a drag (every other vector editor does, and pen does here). Worse, the abort gesture is silently ignored and the shape gets created anyway on release, producing an unwanted element.",
+      "area": "exp-tool-switch"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Recolor (gate-10) of imported text is impossible: fill-type reads 'none', no fill color picker rendered",
+      "file": "/home/tobias/Projects/vectorfeld/src/components/PropertiesPanel.tsx",
+      "impact": "The gate-10 recolor path cannot be exercised by a user on imported PDF text — the most basic styling change is blocked. Combined with PropertiesPanel.tsx:130 distributing g-fill to children, even if a color WERE settable it would write to the group not necessarily the run; but the control is absent entirely.",
+      "area": "exp-pdf-text-edit"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Text is fragmented into per-line <g> runs; delete/move operate on fragments, not logical text",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/pdfImport.ts",
+      "impact": "Even the operations that DO work (delete, move) are unusable for real editing because the unit of selection is an arbitrary glyph/word fragment, not a sentence or line. Moving one fragment would break line alignment; deleting leaves orphaned remainders. Makes meaningful manual cleanup impractical.",
+      "area": "exp-pdf-text-edit"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "mostly-outlined badge never shows when outlined PDF is imported via primary 'Open PDF...' (feature defeated on the main path)",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/pdfImport.ts",
+      "impact": "A user opening an outlined/print PDF the normal way gets zero indication that the text is non-editable paths. They will try to edit text, fail, and have no explanation. The whole mostly-outlined detection feature is silently dead on the most common import path.",
+      "area": "exp-pdf-import"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "After 'Open SVG...' the Layers panel shows phantom layers that no longer exist in the document (stale panel)",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/fileio.ts",
+      "impact": "Panel layer rows reference detached/removed DOM nodes. Clicking visibility/lock/reorder/delete on a phantom row operates on dead elements (no-op or error). The user sees layers that aren't there and is missing the actual current layer's correct name. Confusing and a source of follow-on corruption.",
+      "area": "exp-pdf-import"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "PDF/SVG import is not undoable; a stray re-Open silently destroys edited work with no recovery",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/pdfImport.ts",
+      "impact": "Data-loss vector: import then edit then accidentally trigger another Open (or the same import) -> work gone, Ctrl+Z cannot recover. For a vector/PDF editor this is a serious safety gap.",
+      "area": "exp-pdf-import"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Document Setup / change page size does nothing - viewBox and artboard never update",
+      "file": "src/components/ArtboardDialog.tsx onApply -> src/App.tsx (onApply={setDimensions} at line ~426) -> src/components/Canvas.tsx effect lines 142-150 calls computeDocumentBounds() which reads the artboard model (src/model/artboard.ts bounds()). No code calls updateArtboard()/addArtboard with the new dimensions, so model bounds never change and the viewBox/artboard-rect stay at init values.",
+      "impact": "A whole advertised feature (Document Setup / artboard sizing, the dialog the journey is named after) is non-functional. Users cannot change page size at all. Exports are locked to A4.",
+      "area": "exp-save-open"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Status-bar +/- zoom buttons are completely dead (no handlers wired)",
+      "file": "/home/tobias/Projects/vectorfeld/src/App.tsx",
+      "impact": "The single most discoverable zoom UI in the app does nothing. Trackpad/touch users with no scroll-wheel, and anyone who clicks the obvious +/- buttons, cannot zoom at all.",
+      "area": "exp-zoom-pan-view"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Plain mouse-wheel scrolling always zooms; no scroll-to-pan, no Ctrl gate",
+      "file": "/home/tobias/Projects/vectorfeld/src/components/Canvas.tsx",
+      "impact": "Every casual scroll gesture rockets the zoom in/out unexpectedly. Users cannot scroll a tall document; the expected scroll-to-pan interaction is absent, and accidental zoom is the default behavior.",
+      "area": "exp-zoom-pan-view"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Rail labels Eraser shortcut as 'E' but pressing E activates the Ellipse tool",
+      "file": "/home/tobias/Projects/vectorfeld/src/components/LeftRail.tsx",
+      "impact": "A user pressing the advertised key gets the wrong tool and may erase nothing / draw an ellipse unexpectedly. Misleading UI label.",
+      "area": "exp-misc-tools"
+    },
+    {
+      "src": "exp",
+      "sev": "high",
+      "kind": "",
+      "title": "Stale selection after undo-to-empty lets a Delete wipe the redo stack -> permanent loss of undone work",
+      "file": "src/model/commands.ts",
+      "impact": "Escalates the previously-known cosmetic stale-selection bug into real data loss: a natural 'oops, delete this leftover selection' reflex after over-undoing permanently destroys the redo history. No console error, completely silent.",
+      "area": "exp-chaos"
+    }
+  ],
+  "medium": [
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "Free-transform scale divides by (startMouse - anchor) with no zero/degenerate guard → NaN/Infinity",
+      "file": "src/tools/freeTransformTool.ts",
+      "impact": "The guard checks origBBox.width/height, not the denominator. If the grabbed corner is (near-)vertically or horizontally aligned with the anchor — e.g. a zero-width/height-ish bbox, or a degenerate line/text bbox — (startMouse.x - anchor.x) can be ~0, yielding sx = Infinity/NaN. That NaN propagates into setAttribute, blanking geometry and producing an invalid undo entry. selectTool's scale path guards this with MIN_BBOX_DIM/MIN_SCALE_SIZE; free-transform does not.",
+      "area": "select-transform"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "selectTool circle scale: r is scaled by (sx+sy)/2 but cx/cy are scaled independently by sx/sy",
+      "file": "src/tools/selectTool.ts",
+      "impact": "For a circle inside a multi-selection (or any non-uniform corner drag), the center is repositioned with anisotropic sx/sy while the radius uses the averaged scalar s. The circle drifts off its expected anchor-relative position and its size no longer matches the selection box, so the rendered circle pokes outside / sits inside the selection rectangle during and after scaling.",
+      "area": "select-transform"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "Rotate commit is gated by a translational dead-zone (dx/dy of the mouse), discarding valid small-arc rotations",
+      "file": "src/tools/selectTool.ts",
+      "impact": "The commit gate measures linear mouse displacement, which is the wrong metric for rotation. A rotation performed with the cursor very close to the rotation center (large angular change, tiny linear dx/dy) is silently discarded and the DOM reset — the user rotates the object, releases, and the rotation vanishes. Conversely the metric is meaningless for rotate intent.",
+      "area": "select-transform"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "joinPaths getLastPoint returns the M/start point when first path ends in Z, producing a bogus connector",
+      "file": "src/model/pathOps.ts",
+      "impact": "Joining when one or both paths are closed can connect the wrong endpoints (ranking used pre-reverse endpoints that don't match post-reverse geometry) and/or silently un-close a closed shape. Wrong join result in the closed-path case.",
+      "area": "node-editing"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "Pen-tool double-click-to-finish also registers as a normal anchor click first",
+      "file": "src/tools/penTool.ts",
+      "impact": "Finishing a path with a double-click frequently leaves a stray duplicate node at the end of the committed path. Minor geometry pollution; visible as a tiny zero-length segment and an extra editable node.",
+      "area": "node-editing"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "test-gap",
+      "title": "Node editor swallows nothing, but Delete/Backspace on a selected node is silently impossible (no handler) and falls through to whole-element delete",
+      "file": "src/tools/directSelectTool.ts",
+      "impact": "A user in node-edit mode who selects a single anchor and presses Delete deletes the entire path, not the node — a surprising data-loss-shaped action. No way to delete an individual node at all. This is a real missing feature with a destructive fallback.",
+      "area": "node-editing"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "dead-code",
+      "title": "areaText.ts is dead code with incoherent mm/px units",
+      "file": "src/model/areaText.ts",
+      "impact": "No user impact today (unwired), but it's a trap: any future wiring inherits broken unit math and oversized fonts. Carries maintenance + test weight for zero shipped value.",
+      "area": "draw-tools"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "interlock",
+      "title": "Lasso hit-test ignores ancestor (layer/group) transforms",
+      "file": "src/tools/lassoTool.ts",
+      "impact": "Latent today (layer groups carry no transform), but recurs the documented leaf-vs-container transform fault. The moment a layer or wrapping group gains a transform (or grouped contents are lassoed via a transformed parent), selection silently selects the wrong elements.",
+      "area": "draw-tools"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "dead-code",
+      "title": "ToolConfig.icon is dead data in production — LeftRail hardcodes its own icons",
+      "file": "src/tools/registry.ts",
+      "impact": "Every tool author maintains an icon the app never displays; tests pass while the real UI is wired elsewhere. Pure maintenance tax + false confidence from green tests.",
+      "area": "tool-infra"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "smell",
+      "title": "LeftRail shortcut letters hardcoded separately from registry shortcuts — silent drift",
+      "file": "src/components/LeftRail.tsx",
+      "impact": "If someone rebinds a tool's shortcut in its register*Tool file, the tooltip/badge in LeftRail still shows the old letter; or worse, two tools end up advertising the same key with no test catching it. findToolByShortcut would also resolve a duplicate to an arbitrary first-match (Array.from order).",
+      "area": "tool-infra"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "GuidesState.reset() destroys subscribers and does not notify — asymmetric with DefaultStyleState",
+      "file": "src/model/guides.ts",
+      "impact": "If reset() is ever called on a live state with mounted React subscribers (e.g. a future 'new document' / 'reset guides' menu action), every guides subscriber is silently orphaned — the Ruler/overlay stops updating forever with no error, and the UI won't even repaint to show the cleared guides. Latent footgun waiting for a caller.",
+      "area": "tool-infra"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "smell",
+      "title": "Three uncoordinated window keydown listeners; preventDefault doesn't stop siblings",
+      "file": "src/tools/useToolShortcuts.ts",
+      "impact": "Guard logic is triplicated and already inconsistent (Canvas's tool-onKeyDown dispatch checks INPUT/TEXTAREA but NOT isKeyboardCaptured; the other two check both). Adding a new shortcut means remembering all three. A single key can be processed by multiple listeners; today the keyspaces happen not to collide, but there is no structural guarantee.",
+      "area": "tool-infra"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "interlock",
+      "title": "Document switch does not reset active tool or keyboard-capture flag",
+      "file": "src/model/documentState.ts",
+      "impact": "If documents become switchable while a text edit is in progress, keyboardCaptured stays true across the swap and the textTool closure keeps a stale getSvg() reference to the old document — commit() could write the in-flight text into the wrong/old SVG, or the editor stays keyboard-locked with no visible caret. Speculative because multi-doc switching may not be user-reachable yet, but the omission is real.",
+      "area": "tool-infra"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "interlock",
+      "title": "Gradient stop-color edits do not refresh the canvas overlay",
+      "file": "src/components/PropertiesPanel.tsx",
+      "impact": "Every other style/transform edit in this panel calls refreshOverlay() after history.execute, but the C1/C2 gradient color handlers (both stops) do not. If the selection overlay or any cached render derives from element bounds/appearance, the gradient recolor can leave stale overlay/handles until the next interaction. Inconsistent with the rest of the panel and a latent source of 'why didn't it update' bugs.",
+      "area": "properties-ui"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "Group (<g>) fill/stroke edit is a silent no-op when the group has no element children",
+      "file": "src/components/PropertiesPanel.tsx",
+      "impact": "Setting fill/stroke/stroke-width/opacity on a <g> distributes to children only. An empty group (or a group whose only descendants are nested deeper than one level) gets no change at all and the group's own attribute is never written, so the ColorPicker appears to do nothing. Distribution is also only one level deep — nested groups' leaf shapes are skipped, recreating the historical 'leaf-vs-container transform' fault-line for styling. opacity in particular is usually wanted on the group itself, not duplicated onto each child (which changes compositing semantics).",
+      "area": "properties-ui"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "Shift+Ctrl+' toggles grid visibility instead of grid snap (branch ordering / e.key collision)",
+      "file": "src/model/EditorContext.tsx",
+      "impact": "Grid snap toggle (Ctrl+Shift+') is layout-dependent and silently dead on many keyboards; grid visibility is the only reliably reachable toggle.",
+      "area": "app-shell"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "Zoom emits cursorX/cursorY = 0, snapping the ruler cursor indicators to origin on every wheel tick",
+      "file": "src/components/Canvas.tsx",
+      "impact": "Ruler cursor indicators jump to 0,0 while zooming, and the StatusBar cursor readout flickers to 0,0. Cosmetic but visibly wrong during the common zoom-while-hovering interaction.",
+      "area": "app-shell"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "interlock",
+      "title": "Layer's own transform is dropped on the overlay/non-foundation walk path",
+      "file": "src/model/graftExport.ts",
+      "impact": "A layer group carrying a transform (e.g. imported nested PDF layer, or any future per-layer transform) has its overlay/new content emitted at the wrong position in overlay and non-foundation cases, while the same content under the mixed-foundation path would be placed correctly. Inconsistent, position-shifting export.",
+      "area": "graft-engine"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "Group-inherited fill/stroke/opacity is silently dropped — leaves only read their own attributes",
+      "file": "src/model/graftCs.ts",
+      "impact": "A `<g fill=\"#ff0000\">` wrapping fill-less children renders red on the canvas but exports with no fill (invisible / black per default). PropertiesPanel mitigates by distributing group fill to DIRECT children only (CompoundCommand at :131), so single-level groups survive, but nested groups and any opacity/fill-opacity are lost. Canvas-vs-export mismatch.",
+      "area": "graft-engine"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "Rotated/skewed text loses its rotation — Tm emits pure translation despite per-point rotation for shapes",
+      "file": "src/model/graftCs.ts",
+      "impact": "Any text under a rotation or skew transform exports upright at the (correctly placed) origin instead of rotated. Matches legacy pdfExport's limitation (not a regression) but the header doc is misleading and the output is wrong for rotated labels/callouts.",
+      "area": "graft-engine"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "All coordinate emission assumes MediaBox origin at (0,0); non-zero-origin source pages misplace overlays and redactions",
+      "file": "src/model/graftExport.ts",
+      "impact": "For a source PDF whose page 0 MediaBox has a non-zero lower-left origin (legal and not rare), every emitted overlay primitive and every redaction rect is offset by (-x0, -y0), shifting modifications/new content and mis-targeting text excision. Output silently misregistered.",
+      "area": "graft-engine"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "interlock",
+      "title": "Second mixed layer from the same source: its deletions are never redacted and it re-renders lossily",
+      "file": "src/model/graftExport.ts",
+      "impact": "If a document has two layers tagged to the same primary source (foundation graft/mixed + a second mixed layer), deletions on the second layer are not excised from the (shared) grafted source bytes, so 'deleted' source text/shapes remain in the export and stay Ctrl+F-findable. The single-layer primary import path (PRIMARY_LAYER_ID) avoids this today, making it latent rather than always-live.",
+      "area": "graft-engine"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "Bold serif and italic+bold combinations collapse to the wrong weight",
+      "file": "src/model/pdfExport.ts",
+      "impact": "Headings in serif Word/designer PDFs (Playfair/Times bold) export as regular weight; bold-italic runs lose bold. Visible weight regression on round-trip, which is the exact class of defect this engine was built to fix.",
+      "area": "pdf-io"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "parseColor handles only #hex/black/white — every named color and rgb()/hsl() exports as no-fill or black",
+      "file": "src/model/pdfExport.ts",
+      "impact": "SVG content using named colors (red, currentColor), rgb()/rgba(), or hsl() — all common — exports with wrong/invisible fills via the pdf-lib path. MuPDF emits hex so imported-PDF round-trips are mostly safe, but user-authored shapes are not.",
+      "area": "pdf-io"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "interlock",
+      "title": "Two background imports whose names share a 40-char prefix overwrite each other's source bytes",
+      "file": "src/model/pdfImport.ts",
+      "impact": "The first background's bytes are silently replaced; both layers' data-src-layer-id now resolve to the second PDF, so graft export clones the wrong source for one of them. Edge case but data-corrupting when hit.",
+      "area": "pdf-io"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "dead-code",
+      "title": "Dead deletion-detection API + junk attribute leaked into saved SVG",
+      "file": "src/model/sourceSnapshot.ts",
+      "impact": "Every imported source layer gets data-vf-source-count stamped on it. exportSvgString() does not strip data-* and serializes it verbatim, so saved/exported SVGs carry meaningless editor metadata. The count-based removal API it was meant to support is entirely dead — confusing surface area and a latent two-source-of-truth bug if someone wires it up alongside the bbox path.",
+      "area": "fonts"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "interlock",
+      "title": "Snapshot baseline is in-memory-only and never rebuilt on SVG reload",
+      "file": "src/model/sourceSnapshot.ts",
+      "impact": "data-src-* and data-source-pdf-id survive serialization into a saved .svg, but the snapshot baseline does not. Reopen a saved doc with source-tagged layers and the snapshot WeakMap is empty, so isElementModified/findModifiedSourceElements report NOTHING modified for genuinely-edited content. Currently masked only because SourcePdfStore (store.primary) is also session-scoped so shouldUseGraftEngine returns false on a fresh reload and routes to pdf-lib. Fragile coupling: if source-PDF bytes ever get persisted/restored without also rebuilding snapshots, edits silently revert to pristine source on export.",
+      "area": "fonts"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "matchSvgFontToSource / extractEmbeddedFontBytes hardcode page index 0, ignoring data-src-page",
+      "file": "src/model/graftExport.ts",
+      "impact": "Today every PDF import uses {page:0} (pdfImport.ts), so this is latent. But the tagging layer records the true source page and listPageFonts/extractEmbeddedFontBytes take a pageIdx parameter — once multi-page import lands, font extraction reads fonts from the wrong page (or fontKey won't exist on page 0), so source-font preservation for edited text on pages >0 silently falls back to Carlito with wrong metrics. The core promise of the subsystem (seamless in-place edits) breaks.",
+      "area": "fonts"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "decomposeMatrix returns wrong scaleY and a non-SVG skewX when the matrix contains shear",
+      "file": "src/model/matrix.ts",
+      "impact": "Any shape carrying a matrix() transform with shear (PDF/SVG imports, free-transform output) shows incorrect Scale-Y and Skew-X numbers in the Properties panel, and ControlBar's matrix() rotation-replace branch (line 260-266) reads decomp.skewX to decide whether to blank the transform, so a sheared element can be mis-detected. Rotate output is correct, which is why this hasn't surfaced loudly.",
+      "area": "geometry-core"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "snapToGrid always snaps to minorSpacing and snaps the cursor, not element edges",
+      "file": "src/model/grid.ts",
+      "impact": "Snap-to-grid does not align element edges to grid lines (the canonical expectation); it aligns the grab point. An element grabbed off-center never lands flush on a gridline, which reads as 'grid snap is broken'. Also grid-snap and smart-guides both run in the same drag frame (selectTool 562 then 574), so they can fight and produce a jittery net delta.",
+      "area": "geometry-core"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "GroupCommand uses selection order, not DOM order, for child re-insertion and group placement",
+      "file": "src/model/commands.ts",
+      "impact": "Grouping shift-clicked elements (selected back-to-front) places the group at the wrong z-position and, on undo, re-inserts children in click order — scrambling their original stacking. Wrong visual z-order after group/ungroup round-trips.",
+      "area": "commands-state"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "interlock",
+      "title": "Remove/Cut/Delete leave stale Element refs in selection; no command restores selection on undo/redo",
+      "file": "src/model/clipboard.ts",
+      "impact": "Undo of a delete restores geometry but not selection (every keyboard op after undo no-ops until re-click). Worse, deleting via a path that does not clearSelection (e.g. programmatic removeElement, layer clear) leaves detached elements in the selection array, so a subsequent nudge/duplicate/group operates on orphaned nodes — silent no-ops or resurrection of deleted content on duplicate.",
+      "area": "commands-state"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "AddElementCommand.execute silently drops the element on redo when parent is disconnected",
+      "file": "src/model/commands.ts",
+      "impact": "Redo of a paste/add after the target layer was deleted/recreated (e.g. undo layer-delete, which may reconstruct nodes) silently loses the pasted content. Undo/redo stack and DOM diverge.",
+      "area": "commands-state"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "dead-code",
+      "title": "theme/atrium.ts is entirely dead code; CSS variables are hand-duplicated in index.css and can drift",
+      "file": "src/theme/atrium.ts",
+      "impact": "~70 LOC of palettes plus the 'future theme switcher' claim are non-functional. Editing atrium.ts has zero runtime effect; the duplicated values in index.css will silently diverge from atrium.ts over time, misleading future work.",
+      "area": "panels-chrome"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "IconGlyph hardcodes dark ink stroke instead of currentColor; defeats active-tool color and any non-light theme",
+      "file": "src/components/IconGlyph.tsx",
+      "impact": "Active vs inactive tool icons look identical (no color feedback); icons are always dark-green ink regardless of palette, so on the sodiumVapor dark palette they would be near-invisible. Icon theming is broken.",
+      "area": "panels-chrome"
+    },
+    {
+      "src": "audit",
+      "sev": "medium",
+      "kind": "bug",
+      "title": "deleteLayer index bookkeeping uses stale length and ignores deletes above the active layer",
+      "file": "src/components/LayersPanel.tsx",
+      "impact": "After deleting a lower-indexed layer, activeLayerIdx points at a different element than the highlighted intent; the active-layer effect then sets the wrong layer as the drawing target, or (if out of range) clears the highlight. New shapes can land on an unexpected layer.",
+      "area": "panels-chrome"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "While a Frame/Property numeric input is focused, Ctrl+C / Delete / arrow-nudge are swallowed and never reach the editor",
+      "file": "src/model/EditorContext.tsx",
+      "impact": "A user who edits a value and immediately reaches for Delete/copy/arrows gets silent no-ops (or caret edits) until they explicitly blur. No visual cue indicates focus is trapped. Common Illustrator-muscle-memory failure mode.",
+      "area": "exp-properties"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Frame X/Y/W/H duplicated by Position+Size panel; the two can disagree and are redundant",
+      "file": "src/components/InspectorPanel.tsx",
+      "impact": "Redundant, screen-wasting, and actively misleading when the two diverge. A staff reviewer would flag two overlapping coordinate editors as a design smell.",
+      "area": "exp-properties"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Multi-page is unimplemented: page-nav is a disabled 'Page 1 / 1' stub and the Inspector 'Pages' tab is a placeholder",
+      "file": "/home/tobias/Projects/vectorfeld/src/components/StatusBar.tsx",
+      "impact": "The 'multi-page add/nav/delete' half of this journey does not exist in the UI. Per-page element isolation cannot be tested. Note the Inspector tab is labelled 'Pages' but its data-role is 'inspector-properties-tab', a confusing naming mismatch.",
+      "area": "exp-layers-pages"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "No way to rename a layer; names are auto-assigned only",
+      "file": "/home/tobias/Projects/vectorfeld/src/components/LayersPanel.tsx",
+      "impact": "'rename' is an explicit requirement of this journey and is not implementable through the UI. Users are stuck with 'Layer 1/2/3' and imported names.",
+      "area": "exp-layers-pages"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Pen/export never emits S/s smooth bezier shorthand — only verbose C commands, smooth continuity not encoded",
+      "file": "/home/tobias/Projects/vectorfeld/src/tools/penTool.ts",
+      "impact": "Output is geometrically correct so rendering looks fine, but: (a) d-strings are more verbose than necessary; (b) the smooth/continuity relationship between adjacent segments is not expressed (no S), so downstream tools or re-imports treat every node's two handles as fully independent rather than smooth, and round-tripping cannot recover the authored 'smooth' intent. For a vector editor that advertises bezier S-curves this is a real fidelity/encoding gap.",
+      "area": "exp-pen-bezier"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Non-uniform drag-scale of a heavily-rotated shape collapses one axis with no constraint feedback",
+      "file": "/home/tobias/Projects/vectorfeld/src/tools/selectTool.ts (onMouseMove scale branch, lines 583-624: inverse-transforms mouse to local space and scales local attrs; correct but unconstrained)",
+      "impact": "Geometrically defensible but confusing UX: free corner-scaling of a rotated object yields wild aspect distortion with no live numeric/visual hint of which local axis is moving. Users will perceive it as a bug. Consider screen-aligned scaling for rotated shapes, or live W/H during the drag.",
+      "area": "exp-transform"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Z-order menu items are enabled for multi-selection but silently do nothing",
+      "file": "src/model/zOrder.ts",
+      "impact": "Confusing dead control: users multi-select and try to restack, nothing happens, no error. Either the items should be disabled for multi-select or z-order should handle multiple elements.",
+      "area": "exp-align-zorder"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Silent no-op on phantom selection: nudge / Align / Group execute against detached nodes and do nothing while UI claims a selection exists",
+      "file": "src/model/EditorContext.tsx (nudge/align/group handlers operate on getSelection() detached refs) and src/model/selection.ts (no pruning); same root cause as finding 01.",
+      "impact": "Commands silently fail with no feedback. The user clicks Align/nudges expecting an effect on the 3 \"selected\" objects and nothing happens, with no error or selection clear to explain why. Confusing, but non-destructive (no crash, no corruption) — hence medium not high.",
+      "area": "exp-undo-redo"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Selection overlay never reconciles even when redo/undo restores or removes the underlying elements",
+      "file": "src/model/commands.ts CommandHistory.undo/redo (lines 43-57) emit a notify() for history listeners but never call updateOverlay() or re-validate selection; src/model/selection.ts overlay is only refreshed by selection mutators.",
+      "impact": "The selection overlay is fully decoupled from document state across the whole undo/redo axis, not just at the empty boundary. Even after redo restores the real elements, the displayed selection boxes are stale and may not correspond to what is actually editable. Compounds the confusion of findings 01/03.",
+      "area": "exp-undo-redo"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Inconsistent mid-operation tool-switch policy: rect discards, but pen and text silently COMMIT a half-finished element",
+      "file": "src/tools/penTool.ts",
+      "impact": "Same gesture (switch tool while drawing) yields opposite outcomes depending on the tool: pen/text leave behind an element the user may not have wanted, rect throws away work. The asymmetry is surprising and means an accidental tool-switch keystroke during pen/text creates stray geometry.",
+      "area": "exp-tool-switch"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Tool keyboard shortcuts (r/v/p) cannot switch tools while editing text — they are typed as literal characters into the text",
+      "file": "src/tools/useToolShortcuts.ts",
+      "impact": "While typing text the only ways to leave the text tool are Escape/Enter (which commit) or a mouse click on a tool slot. A muscle-memory tool shortcut silently corrupts the text content. This is partly defensible (you want letters to type), but there is no modifier/Escape-then-shortcut affordance, so it is a real friction point and a data-correctness footgun.",
+      "area": "exp-tool-switch"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Text tool over existing text creates a new empty run and silently loses typed input",
+      "file": "/home/tobias/Projects/vectorfeld/src/tools/textTool.ts",
+      "impact": "Misleads users who reasonably expect the Text tool to let them click into existing text and retype. Input is silently discarded — data-loss-adjacent UX with no feedback.",
+      "area": "exp-pdf-text-edit"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "No double-click-to-edit handler on canvas selection",
+      "file": "/home/tobias/Projects/vectorfeld/src/tools/selectTool.ts",
+      "impact": "The single most discoverable affordance for entering text edit mode (double-click) is absent, reinforcing that there is no route to text editing. Users will conclude the PDF text is uneditable.",
+      "area": "exp-pdf-text-edit"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Place Image after a background-layer import drops the image onto the hidden bottom layer (invisible)",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/fileio.ts",
+      "impact": "User places an image and it silently vanishes. Tied to the same stale active-layer state caused by findings 1/2. Confusing; user may place repeatedly or assume Place Image is broken.",
+      "area": "exp-pdf-import"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Text edit mode swallows tool-shortcut keystrokes instead of switching tools (corrupts text + drops intended actions)",
+      "file": "src/tools/text tool keyboard handling / global shortcut dispatcher (text edit mode does not yield single-letter tool shortcuts; shortcut handler should be suppressed only for printable text but must still allow tool switching, or text edit must commit/blur on tool-shortcut)",
+      "impact": "Tool shortcuts silently corrupt text content and silently no-op the intended tool action while a text element is being edited. Easy to hit, produces garbage text and lost work with no error.",
+      "area": "exp-save-open"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Displayed zoom percent lies at startup (shows 100% while actually ~120%); true 100% is unreachable",
+      "file": "/home/tobias/Projects/vectorfeld/src/App.tsx",
+      "impact": "The zoom readout is wrong on load and misleads the user about scale; combined with zpv-4 there is no way to get to a known 100%/actual-size.",
+      "area": "exp-zoom-pan-view"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "No Fit / 100% / Actual-Size / Reset-zoom affordance anywhere; View menu has no zoom items",
+      "file": "/home/tobias/Projects/vectorfeld/src/App.tsx",
+      "impact": "Standard, expected zoom commands (Fit, 100%/Actual Size, Zoom In/Out via keyboard) are entirely missing. After getting lost at an extreme zoom the user has to manually wheel back, with the dead +/- buttons offering no help.",
+      "area": "exp-zoom-pan-view"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Status-bar 'Saved' dot is hardcoded green and never reflects unsaved edits",
+      "file": "/home/tobias/Projects/vectorfeld/src/components/StatusBar.tsx",
+      "impact": "False assurance — user believes work is saved when it never was. Misleading persistence signal.",
+      "area": "exp-misc-tools"
+    },
+    {
+      "src": "exp",
+      "sev": "medium",
+      "kind": "",
+      "title": "Undo to empty canvas leaves phantom selection boxes + 'N SELECTED' inspector (known #1, re-confirmed and characterised)",
+      "file": "src/model/commands.ts",
+      "impact": "Confusing dangling selection that points at a deleted/timestamp-id'd phantom element; on its own cosmetic, but it is the precondition for the data-loss finding exp-chaos-phantom-delete-wipes-redo.",
+      "area": "exp-chaos"
+    }
+  ],
+  "low": [
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "bug",
+      "title": "selectTool onMouseUp never refreshes the overlay after committing scale/rotate/move",
+      "file": "src/tools/selectTool.ts",
+      "impact": "commitChanges() uses the reset-then-execute pattern: it sets attributes back to the original, then ModifyAttributeCommand.execute() re-applies them. The selection overlay (selection box + handles) is rebuilt only by refreshOverlay, which is RAF-coalesced and was last triggered mid-drag. After commit there is no explicit refresh, so handles can momentarily sit at stale positions until the next mouse event triggers updateOverlay. Mostly cosmetic but visible on fast release.",
+      "area": "select-transform"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "Rotation matrix decomposition is approximate; rotate() string baseAngle can fight matrix-decomposed baseAngle across tools",
+      "file": "src/tools/freeTransformTool.ts",
+      "impact": "The two tools derive the existing rotation differently — free-transform via QR matrix decomposition, selectTool via a regex on the literal rotate(...) string. An element rotated in one tool then rotated in the other can accumulate small drift or read a different baseAngle (e.g. a rotate() string written by selectTool vs a matrix() composed by a group op). decomposeMatrix's skewX/sign handling is also lossy for combined skew+rotation. Inconsistent base-angle sources make round-tripping fragile.",
+      "area": "select-transform"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "bug",
+      "title": "Shift-constrained scale uses Math.max(sx, sy) of signed values, breaking uniform scale when one axis is mirrored",
+      "file": "src/tools/selectTool.ts",
+      "impact": "sx/sy here are always positive (derived from Math.abs(localPt-anchor)/width), so the sign issue is mild, but Math.max of magnitudes means dragging a corner inward (shrink) snaps to the larger ratio, so uniform-shrink feels like it tracks the wrong axis. freeTransform uses Math.sign(sx)*Math.max(|sx|,|sy|) which preserves mirroring; the two tools behave differently under Shift.",
+      "area": "select-transform"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "parsePathD negative-number split breaks scientific-notation exponents written with lowercase 'e' followed by sign in some forms, and the lookbehind requires modern engines",
+      "file": "src/model/pathOps.ts",
+      "impact": "Edge-case number formats (exponential coordinates) parse differently between the two parsers, another way the node editor diverges from the rest of the app. Low because exponential coords are rare in this app's own output.",
+      "area": "node-editing"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "bug",
+      "title": "splitCubicAt return type annotation lies (claims all four points are p0's type) and intersectLineWithPath Z uses first M, not subpath M",
+      "file": "src/model/pathOps.ts",
+      "impact": "Knife/intersection on a compound path (multiple subpaths, e.g. a donut or a letter 'O') computes wrong closing segments for all but the first subpath, yielding wrong or missing intersection points and bad cuts. Medium-ish but listed low because compound-path knifing may be rare in current usage.",
+      "area": "node-editing"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "simplifyPath can return duplicate-collapsed result that, combined with absolute-only assumption, is fine — but epsilon in screen vs doc units is unverified at call site",
+      "file": "src/tools/pencilTool.ts",
+      "impact": "At high zoom the pencil over-simplifies (0.5 doc units may be many screen px); at low zoom it under-simplifies. Inconsistent with the rest of the subsystem which is zoom-aware. Cosmetic / UX, not corruption.",
+      "area": "node-editing"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "Text preview color hardcoded #000000, ignoring committed fill",
+      "file": "src/tools/textTool.ts",
+      "impact": "WYSIWYG mismatch: user types in black, text commits in the current default color. Minor but jarring.",
+      "area": "draw-tools"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "bug",
+      "title": "charOffset proportional fallback mispositions caret/selection for variable-width text",
+      "file": "src/tools/textTool.ts",
+      "impact": "Edge-case (only when getSubStringLength fails, e.g. some headless/test paths) caret and selection highlight drift from the actual glyph boundaries.",
+      "area": "draw-tools"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "Re-entrant commit() via onDeactivate -> setActiveTool('select')",
+      "file": "src/tools/textTool.ts",
+      "impact": "Currently harmless but fragile: any future code path that re-enters before cleanup completes would double-commit or double-add the element.",
+      "area": "draw-tools"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "Persisted measurement overlay relies on next tool's onDeactivate cleanup, lingers across re-entry",
+      "file": "src/tools/measureTool.ts",
+      "impact": "Minor: stale pink measurement can remain visible; relies on deactivate firing. No data impact (stripped on save/export).",
+      "area": "draw-tools"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "dead-code",
+      "title": "iconKeyForTool module is entirely dead code",
+      "file": "src/components/iconKeyForTool.ts",
+      "impact": "A whole adaptor module + its test exist solely to test themselves. Dead weight that misleads readers into thinking the registry feeds the icon system.",
+      "area": "tool-infra"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "bug",
+      "title": "Markers rely on 'context-stroke' and are never emitted by the pdfExport engine",
+      "file": "src/model/markers.ts",
+      "impact": "Arrowheads render on-canvas but silently vanish in the pdf-lib export path (the production svg2pdf path may differ). Edge-case wrong output rather than corruption.",
+      "area": "tool-infra"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "registerTool silently overwrites on duplicate name; no uniqueness check on names or shortcuts",
+      "file": "src/tools/registry.ts",
+      "impact": "A copy-paste bug giving two tools the same name or shortcut fails silently — one tool becomes unreachable with no diagnostic. Low because current registrations are clean.",
+      "area": "tool-infra"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "bug",
+      "title": "Hex validation accepts 4- and 5-digit hex, producing invalid colors",
+      "file": "src/components/ColorPicker.tsx",
+      "impact": "The regex {3,6} accepts 4- and 5-hex-digit strings (e.g. #abcd, #abcde) which are not valid CSS hex colors (only 3, 6, and with alpha 4/8 are). A user typing #abcd will have it accepted and written to the fill/stroke attribute, yielding an invalid color that renders as the SVG default (black) or is dropped on export.",
+      "area": "properties-ui"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "dead-code",
+      "title": "Position inputs for path/g are permanently read-only no-ops in the Properties panel",
+      "file": "src/components/PropertiesPanel.tsx",
+      "impact": "For path and g selections the panel shows editable-looking X/Y/W/H text inputs that silently discard any edit (empty onChange). Users will type a value, press Enter, and see it snap back with no feedback. The real path/g move logic lives only in ControlBar, so this is confusing duplicate, dead UI.",
+      "area": "properties-ui"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "Gradient/textPath stop and startOffset edits write directly without numeric/format guard, and stops sit in <defs> where some validation assumptions break",
+      "file": "src/components/PropertiesPanel.tsx",
+      "impact": "startOffset accepts arbitrary strings ('abc') and writes them, producing an invalid SVG attribute that breaks textPath rendering/export. Minor because textPath is a niche feature, but it is unvalidated user input flowing straight into the document.",
+      "area": "properties-ui"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "getBBox()/transformedAABB fallback for text returns empty W/H, hiding W/H inputs and silently swallowing exceptions to 0,0,0,0",
+      "file": "src/components/ControlBar.tsx",
+      "impact": "If getBBox throws (element not laid out, hidden layer, just-created node), the control bar silently reports x=y=w=h=0. A user dragging the X/Y fields then computes deltas against a bogus 0 origin and can teleport the element to absolute 0,0. Edge case but a real coordinate-space trap.",
+      "area": "properties-ui"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "interlock",
+      "title": "Selection overlay and selection state persist after switching to a drawing tool",
+      "file": "src/tools/selectTool.ts",
+      "impact": "Pressing Delete while a drawing tool is active can delete a shape the user thinks is no longer 'active'. Defensible as an editor convention, but combined with the persistent overlay it is surprising.",
+      "area": "app-shell"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "Canvas dispatches tool.onKeyDown for ALL keys including Ctrl combos already handled by EditorContext",
+      "file": "src/components/Canvas.tsx",
+      "impact": "Latent double-dispatch; a future tool reacting to a key the shell also handles will fire twice or fight over preventDefault.",
+      "area": "app-shell"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "dead-code",
+      "title": "getSvgRef() is dead code and a competing source of truth for the SVG element",
+      "file": "src/components/Canvas.tsx",
+      "impact": "Maintenance hazard: a DOM-query-based accessor invites callers to bypass the ref plumbing and pick up a stale/wrong svg, especially under StrictMode remount. Currently just unused weight.",
+      "area": "app-shell"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "interlock",
+      "title": "Context-menu z-order and delete bypass the locked-layer / guard logic the menubar uses",
+      "file": "src/App.tsx",
+      "impact": "Right-click operations can move/delete elements on layers that Select-All deliberately excludes as locked, an inconsistency that will drift further as guards are added in only one path.",
+      "area": "app-shell"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "ContextMenu can render off-screen near viewport edges",
+      "file": "src/components/ContextMenu.tsx",
+      "impact": "Right-clicking near the right/bottom edge clips the menu; items can be unreachable.",
+      "area": "app-shell"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "bug",
+      "title": "Non-#hex / non-black/white colors (rgb(), rgba 8-digit hex, named) parse to null → element silently invisible",
+      "file": "src/model/graftCs.ts",
+      "impact": "Today the editor writes #rrggbb fills so this rarely bites, but a color value the parser doesn't recognize makes the whole shape vanish from the PDF with no warning rather than degrading gracefully.",
+      "area": "graft-engine"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "NaN geometry attributes pass the <=0 guard and emit degenerate ops",
+      "file": "src/model/graftCs.ts",
+      "impact": "Malformed/empty attribute values produce silent degenerate geometry instead of being skipped. Robustness only; current tools always write valid numbers.",
+      "area": "graft-engine"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "Whitespace-only text not filtered despite emitText doc claiming 'returns \"\" for empty/all-whitespace'",
+      "file": "src/model/graftCs.ts",
+      "impact": "Cosmetic: empty space-only text elements still emit a BT/Tf/Tm/TJ block. No visual artifact, but the doc contract is false and it bloats the stream slightly (works against the determinism/golden goals).",
+      "area": "graft-engine"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "perf",
+      "title": "Source font registered but unreferenced when coverage fallback routes all its runs to Carlito (orphan resource)",
+      "file": "src/model/graftExport.ts",
+      "impact": "Wasted embedding/registration work and a font key in /Resources/Font that no stream uses; subsetFonts must prune it. No corruption, just inefficiency and a slightly larger pre-subset doc. Cuts against the byte-determinism story if pruning isn't fully deterministic.",
+      "area": "graft-engine"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "Shipped console.log/console.warn debug spam in drawImage hot path",
+      "file": "src/model/pdfExport.ts",
+      "impact": "Every image logs twice per export to the user console; leaks document detail and noise. Not a correctness bug but staff-review-blocking for a shipped path.",
+      "area": "pdf-io"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "perf",
+      "title": "Per-character drawText with subset:false embeds full fonts and issues one PDF text op per glyph",
+      "file": "src/model/pdfExport.ts",
+      "impact": "Large MuPDF-imported PDFs (per-char tspans for ~40% of runs per the comment) produce bloated content streams and a multi-MB embedded font per family, with O(glyphs) op overhead. Acceptable for MVP, costly at scale; export of a long document can be slow and produce large files.",
+      "area": "pdf-io"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "postProcessPdfSvg viewBox-to-mm regex replaces only the first match and assumes a single page",
+      "file": "src/model/pdfImport.ts",
+      "impact": "Nested/multiple viewBox attributes (rare in MuPDF output) would be left in pt. More importantly, multi-page PDFs silently import only the first page despite pageCount being tracked — a feature gap users will hit.",
+      "area": "pdf-io"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "dead-code",
+      "title": "removeBackground/clearPrimary/reset are dead code, signalling the cleanup contract was never wired",
+      "file": "src/model/sourcePdf.ts",
+      "impact": "The store has a full lifecycle API but only the 'add' half is connected — the dead removers are the root signature of findings pdf-io-1 and pdf-io-2 (no teardown path exists).",
+      "area": "pdf-io"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "pageKey derived from baseFont can collide across distinct source fonts",
+      "file": "src/model/graftExport.ts",
+      "impact": "Two different source font keys whose BaseFont names sanitize to the same string would map to the same page-resource key. registerCidFont gets called twice with the same pageKey, the second overwriting the first's page resource, so one run of text shapes against the wrong glyph program. Narrow in practice (subset prefixes usually differ) but the dedup key and the resource key being different invariants is a smell.",
+      "area": "fonts"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "bug",
+      "title": "parseFontSuffix maps 'heavyitalic' to weight=bold (wrong cut)",
+      "file": "src/model/sourceFont.ts",
+      "impact": "Heavy (~900) is collapsed to bold (700). For exact-triple matching this is harmless because matchSvgFontToSource falls back to family+style, but it produces a misleading parsed weight and is inconsistent with the s.includes('italic') branch below which would otherwise preserve 'heavy'. Cosmetic / future-correctness only.",
+      "area": "fonts"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "tagImportedLayer recurses into already-tagged <text>, tagging child <tspan> independently",
+      "file": "src/model/sourceTagging.ts",
+      "impact": "Each tspan independently carries data-src-* and gets its own snapshot. Combined with snap-3 (attribute-only diff) a tspan whose text is edited but whose attrs are unchanged is invisible to modification detection at BOTH levels. It also inflates the (dead) SOURCE_COUNT and the registry with one entry per tspan, double-counting if count-based logic is ever revived. Not harmful today but couples awkwardly with the dead count path and the missing text-content diff.",
+      "area": "fonts"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "bug",
+      "title": "Rotate-center regex in the rect/ellipse branch omits exponent chars, inconsistent with the path branch",
+      "file": "src/model/geometry.ts",
+      "impact": "If a rotate center was ever serialized in exponential form (e.g. 1e-7 from a matrix round-trip), translating a rotated rect/ellipse/circle/text silently fails to shift the rotation pivot, so the shape pivots around a stale point after a move. Narrow trigger, but a latent correctness landmine because two branches in the SAME function disagree.",
+      "area": "geometry-core"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "computeSmartGuides emits guide lines via a 0.01 hard-coded re-scan that can drop or duplicate lines",
+      "file": "src/model/smartGuides.ts",
+      "impact": "Occasionally the magenta alignment line does not appear even though the element snapped, or flickers. Cosmetic only; the snap correction (dx/dy) itself is correct.",
+      "area": "geometry-core"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "bug",
+      "title": "parseTransform and parseSkew silently produce NaN matrices on malformed input",
+      "file": "src/model/matrix.ts",
+      "impact": "A single malformed transform attribute (hand-edited SVG, exotic import) silently turns an element's matrix into NaN, which then poisons every transformedAABB / hit-test / align computation that touches it (NaN comparisons are all false, so the element becomes unselectable/unhittable). No crash, just a vanishing element. Defensive Number.isFinite guards would localize the failure.",
+      "area": "geometry-core"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "ArtboardState.layout is hard-coded to a single horizontal row at y=0",
+      "file": "src/model/artboard.ts",
+      "impact": "No bug today, but artboards can never wrap to a grid; with many artboards the document becomes an unusably wide horizontal strip. Pure design ceiling / minor dead generality, not incorrectness.",
+      "area": "geometry-core"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "AABB / align / smart-guides use getBBox(), which excludes stroke width and markers",
+      "file": "src/model/geometry.ts",
+      "impact": "Align-left/right/top/bottom and smart-guide edges align geometry centers/edges, not the visible inked edges, so a thick-stroked rect aligned 'left' against a hairline looks ~strokeWidth/2 off. This is a known SVG caveat and matches many editors, but it is a real visible-vs-computed mismatch worth documenting.",
+      "area": "geometry-core"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "bug",
+      "title": "Keyboard handler only excludes INPUT/TEXTAREA, not contenteditable/SELECT — focus-stealing gap relies entirely on isKeyboardCaptured",
+      "file": "src/model/EditorContext.tsx",
+      "impact": "If any editable surface is a contenteditable div or a focused <select> (PropertiesPanel has several <select>), Ctrl+C/X/V/D/G and Delete fire the canvas handlers instead of the field, and even single-key Delete can leak when capture is off. Matches the documented historical 'inputs swallowing / canvas stealing' fault-line.",
+      "area": "commands-state"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "setActiveDocument swaps state pointers but leaks subscribers bound to the old SelectionState instance",
+      "file": "src/model/documentState.ts",
+      "impact": "Phase-2 multi-document (the stated future) will have PropertiesPanel/LayersPanel stop updating after a document switch. Not yet exercised (single doc today) but the design is a latent interlock trap directly contradicting the file's own multi-doc promise.",
+      "area": "commands-state"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "ReorderElementCommand asserts parentElement non-null and never re-validates on undo",
+      "file": "src/model/commands.ts",
+      "impact": "If an element is reordered then its layer removed (or it is moved by another op) before undo, the captured parent is stale and undo can insert into a detached/foreign parent. Edge-case structure corruption; low because z-order ops require single non-empty selection and are usually atomic.",
+      "area": "commands-state"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "LayersPanel uses array index as React key while supporting reorder/delete",
+      "file": "src/components/LayersPanel.tsx",
+      "impact": "React reconciles rows by position, not identity, so reorder/delete reuse DOM nodes for different layers. Currently cosmetic (rows are stateless), but it will produce wrong focus/transition/animation behavior the moment any per-row state is added.",
+      "area": "panels-chrome"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "bug",
+      "title": "Inspector bottom panel hardcodes a light background, breaking non-light themes",
+      "file": "src/components/InspectorPanel.tsx",
+      "impact": "On any dark palette this region renders a white slab over dark text — unreadable. Contradicts the stated theme-switcher intent.",
+      "area": "panels-chrome"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "Inspector 'Pages' tab is wired to a state value/data-role named 'properties' — mislabeled, confusing seam",
+      "file": "src/components/InspectorPanel.tsx",
+      "impact": "Tests/selectors and future maintainers will conflate the dead 'Pages' stub with a real properties tab. Pure naming debt but a real trap for selector-based tests.",
+      "area": "panels-chrome"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "smell",
+      "title": "TopBar Split button is a live-looking dead control (onSplit never passed, no disabled affordance)",
+      "file": "src/components/TopBar.tsx",
+      "impact": "Clicking Split does nothing with no visual hint that it is disabled — a confusing dead-end. Minor since documented as a stub.",
+      "area": "panels-chrome"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "a11y",
+      "title": "Pervasive cursor: 'default' on interactive buttons — wrong affordance everywhere",
+      "file": "src/components/LayersPanel.tsx",
+      "impact": "Interactive controls never show the pointer cursor, so users get no hover affordance distinguishing clickable chrome from static text. Inconsistent with native expectations and harms discoverability.",
+      "area": "panels-chrome"
+    },
+    {
+      "src": "audit",
+      "sev": "low",
+      "kind": "a11y",
+      "title": "ArtboardDialog has no Escape-to-cancel or Enter-to-apply and no focus trap",
+      "file": "src/components/ArtboardDialog.tsx",
+      "impact": "Keyboard users cannot dismiss or confirm the modal without mousing to the buttons; Escape does nothing. Standard modal affordances are missing.",
+      "area": "panels-chrome"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Dash 'Custom...' menu option is a dead no-op; no way to enter a custom pattern from a preset",
+      "file": "src/components/PropertiesPanel.tsx",
+      "impact": "Misleading menu entry that does nothing. A user wanting a custom dash has no path to it unless a custom value already exists (e.g. from import).",
+      "area": "exp-properties"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Deleting the active layer leaves activeLayerIdx pointing at a stale/wrong row (off-by-one risk)",
+      "file": "/home/tobias/Projects/vectorfeld/src/components/LayersPanel.tsx",
+      "impact": "Subsequent draws can land in an unexpected layer after a delete; the highlighted 'active' row may not match the real active drawing target. Low because no data loss and no error, but it is an interlock/state-correctness smell.",
+      "area": "exp-layers-pages"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Artboard id 'ab-1' appears as a duplicate id in exported SVG (artboard rect + layer group)",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/graftExport.ts",
+      "impact": "Another duplicate-id source in exported SVG; minor because these are structural/data attributes, but combined with the group bug it means exports are reliably non-unique-id. Worth fixing alongside id hygiene.",
+      "area": "exp-clipboard"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Select-tool bounding box on a finished path persists after switching to Direct Select on another path",
+      "file": "/home/tobias/Projects/vectorfeld/src/tools/directSelectTool.ts",
+      "impact": "Cosmetic/confusing: two different selection paradigms shown at once. No data loss, but it muddies which element is being edited and overlaps with baseline bug (1) about selection state not being cleared on tool/state transitions.",
+      "area": "exp-pen-bezier"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Baseline finding (4) 'no rotation handle on canvas' is inaccurate — rotation IS on canvas but as hidden corner zones that conflict with scaling",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/selection.ts (lines 225-258)",
+      "impact": "The previously-reported 'rotation only via numeric field' is wrong; canvas rotation exists but is undiscoverable (invisible) and steals scale clicks. Fixing exp-transform-1 should also make rotation visible/distinct (offset the rotation ring outward beyond the handle, or shrink the zone so it never covers the handle center).",
+      "area": "exp-transform"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "VERIFIED-WORKING: numeric rotate preserves skew; SkX/SkY emit real skew; uniform scale of rotated shapes correct; multi-select group scale correct",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/matrix.ts; /home/tobias/Projects/vectorfeld/src/tools/selectTool.ts",
+      "impact": "Positive: the transform model (matrix.ts setSkew/parseSkew/scaleAroundMatrix, selectTool local-space scaling, handleTransform on the overlay) is solid. Do not rewrite it; only fix the handle-overlap interaction.",
+      "area": "exp-transform"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Distribute Horizontal/Vertical are absent from the Object menu (only in Inspector)",
+      "file": "src/App.tsx",
+      "impact": "Discoverability gap and menu/inspector inconsistency — Align is in both places, Distribute only in the Inspector. Functionally fine once found.",
+      "area": "exp-align-zorder"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "POSITIVE: document-content undo/redo round-trips byte-identically; branch truncation correct",
+      "file": "src/model/commands.ts (CommandHistory + per-command execute/undo are correct)",
+      "impact": "Confirms the underlying command-stack and document-mutation logic are correct and trustworthy. The bugs above are confined to the SELECTION/overlay layer, which is why the journey is fixable rather than needing rework — the hard part (faithful content undo) already works.",
+      "area": "exp-undo-redo"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Inspector shows stale prior selection (RECT properties) after switching to the Text/Pen tool",
+      "file": "src/tools/registry.ts",
+      "impact": "Switching to a creation tool presents the old object's properties rather than a clean creation context, which is confusing. Matches the journey's pre-noted 'inspector keeps showing prior selection after switching to Text tool'. Low severity because the selection genuinely persists (clicking with the new tool replaces it) and no data is lost.",
+      "area": "exp-tool-switch"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Primary 'Open PDF...' import does not name the layer after the file (always 'Layer 1'), unlike background import",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/pdfImport.ts",
+      "impact": "Inconsistent UX; a multi-import workflow yields generic layer names with no provenance. Minor.",
+      "area": "exp-pdf-import"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "SVG export->Open SVG round-trip is lossless (positive finding)",
+      "file": "src/model/fileio.ts (exportSvgString/parseSvgString/applyParsedSvg, exportPng)",
+      "impact": "Round-trip and PNG paths are trustworthy - no data loss or id drift. This part is solid and should not be touched.",
+      "area": "exp-save-open"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Zoom clamp constants misinterpreted: actual range ~3.5%..1571% instead of documented 10%..6400%",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/zoom.ts",
+      "impact": "Achievable zoom range is roughly 3.5x narrower at the top end than documented and the floor is far below the intended 10%, letting the artboard shrink to a few pixels. Mostly cosmetic/edge-case but the constants don't mean what they say.",
+      "area": "exp-zoom-pan-view"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "POSITIVE: coordinate mapping, ruler tracking, and hit-testing are accurate at all zoom levels and after pan",
+      "file": "/home/tobias/Projects/vectorfeld/src/model/coordinates.ts",
+      "impact": "The historically fragile coordinate-space core is in good shape; no hit-test drift found at non-100% zoom or near edges. This is the salvageable foundation under the broken zoom chrome.",
+      "area": "exp-zoom-pan-view"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Status-bar page-navigation arrows are permanently disabled stubs",
+      "file": "/home/tobias/Projects/vectorfeld/src/components/StatusBar.tsx",
+      "impact": "Dead widget; page navigation must happen via the right-panel Pages tab instead. Inconsistent/confusing UI.",
+      "area": "exp-misc-tools"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Selecting an overflow tool gives no active-state indication in the rail",
+      "file": "/home/tobias/Projects/vectorfeld/src/components/LeftRail.tsx",
+      "impact": "Discoverability/feedback gap. Combined with the orphaned-from-rail placement, the powerful tools (ellipse/line/pencil/measure/lasso/free-transform) feel hidden and stateless even though they fully work.",
+      "area": "exp-misc-tools"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "POSITIVE/correction: overflow tools (ellipse, line, pencil, measure, lasso, free-transform) are all functional, not orphaned",
+      "file": "/home/tobias/Projects/vectorfeld/src/components/LeftRail.tsx",
+      "impact": "Reclassifies baseline finding (3): these are not dead — they work and inherit the current default style. The only issue is discoverability (overflow-only) plus no active indicator. Note free-transform overlay still shows 0 rotation-handle, consistent with baseline finding (4).",
+      "area": "exp-misc-tools"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Dragging a guide from the ruler into the canvas never creates a guide (dead feature) and H-ruler passes wrong axis coordinate",
+      "file": "src/components/Ruler.tsx",
+      "impact": "A discoverable affordance (rulers with guide-drag cursor) does nothing; minor since guides are a secondary feature, but the code is both unreachable and computing the wrong axis.",
+      "area": "exp-chaos"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Ctrl+Y (common redo shortcut) is not bound — redo only available via Ctrl+Shift+Z",
+      "file": "src/model/EditorContext.tsx",
+      "impact": "Windows users who expect Ctrl+Y for redo will think redo is broken. Pure shortcut-coverage gap, easy fix.",
+      "area": "exp-chaos"
+    },
+    {
+      "src": "exp",
+      "sev": "low",
+      "kind": "",
+      "title": "Export emits 'Font cannot be both symbolic and non-symbolic. Skipping subsetting.' (known #5)",
+      "file": "src/model/pdfExport.ts",
+      "impact": "Font subsetting skipped on export (larger output / potential glyph fidelity); pre-existing known issue.",
+      "area": "exp-chaos"
+    }
+  ]
+}
