@@ -56,6 +56,31 @@
 - `mousewheel` args must be positive: `playwright-cli mousewheel 0 100` not `0 -300`
 - The chaos monkey script is at `/tmp/chaos-monkey.sh` — 20 phases, run after any major change
 
+## `pkill -f` / `pgrep -f` match the agent's OWN shell — self-kill footgun
+
+- `pkill -f 'vite'` (or `pgrep -f 'node.*vite' | xargs kill`) matches against the
+  FULL command line of every process — **including the `bash -c "...pkill -f 'vite'..."`
+  the agent is currently running.** The pattern string appears literally in your own
+  shell's argv, so you kill your own shell (exit code 143/144 = SIGTERM) before the
+  real work runs. Burned two tool calls this way restarting the dev server.
+- Rules: (1) to stop a dev server you started via the Bash tool's `run_in_background`,
+  don't `pkill` — just start a fresh one (if nothing is listening, `curl localhost:5173`
+  returns 000). (2) If you must kill by pattern, match on something NOT in your command
+  (e.g. the listening port via `fuser 5173/tcp -k`, or a pidfile), or narrow with
+  `pgrep -f 'vite$'` style anchors that won't match the `-c` string. (3) Prefer the
+  harness's background-task mechanism over shell `&` + `nohup`/`setsid`.
+
+## Playwright Chromium can vanish from the cache — verify before headed runs
+
+- `~/.cache/ms-playwright/` had been cleared on this machine, so `chromium.executablePath()`
+  pointed at a binary that didn't exist and `npm run golden` / `dogfood` would fail to
+  launch — even though the dogfood suite "worked" in a prior session. The harness imports
+  chromium from the global `@playwright/cli`'s bundled playwright (fixed path in
+  test/golden/harness.mjs + test/dogfood/*.mjs), NOT a project dep.
+- Reinstall: `node <@playwright/cli path>/node_modules/playwright/cli.js install chromium`.
+- Before diagnosing a headed-test failure, confirm BOTH the binary exists
+  (`ls "$(node -e "...executablePath()")"`) AND `curl localhost:5173` is 200.
+
 ## Synthetic-test blindspot for SVG export
 
 - The pdf-lib SVG→PDF engine (vectorfeld-9s9) shipped passing all synthetic-fixture tests but failed on every real PDF import (vectorfeld-dns). Two structural bugs were missed:
