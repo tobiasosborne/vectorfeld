@@ -4,7 +4,7 @@ import { CommandHistory, RemoveElementCommand, CompoundCommand, GroupCommand, Un
 import { createDocumentModel } from './document'
 import type { DocumentModel } from './document'
 import { generateId } from './document'
-import { getSelection, setSelection, clearSelection } from './selection'
+import { getSelection, setSelection, clearSelection, pruneSelection } from './selection'
 import { isKeyboardCaptured } from '../tools/registry'
 import { toggleGridVisible, toggleGridSnap } from '../model/grid'
 import { copySelection, cutSelection, pasteClipboard, duplicateSelection } from './clipboard'
@@ -55,12 +55,18 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      // Ignore shortcuts while the user is typing into any editable control:
+      // <input>, <textarea>, native <select> dropdowns, or contentEditable.
+      // Missing SELECT/contentEditable let arrows/Delete/Backspace mutate the
+      // canvas while navigating a Properties dropdown (vectorfeld-3yu.19).
+      if (isEditableTarget(e.target as HTMLElement | null)) return
 
-      // Skip single-key bindings during keyboard capture (text editing)
-      // but still allow Ctrl combos
-      if (isKeyboardCaptured() && !e.ctrlKey) return
+      // While the text tool holds keyboard capture, suppress ALL document
+      // shortcuts — including Ctrl combos. Previously Ctrl+Z/C/V/X/D/G/A leaked
+      // through and operated on the document mid-text-edit; e.g. Ctrl+Z undid a
+      // previously committed shape instead of the typed text (vectorfeld-3yu.6).
+      // The text tool owns its own key handling while capturing.
+      if (isKeyboardCaptured()) return
 
       // e.key comes through as uppercase under some input synthesis paths
       // (Playwright, and some IMEs). Compare case-insensitively so Ctrl+C
@@ -116,9 +122,11 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       } else if (e.ctrlKey && k === 'z' && !e.shiftKey) {
         e.preventDefault()
         history.undo()
+        pruneSelection()
       } else if (e.ctrlKey && k === 'z' && e.shiftKey) {
         e.preventDefault()
         history.redo()
+        pruneSelection()
       } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && !e.ctrlKey) {
         if (getSelection().length > 0) {
           e.preventDefault()
@@ -177,6 +185,14 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   return (
     <EditorContext.Provider value={value}>{children}</EditorContext.Provider>
   )
+}
+
+/** True when the keyboard event target is a text-editable control that should
+ *  own keystrokes itself (so global canvas shortcuts must not fire). */
+function isEditableTarget(el: HTMLElement | null): boolean {
+  if (!el) return false
+  const tag = el.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable
 }
 
 export function useEditor(): EditorContextValue {

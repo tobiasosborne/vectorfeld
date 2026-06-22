@@ -77,6 +77,22 @@ export function clearSelection(): void {
   active.notify()
 }
 
+/**
+ * Drop any selected elements that are no longer attached to the live document
+ * (e.g. after an undo/redo removed them). Returns true if the selection
+ * changed. This keeps selection state reconciled with the command history so
+ * the overlay, the inspector count, and selection-dependent operations
+ * (Delete, Ctrl+D, Align…) never act on detached/ghost nodes.
+ */
+export function pruneSelection(): boolean {
+  const next = active.selected.filter((el) => el.isConnected)
+  if (next.length === active.selected.length) return false
+  active.selected = next
+  updateOverlay()
+  active.notify()
+  return true
+}
+
 export function isSelected(el: Element): boolean {
   return active.selected.includes(el)
 }
@@ -150,7 +166,11 @@ function updateOverlay(): void {
     overlayGroup.removeChild(overlayGroup.firstChild)
   }
 
-  const selectedElements = active.selected
+  // Only ever draw overlay for elements still attached to the document.
+  // Detached nodes (e.g. left in `selected` after an undo) still answer
+  // getBBox(), so without this filter they render phantom selection boxes
+  // over an empty canvas (vectorfeld-3yu.9).
+  const selectedElements = active.selected.filter((el) => el.isConnected)
   if (selectedElements.length === 0) return
 
   for (const el of selectedElements) {

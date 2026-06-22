@@ -4,6 +4,8 @@ import {
   clearSelection,
   setOverlayGroup,
   refreshOverlaySync,
+  pruneSelection,
+  getSelection,
 } from './selection'
 
 function makeSvg(): SVGSVGElement {
@@ -240,5 +242,51 @@ describe('Selection overlay with scale handles', () => {
     const cy = parseFloat(nw.getAttribute('y')!) + parseFloat(nw.getAttribute('height')!) / 2
     expect(cx).toBeCloseTo(100)
     expect(cy).toBeCloseTo(200)
+  })
+})
+
+describe('pruneSelection (undo reconciliation — vectorfeld-3yu.9)', () => {
+  let svg: SVGSVGElement
+  let overlay: SVGGElement
+
+  beforeEach(() => {
+    document.body.innerHTML = ''
+    svg = makeSvg()
+    overlay = svg.querySelector('[data-role="overlay"]') as SVGGElement
+    setOverlayGroup(overlay)
+    clearSelection()
+  })
+
+  it('drops detached elements from the selection and reports the change', () => {
+    const a = makeRect(svg, 10, 20, 50, 30)
+    const b = makeRect(svg, 80, 20, 50, 30)
+    setSelection([a, b])
+    expect(getSelection()).toHaveLength(2)
+
+    // Simulate an undo removing `a` from the document.
+    a.remove()
+    const changed = pruneSelection()
+
+    expect(changed).toBe(true)
+    expect(getSelection()).toEqual([b])
+  })
+
+  it('is a no-op (returns false) when all selected elements are still attached', () => {
+    const a = makeRect(svg, 10, 20, 50, 30)
+    setSelection([a])
+    expect(pruneSelection()).toBe(false)
+    expect(getSelection()).toEqual([a])
+  })
+
+  it('renders no phantom selection boxes for detached elements', () => {
+    const a = makeRect(svg, 10, 20, 50, 30)
+    setSelection([a])
+    expect(overlay.querySelectorAll('[data-role="selection-box"]').length).toBe(1)
+
+    // Element removed by an undo, but still lingering in `selected`.
+    a.remove()
+    refreshOverlaySync()
+    expect(overlay.querySelectorAll('[data-role="selection-box"]').length).toBe(0)
+    expect(overlay.querySelectorAll('[data-role="scale-handle"]').length).toBe(0)
   })
 })
