@@ -179,6 +179,7 @@ Session histories at `docs/worklog/`. Most recent first; load when working on th
 
 | Date | Session |
 |---|---|
+| 2026-06-22 | [adversarial-review-remediation](docs/worklog/2026-06-22-adversarial-review-remediation.md) — major adversarial review (80 agents, 175 findings); verdict SAVE not rewrite; epic vectorfeld-3yu + 26 children filed, 6z0 closed; Phase 0 shipped 3yu.6/9/19 (keyboard + selection/undo data-loss fixes). Report: docs/review/2026-06-21-adversarial-review.md |
 | 2026-05-04 | [6z0-handoff](docs/worklog/2026-05-04-6z0-handoff.md) — handoff: vectorfeld-6z0 mid-investigation cut-off; WIP debug logs in df591f5; post-mortem suggests bug already fixed by pdf-lib migration, awaiting fresh dogfood verification |
 | 2026-04-27 | [eb0-shipped](docs/worklog/2026-04-27-eb0-shipped.md) — vectorfeld-eb0 shipped: in-place source-font edits (5 sub-beads); graft engine now extracts + uses source's embedded font for modifications |
 | 2026-04-27 | [yyj-shipped](docs/worklog/2026-04-27-yyj-shipped.md) — vectorfeld-yyj shipped: full-OpenType graft text shaping (7 sub-beads) + critical applyRedactions/Resources-Font fix |
