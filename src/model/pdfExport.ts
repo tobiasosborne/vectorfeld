@@ -22,6 +22,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
 import { parsePathD, commandsToD, type PathCommand } from './pathOps'
+import { rectToPathD, ellipseToPathD, circleToPathD } from './shapeToPath'
 import {
   applyMatrixToPoint,
   identityMatrix,
@@ -173,15 +174,33 @@ function transformPathD(d: string, ctx: Ctx): string {
   return commandsToD(out)
 }
 
-function drawPath(el: Element, ctx: Ctx): void {
-  const d = el.getAttribute('d')
-  if (!d) return
+/**
+ * Draw a shape supplied as an SVG d-string by transforming EVERY point
+ * through ctx.matrix (via transformPathD) and handing the result to
+ * drawSvgPath. This is the rotation/skew-correct path used by <path> and —
+ * since vectorfeld-3yu.16 — also by rect/ellipse/circle: routing those
+ * primitives through per-point path emission means rotation/skew terms in
+ * ctx.matrix (matrix b, c) survive, instead of being discarded by the
+ * single-anchor + extractScale-sizing approach pdf-lib's axis-aligned
+ * drawRectangle/drawEllipse/drawCircle would have used.
+ *
+ * `strokeWidthDefault` is the borderWidth (in pt) used when the element has
+ * a stroke but no stroke-width attribute (drawPath historically used 1pt).
+ */
+function drawShapeAsPath(
+  d: string,
+  el: Element,
+  ctx: Ctx,
+  strokeWidthDefault = 1,
+): void {
   const transformedD = transformPathD(d, ctx)
   const fill = parseColor(el.getAttribute('fill'))
   const stroke = parseColor(el.getAttribute('stroke'))
   const strokeWidthAttr = el.getAttribute('stroke-width')
   const { sx } = extractScale(ctx.matrix)
-  const strokeWidth = strokeWidthAttr ? parseFloat(strokeWidthAttr) * sx * MM_TO_PT : 1
+  const strokeWidth = strokeWidthAttr
+    ? parseFloat(strokeWidthAttr) * sx * MM_TO_PT
+    : strokeWidthDefault
 
   // drawSvgPath expects SVG-convention coords (y-down from the anchor point).
   // We pass (x=0, y=pageHeightPt) so that SVG origin lands at the PDF page's
@@ -196,30 +215,24 @@ function drawPath(el: Element, ctx: Ctx): void {
   })
 }
 
+function drawPath(el: Element, ctx: Ctx): void {
+  const d = el.getAttribute('d')
+  if (!d) return
+  drawShapeAsPath(d, el, ctx)
+}
+
 function drawRect(el: Element, ctx: Ctx): void {
   const x = parseFloat(el.getAttribute('x') || '0')
   const y = parseFloat(el.getAttribute('y') || '0')
   const w = parseFloat(el.getAttribute('width') || '0')
   const h = parseFloat(el.getAttribute('height') || '0')
   if (w <= 0 || h <= 0) return
-  const fill = parseColor(el.getAttribute('fill'))
-  const stroke = parseColor(el.getAttribute('stroke'))
-  const { sx, sy } = extractScale(ctx.matrix)
-  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0') * sx * MM_TO_PT
-  const wPt = w * sx * MM_TO_PT
-  const hPt = h * sy * MM_TO_PT
-  // pdf-lib drawRectangle: x,y is BOTTOM-LEFT in PDF coords. SVG x,y is TOP-LEFT.
-  // Apply matrix to top-left corner; then convert to PDF and subtract scaled height.
-  const tl = svgPtToPdf(x, y, ctx)
-  ctx.page.drawRectangle({
-    x: tl.x,
-    y: tl.y - hPt,
-    width: wPt,
-    height: hPt,
-    color: fill,
-    borderColor: stroke,
-    borderWidth: stroke ? strokeWidth : 0,
-  })
+  // Route through per-point path emission so rotation/skew in ctx.matrix is
+  // honoured (vectorfeld-3yu.16). rx/ry give rounded corners for free.
+  const rx = parseFloat(el.getAttribute('rx') || '0')
+  const ry = parseFloat(el.getAttribute('ry') || '0')
+  const d = rectToPathD(x, y, w, h, rx, ry)
+  drawShapeAsPath(d, el, ctx, 0)
 }
 
 function drawLine(el: Element, ctx: Ctx): void {
@@ -246,20 +259,9 @@ function drawEllipseEl(el: Element, ctx: Ctx): void {
   const rx = parseFloat(el.getAttribute('rx') || '0')
   const ry = parseFloat(el.getAttribute('ry') || '0')
   if (rx <= 0 || ry <= 0) return
-  const fill = parseColor(el.getAttribute('fill'))
-  const stroke = parseColor(el.getAttribute('stroke'))
-  const { sx, sy } = extractScale(ctx.matrix)
-  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0') * sx * MM_TO_PT
-  const c = svgPtToPdf(cx, cy, ctx)
-  ctx.page.drawEllipse({
-    x: c.x,
-    y: c.y,
-    xScale: rx * sx * MM_TO_PT,
-    yScale: ry * sy * MM_TO_PT,
-    color: fill,
-    borderColor: stroke,
-    borderWidth: stroke ? strokeWidth : 0,
-  })
+  // Per-point path emission so rotation/skew survive (vectorfeld-3yu.16).
+  const d = ellipseToPathD(cx, cy, rx, ry)
+  drawShapeAsPath(d, el, ctx, 0)
 }
 
 function drawCircleEl(el: Element, ctx: Ctx): void {
@@ -267,19 +269,9 @@ function drawCircleEl(el: Element, ctx: Ctx): void {
   const cy = parseFloat(el.getAttribute('cy') || '0')
   const r = parseFloat(el.getAttribute('r') || '0')
   if (r <= 0) return
-  const fill = parseColor(el.getAttribute('fill'))
-  const stroke = parseColor(el.getAttribute('stroke'))
-  const { sx } = extractScale(ctx.matrix)
-  const strokeWidth = parseFloat(el.getAttribute('stroke-width') || '0') * sx * MM_TO_PT
-  const c = svgPtToPdf(cx, cy, ctx)
-  ctx.page.drawCircle({
-    x: c.x,
-    y: c.y,
-    size: r * sx * MM_TO_PT,
-    color: fill,
-    borderColor: stroke,
-    borderWidth: stroke ? strokeWidth : 0,
-  })
+  // Per-point path emission so rotation/skew survive (vectorfeld-3yu.16).
+  const d = circleToPathD(cx, cy, r)
+  drawShapeAsPath(d, el, ctx, 0)
 }
 
 function decodeDataUrl(href: string): { mime: string; bytes: Uint8Array } | null {
@@ -299,7 +291,6 @@ async function drawImage(el: Element, ctx: Ctx): Promise<void> {
   const w = parseFloat(el.getAttribute('width') || '0')
   const h = parseFloat(el.getAttribute('height') || '0')
   const href = el.getAttribute('href') || el.getAttribute('xlink:href')
-  console.log('[pdfExport] drawImage', { x, y, w, h, hasHref: !!href, hrefStart: href?.slice(0, 30) })
   if (!href || w <= 0 || h <= 0) return
   const decoded = decodeDataUrl(href)
   if (!decoded) return // remote URLs not supported in this MVP — they would require network access
@@ -316,7 +307,16 @@ async function drawImage(el: Element, ctx: Ctx): Promise<void> {
   const wPt = w * sx * MM_TO_PT
   const hPt = h * sy * MM_TO_PT
   const tl = svgPtToPdf(x, y, ctx)
-  console.log('[pdfExport] drawImage emit', { tlx: tl.x, tly: tl.y, wPt, hPt, drawY: tl.y - hPt, sx, sy, ctxMatrix: ctx.matrix })
+  // NOTE (vectorfeld-3yu.16): rotation/skew on images is NOT yet handled.
+  // extractScale discards the off-diagonal (rotation/skew) terms of
+  // ctx.matrix, so a rotated/skewed <image> still exports axis-aligned —
+  // only the top-left anchor is transformed; the body is sized by scale
+  // alone. The correct fix (follow-up bead) is to emit a raw content-stream
+  // cm matrix — `q a b c d e f cm /Img Do Q` derived from ctx.matrix *
+  // MM_TO_PT with the page Y-flip folded in — which is exact full-affine
+  // with no pivot guessing. pdf-lib's drawImage rotate/xSkew options pivot
+  // about a different origin than the SVG anchor, so shipping that here
+  // would be a fragile partial fix; deferred deliberately.
   ctx.page.drawImage(img, {
     x: tl.x,
     y: tl.y - hPt,
