@@ -82,15 +82,50 @@ commit; golden re-master verification discipline.
 - Build green, tsc clean, **908 unit tests** + **golden 11/11** green.
 - Dev server may still be running on :5173.
 
+## UI P1 wave (continued, same session) — 9 more beads shipped
+
+After the 11-bead data-loss wave above, prose-investigated (skeptic-verified) the nine
+UI P1s and shipped them all, each headed-verified, in disjoint-file parallel batches:
+
+- **`3yu.10`** — Document Setup Apply was a no-op (only set React state, never the
+  artboard model) → new undoable `ResizeArtboardCommand`. (`10b0fe9`)
+- **`3yu.17`** — ControlBar Frame readout stale after nudge/undo → subscribe to history.
+  (`1309f0e`)
+- **`3yu.12`** — layer hide/lock bypassed history (Ctrl+Z ate the prior edit) → route
+  through `ModifyAttributeCommand`; CSSOM-safe style swap preserves opacity/blend.
+  (`dd729ea`)
+- **`3yu.23`** — bold/italic overlay text always rendered Carlito-Regular → register
+  Carlito Bold/Italic faces + a bounded generic-sans family-alias; an `overlayWantsFaces`
+  usage-gate keeps all PDF golden masters byte-identical. (`247416f`)
+- **`3yu.24`** — eraser rail label said 'E' (which activates Ellipse); real binding is
+  'x'. (`ec8ce1b`)
+- **`3yu.21`** — mostly-outlined badge: already fixed by `3yu.1` (primary path now runs
+  import analysis); added regression pins. (`61b9ed5`)
+- **`3yu.18`** — negative/zero W/H produced invalid SVG / invisible shapes → `clampAttr`
+  in new `numeric.ts`, wired into ControlBar + both PropertiesPanel paths. (`54fcfd3`)
+- **`3yu.20`** — ruler drag-to-guide landed on the orthogonal axis AND (pre-existing,
+  exposed during verify) never fired at all (onMouseUp on the ruler couldn't catch a
+  release over the canvas) → `screenToDoc` drop-coord + window-mouseup tracking. (`d4946fa`)
+- **`3yu.22`** — dead status-bar zoom buttons + no scroll-to-pan → wire zoom via
+  `onZoomReady`, plain wheel pans / ctrl+wheel zooms. (`2974d23`)
+
+Two correctness landmines were pre-flagged and handled: `3yu.12`'s CSSOM-vs-literal
+style clobber, and `3yu.23`'s family-aliasing + a hidden subset-bloat gate. Four
+implementer-written headed scenarios had targeting/measurement bugs (off-screen clicks,
+synthetic-wheel-not-reaching-native-listener, wrong-element measurement) — the
+orchestrator rendered/probed to confirm fix-vs-scenario and fixed each scenario.
+
+## Campaign total
+
+**20 `3yu` beads closed** (1/3/4/5/7/8/11/13/14/15/16 + 10/12/17/18/20/21/22/23/24), each
+headed-verified; **967 tests + golden 11/11**; ~16 follow-up beads raised. All pushed.
+
 ## Next session — recommended
 
-Remaining `3yu` epic: design-only **`3yu.2`** (imported-PDF text content editor — now
-unblocked by `3yu.3`; needs a designed feature: double-click-to-edit, in-place content
-+ caret/IME, Text-tool-over-text), and nine un-investigated UI P1s — **`3yu.10`**
-(Document Setup no-op), **`3yu.12`** (layer hide/lock bypass history), **`3yu.17`**
-(stale Frame readout), **`3yu.18`** (negative/zero W/H), **`3yu.20`** (ruler axis),
-**`3yu.21`** (mostly-outlined badge), **`3yu.22`** (zoom buttons/scroll-pan),
-**`3yu.23`** (bold/italic → Carlito-Regular), **`3yu.24`** (eraser shortcut label).
-Then P2s `3yu.25` (real-producer fixtures), `3yu.26` (dead code) + the follow-ups.
-Same rhythm: prose-investigate (skeptic-verified) → parallel disjoint-file implementers
-(no git ops) → orchestrator golden + headed + one-bead-one-commit.
+Epic `3yu` remaining: design-only **`3yu.2`** (imported-PDF text **content** editor — a
+FEATURE, now unblocked by `3yu.3`: double-click-to-edit, in-place content + caret/IME,
+Text-tool-over-text — needs a design pass, not a quick fix); **`3yu.25`** (real-producer
+test fixtures) and **`3yu.26`** (dead-code deletion), both P2 cleanup. Plus the ~16
+follow-up beads (notably P2 `harden CommandHistory.undo/redo exception-safety`, undoable
+guides `7ap`, source-layer-add/remove as a Command). The data-loss/corruption core and
+all UI P1s are now fixed — what's left is a designed feature + cleanup.

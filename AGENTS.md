@@ -24,9 +24,9 @@ Implications that shape every decision:
 - Scientific-diagram precision (rulers, mm-snap, Bézier authoring, TikZ) is NOT the target.
 - The owner is one specific person. No multi-user, no cloud, no auth.
 
-## Current state (2026-06-25, P0/P1 remediation wave)
+## Current state (2026-06-25, P0/P1 remediation campaign)
 
-- **Build**: green. **908 tests** across **73 files**. Type check clean. (Adversarial-review epic `vectorfeld-3yu`: 11 P0/P1 data-loss/corruption beads shipped this wave — see worklog 2026-06-25; remaining = design-only `3yu.2` + nine UI P1s `3yu.10/12/17/18/20/21/22/23/24` + P2s.)
+- **Build**: green. **967 tests** across **75 files**. Type check clean. (Adversarial-review epic `vectorfeld-3yu`: **20 P0/P1 beads shipped** — all data-loss/corruption P0s + every UI P1, each headed-verified; see worklog 2026-06-25. Epic remaining = design-only **`3yu.2`** (imported-PDF text-content editor — a feature, now unblocked by `3yu.3`) + P2 cleanup `3yu.25`/`3yu.26` + ~16 follow-up beads raised during the campaign.)
 - **Golden suites**: **11/11 gate stories ✓** (`npm run golden`); 10/10 milestones ✓. Gate 10 (text-recolor) carries a defense-in-depth assertion that the recolored heading uses the source font (Calibri-*) not Carlito — locks the eb0-4 contract. Gate 11 (graft-text-shaping) locks the yyj-4 contract (GSUB ligature + GPOS kern emission via /ToUnicode round-trip).
 - **Bundle** (`npm run build`): main JS **1,670 KB** (gzip 665 KB) + MuPDF JS **89 KB** + MuPDF WASM **10 MB** + Inter/JetBrainsMono woff2 **422 KB** + Carlito/Liberation Serif TTFs **2.7 MB** (embedded for pdf-lib font fidelity, see `vectorfeld-85m`).
 - **Output PDF size** (graft engine): subset via `mupdf.subsetFonts()` after emission (`vectorfeld-clw`). Real-world result on gate 11: 605 KB → 245 KB (60% drop).
@@ -179,7 +179,7 @@ Session histories at `docs/worklog/`. Most recent first; load when working on th
 
 | Date | Session |
 |---|---|
-| 2026-06-25 | [p0-remediation-wave](docs/worklog/2026-06-25-p0-remediation-wave.md) — main remediation wave: 11 vectorfeld-3yu beads shipped (1/3/4/5/7/8/11/13/14/15/16), each headed-verified; CLAUDE.md anti-bloat upgrade; golden re-mastered for 3yu.16 (shape→path op stream, not a regression); ~10 follow-ups raised. 908 tests + golden 11/11. |
+| 2026-06-25 | [p0-remediation-wave](docs/worklog/2026-06-25-p0-remediation-wave.md) — main remediation campaign: **20 vectorfeld-3yu beads shipped** (1/3/4/5/7/8/11/13/14/15/16 + 10/12/17/18/20/21/22/23/24) — all data-loss/corruption P0s + every UI P1, each headed-verified; CLAUDE.md anti-bloat upgrade; golden re-mastered for 3yu.16 (shape→path op stream, not a regression); ~16 follow-ups raised. 967 tests + golden 11/11. Epic remaining: design-only 3yu.2 + P2 cleanup. |
 | 2026-06-22 | [adversarial-review-remediation](docs/worklog/2026-06-22-adversarial-review-remediation.md) — major adversarial review (80 agents, 175 findings); verdict SAVE not rewrite; epic vectorfeld-3yu + 26 children filed, 6z0 closed; Phase 0 shipped 3yu.6/9/19 (keyboard + selection/undo data-loss fixes). Report: docs/review/2026-06-21-adversarial-review.md |
 | 2026-05-04 | [6z0-handoff](docs/worklog/2026-05-04-6z0-handoff.md) — handoff: vectorfeld-6z0 mid-investigation cut-off; WIP debug logs in df591f5; post-mortem suggests bug already fixed by pdf-lib migration, awaiting fresh dogfood verification |
 | 2026-04-27 | [eb0-shipped](docs/worklog/2026-04-27-eb0-shipped.md) — vectorfeld-eb0 shipped: in-place source-font edits (5 sub-beads); graft engine now extracts + uses source's embedded font for modifications |
