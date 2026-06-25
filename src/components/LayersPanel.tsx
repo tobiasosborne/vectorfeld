@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react'
 import { useEditor } from '../model/EditorContext'
-import { AddElementCommand, RemoveElementCommand, ReorderElementCommand } from '../model/commands'
+import { AddElementCommand, RemoveElementCommand, ReorderElementCommand, ModifyAttributeCommand } from '../model/commands'
 import { setActiveLayerElement } from '../model/activeLayer'
 import { subscribeSelection } from '../model/selection'
 import { getActiveSourcePdfStore } from '../model/sourcePdf'
@@ -112,14 +112,34 @@ export function LayersPanel({ embedded = false }: LayersPanelProps = {}) {
 
   const toggleVisibility = (idx: number) => {
     const el = layers[idx].element as SVGElement
+    // Route through history so a hide/show is undoable and so it stops silently
+    // eating the user's previous committed edit on Ctrl+Z (vectorfeld-3yu.12).
+    //
+    // CSSOM LANDMINE: never `setAttribute('style', 'display: none;')` — that
+    // clobbers an imported layer's *other* inline styles (opacity /
+    // mix-blend-mode), a proven data-loss regression. Instead derive the next
+    // style string by toggling `display` through live CSSOM (which mutates only
+    // that one declaration), read the serialized result back, restore the
+    // original style verbatim, then commit the swap as a ModifyAttributeCommand
+    // so execute/undo flip the whole `style` attribute atomically. Readers all
+    // key on `style.display === 'none'`, so display stays the hide mechanism.
+    const prev = el.getAttribute('style')
     el.style.display = el.style.display === 'none' ? '' : 'none'
+    const next = el.getAttribute('style') ?? ''
+    if (prev === null) el.removeAttribute('style')
+    else el.setAttribute('style', prev)
+    editor.history.execute(new ModifyAttributeCommand(el, 'style', next))
     refreshLayers()
   }
 
   const toggleLock = (idx: number) => {
     const el = layers[idx].element
-    if (el.getAttribute('data-locked') === 'true') el.removeAttribute('data-locked')
-    else el.setAttribute('data-locked', 'true')
+    // Route through history so lock/unlock is undoable (vectorfeld-3yu.12).
+    // ModifyAttributeCommand's newValue is non-null, so flip between
+    // 'true'/'false' (readers key on === 'true'); undo of an initial lock
+    // removes the attribute entirely because the captured oldValue was null.
+    const next = el.getAttribute('data-locked') === 'true' ? 'false' : 'true'
+    editor.history.execute(new ModifyAttributeCommand(el, 'data-locked', next))
     refreshLayers()
   }
 
