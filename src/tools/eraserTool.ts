@@ -1,8 +1,8 @@
 import { registerTool } from './registry'
 import type { ToolConfig } from './registry'
-import type { Command } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
+import { RemoveElementCommand, CompoundCommand } from '../model/commands'
 import { removeFromSelection, refreshOverlay } from '../model/selection'
 import { hitTestElement } from '../model/geometry'
 
@@ -12,8 +12,8 @@ export function createEraserTool(
   getHistory: () => CommandHistory
 ): ToolConfig {
   let dragging = false
+  // Elements collected during the drag — NOT yet removed from the DOM.
   const erasedInDrag = new Set<Element>()
-  const erasedPositions = new Map<Element, { parent: Element; nextSibling: Element | null }>()
   let highlightedEl: Element | null = null
   let origOutline: string | null = null
 
@@ -29,6 +29,21 @@ export function createEraserTool(
     }
   }
 
+  /** Hide an element from view without detaching it from the DOM. */
+  function hideElement(el: Element): void {
+    (el as SVGElement).style.visibility = 'hidden'
+    removeFromSelection(el)
+    refreshOverlay()
+  }
+
+  /** Restore visibility on collected elements (called before committing the command
+   *  so that RemoveElementCommand.execute() performs the canonical detach). */
+  function restoreVisibility(): void {
+    for (const el of erasedInDrag) {
+      (el as SVGElement).style.removeProperty('visibility')
+    }
+  }
+
   return {
     name: 'eraser',
     icon: 'X',
@@ -41,17 +56,13 @@ export function createEraserTool(
         if (!svg || !doc || e.button !== 0) return
         dragging = true
         erasedInDrag.clear()
-        erasedPositions.clear()
         clearHighlight()
 
         const hit = hitTestElement(svg, e.clientX, e.clientY)
         if (hit) {
           erasedInDrag.add(hit)
-          erasedPositions.set(hit, { parent: hit.parentElement!, nextSibling: hit.nextElementSibling })
-          removeFromSelection(hit)
-          hit.remove()
+          hideElement(hit)
         }
-        refreshOverlay()
       },
 
       onMouseMove(e: MouseEvent) {
@@ -62,10 +73,7 @@ export function createEraserTool(
           const hit = hitTestElement(svg, e.clientX, e.clientY)
           if (hit && !erasedInDrag.has(hit)) {
             erasedInDrag.add(hit)
-            erasedPositions.set(hit, { parent: hit.parentElement!, nextSibling: hit.nextElementSibling })
-            removeFromSelection(hit)
-            hit.remove()
-            refreshOverlay()
+            hideElement(hit)
           }
           return
         }
@@ -86,36 +94,26 @@ export function createEraserTool(
         if (!dragging) return
         dragging = false
         clearHighlight()
+
         const doc = getDoc()
         if (!doc || erasedInDrag.size === 0) return
 
-        const elements = Array.from(erasedInDrag)
-        const positions = new Map(erasedPositions)
-        const history = getHistory()
+        // Restore visibility BEFORE RemoveElementCommand.execute() detaches elements,
+        // so the command records clean DOM state (no lingering style mutations).
+        restoreVisibility()
 
-        let firstExec = true
-        const wrappedCmd: Command = {
-          description: 'Erase',
-          execute() {
-            if (firstExec) { firstExec = false; return }
-            for (const el of elements) el.remove()
-          },
-          undo() {
-            for (const el of elements) {
-              const pos = positions.get(el)
-              if (pos) {
-                if (pos.nextSibling) {
-                  pos.parent.insertBefore(el, pos.nextSibling)
-                } else {
-                  pos.parent.appendChild(el)
-                }
-              }
-            }
-          },
-        }
-        history.execute(wrappedCmd)
+        const elements = Array.from(erasedInDrag)
         erasedInDrag.clear()
-        erasedPositions.clear()
+
+        const history = getHistory()
+        // CompoundCommand undoes children in reverse order, so sibling z-order is
+        // always restored correctly even when A→B→C were erased in sequence.
+        history.execute(
+          new CompoundCommand(
+            elements.map((el) => new RemoveElementCommand(doc, el)),
+            'Erase'
+          )
+        )
       },
     },
   }
