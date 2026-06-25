@@ -188,6 +188,104 @@ describe('GroupCommand', () => {
     expect(parent.children[2]).toBe(c)
     expect(group.children[0]).toBe(b)
   })
+
+  // -------------------------------------------------------------------------
+  // Cross-layer group + undo (vectorfeld-3yu.11): undo must restore each child
+  // to its ORIGINAL layer, not dump everything into sel[0]'s layer.
+  // -------------------------------------------------------------------------
+
+  it('(cross-layer) undo restores each child to its original layer', () => {
+    // Two separate layers, one element each.
+    document.body.innerHTML = ''
+    const p1 = el('g', 'layer1')
+    const p2 = el('g', 'layer2')
+    const aEl = el('rect', 'a')
+    const bEl = el('rect', 'b')
+    p1.appendChild(aEl)
+    p2.appendChild(bEl)
+    const root = document.createElementNS(SVG_NS, 'svg')
+    root.appendChild(p1)
+    root.appendChild(p2)
+    document.body.appendChild(root)
+
+    const grp = el('g', 'group')
+    // GroupCommand is constructed with p1 as the nominal "parent" (sel[0]'s layer),
+    // but bEl lives in p2. The fix captures per-child provenance.
+    const cmd = new GroupCommand(p1, grp, [aEl, bEl])
+    cmd.execute()
+
+    // Both should be inside the group now.
+    expect(grp.contains(aEl)).toBe(true)
+    expect(grp.contains(bEl)).toBe(true)
+
+    cmd.undo()
+
+    // Each child must be back in its ORIGINAL layer — not both dumped into p1.
+    expect(p1.children.length).toBe(1)
+    expect(p1.children[0]).toBe(aEl)
+    expect(p2.children.length).toBe(1)
+    expect(p2.children[0]).toBe(bEl)
+    expect(p1.contains(grp)).toBe(false)
+    expect(p2.contains(grp)).toBe(false)
+  })
+
+  it('(cross-layer) redo after cross-layer undo re-groups correctly', () => {
+    document.body.innerHTML = ''
+    const p1 = el('g', 'layer1')
+    const p2 = el('g', 'layer2')
+    const aEl = el('rect', 'a')
+    const bEl = el('rect', 'b')
+    p1.appendChild(aEl)
+    p2.appendChild(bEl)
+    const root = document.createElementNS(SVG_NS, 'svg')
+    root.appendChild(p1)
+    root.appendChild(p2)
+    document.body.appendChild(root)
+
+    const grp = el('g', 'group')
+    const cmd = new GroupCommand(p1, grp, [aEl, bEl])
+    cmd.execute()
+    cmd.undo()
+    // redo
+    cmd.execute()
+
+    expect(grp.contains(aEl)).toBe(true)
+    expect(grp.contains(bEl)).toBe(true)
+    expect(p1.contains(grp)).toBe(true)
+    expect(grp.children.length).toBe(2)
+  })
+
+  it('(within-layer) A,B,C group [a,b] undo does NOT throw and restores A,B,C order', () => {
+    // Locks the NotFoundError fix: nextSibling of A is B (another grouped child),
+    // so without the connectivity guard the naive insertBefore would throw.
+    // origins: A.nextSib=B, B.nextSib=C. Restore reverse: B before C, then A before B → [A,B,C].
+    const cmd = new GroupCommand(parent, group, [a, b])
+    cmd.execute()
+    expect(() => cmd.undo()).not.toThrow()
+    const ids = Array.from(parent.children).map((e) => e.getAttribute('id'))
+    expect(ids).toEqual(['A', 'B', 'C'])
+  })
+
+  it('(selection-order != document-order) undo still restores each child to its origin', () => {
+    // Children passed in reverse document order: [C, A] instead of [A, C].
+    // origins: C.nextSib=null (last child), A.nextSib=B.
+    const cmd = new GroupCommand(parent, group, [c, a])
+    cmd.execute()
+
+    // group is inserted where C was (insertBefore = children[0] = C, so group before C)
+    // Actually C is the first element in the children array, so group inserts before C.
+    // After execute, parent has: [B, group], group has [C, A].
+    cmd.undo()
+
+    // C was originally last in parent (nextSib=null → append), A was before B (nextSib=B).
+    // Reverse restore: i=1 (A): nextSib=B, B is connected and in parent → insertBefore(A, B) → parent=[A, B]
+    // i=0 (C): nextSib=null → appendChild → parent=[A, B, C]
+    expect(parent.children.length).toBe(3)
+    expect(parent.contains(a)).toBe(true)
+    expect(parent.contains(b)).toBe(true)
+    expect(parent.contains(c)).toBe(true)
+    expect(parent.contains(group)).toBe(false)
+  })
 })
 
 // ---------------------------------------------------------------------------

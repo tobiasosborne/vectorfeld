@@ -221,18 +221,41 @@ export class ReorderElementCommand implements Command {
   }
 }
 
+/** Per-child provenance captured before execute() moves anything. */
+interface ChildOrigin {
+  el: Element
+  parent: Element
+  nextSibling: Element | null
+}
+
 export class GroupCommand implements Command {
   readonly description = 'Group'
   private parent: Element
   private group: Element
   private children: Element[]
   private insertBefore: Element | null
+  /**
+   * Per-child provenance captured at construction time (before execute() moves
+   * any child into the group). Used by undo() to restore each child to its
+   * ORIGINAL layer/parent at its original document position, regardless of
+   * whether the selection spans multiple layers.
+   *
+   * Without this, undo() restored ALL children into sel[0]'s layer, silently
+   * emptying other layers (vectorfeld-3yu.11).
+   */
+  private origins: ChildOrigin[]
 
   constructor(parent: Element, group: Element, children: Element[]) {
     this.parent = parent
     this.group = group
     this.children = [...children]
     this.insertBefore = children[0] // insert group where first child was
+    // Capture provenance now, while each child is still in its original parent.
+    this.origins = this.children.map((child) => ({
+      el: child,
+      parent: child.parentElement!,
+      nextSibling: child.nextElementSibling,
+    }))
   }
 
   execute(): void {
@@ -243,9 +266,22 @@ export class GroupCommand implements Command {
   }
 
   undo(): void {
-    // Move children back to parent, before the group
-    for (const child of this.children) {
-      this.parent.insertBefore(child, this.group)
+    // Restore in reverse order so that when we restore child[i], its captured
+    // nextSibling (child[i+1]) is typically already back in the DOM, maximising
+    // correct sibling placement. The connectivity guard makes either order safe.
+    for (let i = this.origins.length - 1; i >= 0; i--) {
+      const o = this.origins[i]
+      // Connectivity guard: only use the captured nextSibling as the reference
+      // if it is still in the DOM and is a child of the target parent. Otherwise
+      // fall back to append (null ref), which is always safe and avoids the
+      // NotFoundError that a dangling/ungrouped sibling would cause.
+      const ref =
+        o.nextSibling !== null &&
+        o.nextSibling.isConnected &&
+        o.nextSibling.parentElement === o.parent
+          ? o.nextSibling
+          : null
+      o.parent.insertBefore(o.el, ref)
     }
     this.group.remove()
   }
