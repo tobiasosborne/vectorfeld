@@ -61,10 +61,20 @@ console.log('INVENTORY:', JSON.stringify(inv, null, 2))
 
 // Find a target text run containing recognizable content
 const target = await page.evaluate(() => {
+  const vw = window.innerWidth, vh = window.innerHeight
   const texts = Array.from(document.querySelectorAll('g[data-layer-name] text'))
-  let el = texts.find(t => (t.textContent || '').trim().length >= 2) || texts[0]
-  if (!el) return null
-  const r = el.getBoundingClientRect()
+  // Only consider text runs whose bounding rect is fully ON-SCREEN and clickable
+  // (a tall A4 page leaves footer runs below the 900px fold — clicking those
+  // would land off-viewport and select nothing, masking the real behaviour).
+  const onscreen = texts
+    .map((t) => ({ t, r: t.getBoundingClientRect() }))
+    .filter(({ t, r }) => (t.textContent || '').trim().length >= 2
+      && r.width > 4 && r.height > 4
+      && r.left >= 0 && r.top >= 0 && r.right <= vw && r.bottom <= vh)
+  onscreen.sort((a, b) => b.r.width - a.r.width) // widest run = easiest hit target
+  const pick = onscreen[0]
+  if (!pick) return null
+  const { t: el, r } = pick
   return {
     text: (el.textContent || ''),
     fill: el.getAttribute('fill'),
@@ -98,7 +108,8 @@ await page.keyboard.press('v'); await page.waitForTimeout(100)
 await page.mouse.click(target.x, target.y)
 await page.waitForTimeout(300)
 await shot(page, 'exp-pdf-text-edit-01-singleclick')
-console.log('A) SINGLE CLICK:', JSON.stringify(await snap()))
+const snapA = await snap()
+console.log('A) SINGLE CLICK:', JSON.stringify(snapA))
 
 // What exact element did the click select?
 const selectedInfo = await page.evaluate(() => {
@@ -114,6 +125,27 @@ const selectedInfo = await page.evaluate(() => {
   }
 })
 console.log('A) SELECTED DOM:', JSON.stringify(selectedInfo))
+
+// GATE (vectorfeld-3yu.3): a single click on imported text must resolve to the
+// inner <text> leaf — NOT the wrapping run <g> — so the Font section renders.
+// Robust signals: the Inspector header reads "TEXT · 1 SELECTED" (it gates the
+// whole panel on the selected element being a <text>) AND the Font section
+// renders (PropertiesPanel gates Font/Family/Size on tag === 'text'). The app
+// marks selection via [data-role="selection-box"] overlays, NOT a data-selected
+// attribute, so selectedInfo.selectedTags is only diagnostic, never the gate.
+{
+  const sd = snapA || (await snap())
+  const inspectorIsText = /^\s*TEXT\b/i.test(sd.selectedTag || '')
+  const fontVisible = sd.hasFontSection === true
+  console.log('A) GATE inspectorIsText=%s hasFontSection=%s (diag tags=%s)',
+    inspectorIsText, fontVisible, JSON.stringify(selectedInfo.selectedTags || []))
+  if (inspectorIsText && fontVisible) {
+    console.log('A) GATE PASS: single click selects inner <text> and Font section renders')
+  } else {
+    console.log('A) GATE FAIL: single click did not resolve to a <text> leaf (Inspector=%s, Font=%s)',
+      inspectorIsText, fontVisible)
+  }
+}
 
 // === PATH B: double-click to enter edit mode ===
 await page.mouse.dblclick(target.x, target.y)

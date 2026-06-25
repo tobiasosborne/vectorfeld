@@ -3,9 +3,10 @@
  * bounding box computation and hit testing.
  */
 
-import { parseTransform, applyMatrixToPoint, multiplyMatrix, translateMatrix, matrixToString } from './matrix'
+import { parseTransform, applyMatrixToPoint, multiplyMatrix, translateMatrix, matrixToString, identityMatrix, type Matrix } from './matrix'
 import { translatePathD } from './pathOps'
 import { screenToDoc } from './coordinates'
+import { isFromSource } from './sourceTagging'
 
 export interface BBox {
   x: number
@@ -167,6 +168,98 @@ export interface HitTestOptions {
 }
 
 /**
+ * Is `el` a structural PDF run-wrapper rather than a user-authored group?
+ *
+ * MuPDF's SVG device emits one `<g>` per text run, each wrapping a single
+ * `<text>`; `flattenAndScalePdfLayer` promotes these to direct layer
+ * children. They carry NO semantic meaning — a click should resolve to the
+ * inner leaf, not the wrapper.
+ *
+ * We distinguish them from a user's semantic Group (created by GroupCommand)
+ * via the EXISTING source-tag signal: `sourceTagging` stamps `data-src-*` on
+ * imported LEAVES (`<text>`/`<tspan>`/`<path>`/…) but NEVER on container
+ * `<g>`. So a wrapper is "a `<g>` that is itself NOT source-tagged yet wraps
+ * a source-tagged descendant". A user group (no source-tagged descendants)
+ * fails this test and stays selectable as a unit. No new persisted state.
+ */
+function isStructuralRunWrapper(el: Element): boolean {
+  if (el.tagName !== 'g') return false
+  if (isFromSource(el)) return false
+  // Cheap: descend until we find a source-tagged descendant.
+  for (const desc of Array.from(el.querySelectorAll('*'))) {
+    if (isFromSource(desc)) return true
+  }
+  return false
+}
+
+/** AABB containment test for a doc-space point against a local bbox + composed matrix. */
+function aabbHit(
+  el: Element,
+  composed: Matrix,
+  pt: { x: number; y: number },
+  tolerance: number,
+): boolean {
+  let bbox: BBox
+  try {
+    bbox = (el as SVGGraphicsElement).getBBox()
+  } catch {
+    return false
+  }
+  const aabb = transformedAABB(bbox, matrixToString(composed))
+  const padX = aabb.width < tolerance * 2 ? tolerance : 0
+  const padY = aabb.height < tolerance * 2 ? tolerance : 0
+  return (
+    pt.x >= aabb.x - padX && pt.x <= aabb.x + aabb.width + padX &&
+    pt.y >= aabb.y - padY && pt.y <= aabb.y + aabb.height + padY
+  )
+}
+
+/**
+ * Resolve the most-specific hit leaf under `pt` for a single layer child.
+ *
+ * `parentMatrix` is the accumulated doc-space transform of `child`'s parent
+ * chain (identity for a direct layer child). The child's own transform is
+ * composed on top, so `getBBox()` (local space) is tested correctly against
+ * the doc-space `pt` — this MUST compose because in real PDF imports the
+ * run-wrapper carries `scale(s)` AND the inner `<text>` carries MuPDF's
+ * y-flip `matrix(...)`; they multiply.
+ *
+ * When `child` is a structural run-wrapper, descent RECURSES through nested
+ * wrappers (clip-group > g > text) to reach the leaf. `tagFilter` is
+ * re-applied to whatever leaf is finally resolved, so direct-select (which
+ * excludes `g`/`text`) never surfaces a `<text>` it was meant to skip.
+ *
+ * Returns the resolved element, or `null` on a miss / filtered-out leaf.
+ */
+function resolveHitLeaf(
+  child: Element,
+  pt: { x: number; y: number },
+  parentMatrix: Matrix,
+  tagFilter: Set<string> | undefined,
+  tolerance: number,
+): Element | null {
+  const composed = multiplyMatrix(parentMatrix, parseTransform(child.getAttribute('transform') || ''))
+  if (!aabbHit(child, composed, pt, tolerance)) return null
+
+  if (isStructuralRunWrapper(child)) {
+    // Descend into the wrapper to find the most-specific leaf. Iterate
+    // topmost-first so stacked runs resolve to the visually-top element.
+    const kids = child.children
+    for (let i = kids.length - 1; i >= 0; i--) {
+      const leaf = resolveHitLeaf(kids[i], pt, composed, tagFilter, tolerance)
+      if (leaf) return leaf
+    }
+    // Wrapper was hit but no descendant leaf qualified (e.g. tagFilter
+    // excluded all of them) — surface nothing rather than the wrapper,
+    // since the wrapper itself is non-semantic.
+    return null
+  }
+
+  if (tagFilter && !tagFilter.has(child.tagName)) return null
+  return child
+}
+
+/**
  * Hit test: find topmost element under cursor.
  * Transform-aware (uses full affine matrix).
  */
@@ -190,21 +283,10 @@ export function hitTestElement(
     if ((layer as SVGElement).style.display === 'none') continue
     const children = layer.children
     for (let ci = children.length - 1; ci >= 0; ci--) {
-      const child = children[ci]
-      if (tagFilter && !tagFilter.has(child.tagName)) continue
-      try {
-        const bbox = (child as SVGGraphicsElement).getBBox()
-        const transform = child.getAttribute('transform')
-        const aabb = transformedAABB(bbox, transform)
-        const padX = aabb.width < tolerance * 2 ? tolerance : 0
-        const padY = aabb.height < tolerance * 2 ? tolerance : 0
-        if (
-          pt.x >= aabb.x - padX && pt.x <= aabb.x + aabb.width + padX &&
-          pt.y >= aabb.y - padY && pt.y <= aabb.y + aabb.height + padY
-        ) {
-          return child
-        }
-      } catch { /* skip */ }
+      // resolveHitLeaf descends through PDF run-wrappers to the inner leaf
+      // and re-applies tagFilter, so we don't pre-filter children here.
+      const leaf = resolveHitLeaf(children[ci], pt, identityMatrix(), tagFilter, tolerance)
+      if (leaf) return leaf
     }
   }
   return null
@@ -231,20 +313,9 @@ export function hitTestAll(
     if ((layer as SVGElement).style.display === 'none') continue
     const children = layer.children
     for (let ci = children.length - 1; ci >= 0; ci--) {
-      const child = children[ci]
-      try {
-        const bbox = (child as SVGGraphicsElement).getBBox()
-        const transform = child.getAttribute('transform')
-        const aabb = transformedAABB(bbox, transform)
-        const padX = aabb.width < tolerance * 2 ? tolerance : 0
-        const padY = aabb.height < tolerance * 2 ? tolerance : 0
-        if (
-          pt.x >= aabb.x - padX && pt.x <= aabb.x + aabb.width + padX &&
-          pt.y >= aabb.y - padY && pt.y <= aabb.y + aabb.height + padY
-        ) {
-          hits.push(child)
-        }
-      } catch { /* skip */ }
+      // Descend run-wrappers to the inner leaf (no tag filter for cycle-through).
+      const leaf = resolveHitLeaf(children[ci], pt, identityMatrix(), undefined, tolerance)
+      if (leaf) hits.push(leaf)
     }
   }
   return hits
