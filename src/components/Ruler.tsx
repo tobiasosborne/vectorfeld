@@ -5,8 +5,28 @@
  */
 import { useRef, useEffect, useCallback, useState } from 'react'
 import { addGuide } from '../model/guides'
+import { screenToDoc, type Point } from '../model/coordinates'
 
 const RULER_SIZE = 14 // px (Atrium thin ruler)
+
+/** Round to one decimal place (0.1mm) — guide-position granularity. */
+function round1(n: number): number {
+  return Math.round(n * 10) / 10
+}
+
+/**
+ * Document-space position for a guide dropped at `docPoint`.
+ * A horizontal ('h') guide is a horizontal line that lives at a document Y;
+ * a vertical ('v') guide lives at a document X (see Canvas guide rendering and
+ * guides.candidates()). Result is rounded to 0.1mm.
+ *
+ * Regression guard for vectorfeld-3yu.20: the rulers previously fed the
+ * ALONG-ruler coordinate (HRuler→x, VRuler→y) into the guide, placing every
+ * guide on the orthogonal axis. The axis and the coordinate must agree.
+ */
+export function guideDropPosition(axis: 'h' | 'v', docPoint: Point): number {
+  return round1(axis === 'h' ? docPoint.y : docPoint.x)
+}
 
 // Resolve an Atrium CSS var to a concrete color string for canvas-rendering.
 function cssVar(name: string, fallback: string): string {
@@ -56,9 +76,11 @@ interface RulerProps {
   viewBox: ViewBoxInfo
   canvasSize: number   // px dimension along ruler axis
   cursorPos: number    // document units along ruler axis
+  /** Live SVG element accessor — used to map the drop point to document space. */
+  getSvg?: () => SVGSVGElement | null
 }
 
-export function HRuler({ viewBox, canvasSize, cursorPos }: RulerProps) {
+export function HRuler({ viewBox, canvasSize, cursorPos, getSvg }: RulerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [dragging, setDragging] = useState(false)
 
@@ -148,34 +170,37 @@ export function HRuler({ viewBox, canvasSize, cursorPos }: RulerProps) {
     e.preventDefault()
   }, [])
 
-  const handleMouseUp = useCallback((e: React.MouseEvent) => {
-    if (dragging && canvasSize > 0 && viewBox.width > 0) {
+  // A guide drop RELEASES over the canvas (below the ruler), so the mouseup
+  // never targets the ruler element — an element-level onMouseUp can never fire
+  // with `clientY > rect.bottom`. Listen on window while dragging instead.
+  useEffect(() => {
+    if (!dragging) return
+    const onUp = (e: MouseEvent) => {
       const rect = canvasRef.current?.getBoundingClientRect()
-      if (!rect) return
-      // If mouse moved below ruler, create a horizontal guide
-      if (e.clientY > rect.bottom) {
-        const px = e.clientX - rect.left
-        const docX = viewBox.x + (px / canvasSize) * viewBox.width
-        // Horizontal guide at the cursor Y position — but we need doc coords
-        // For now, create at a position derived from cursor
-        addGuide('h', Math.round(docX * 10) / 10)
+      const svg = getSvg?.()
+      // Released below the H-ruler → horizontal guide at the drop's document Y
+      // (mapped via the live SVG transform, not the ruler's axis).
+      if (rect && svg && e.clientY > rect.bottom) {
+        addGuide('h', guideDropPosition('h', screenToDoc(svg, e.clientX, e.clientY)))
       }
+      setDragging(false)
     }
-    setDragging(false)
-  }, [dragging, canvasSize, viewBox])
+    window.addEventListener('mouseup', onUp)
+    return () => window.removeEventListener('mouseup', onUp)
+  }, [dragging, getSvg])
 
   return (
     <canvas
       ref={canvasRef}
       className="block"
+      data-role="hruler"
       style={{ width: '100%', height: RULER_SIZE, cursor: 'default' }}
       onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
     />
   )
 }
 
-export function VRuler({ viewBox, canvasSize, cursorPos }: RulerProps) {
+export function VRuler({ viewBox, canvasSize, cursorPos, getSvg }: RulerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [dragging, setDragging] = useState(false)
 
@@ -269,27 +294,30 @@ export function VRuler({ viewBox, canvasSize, cursorPos }: RulerProps) {
     e.preventDefault()
   }, [])
 
-  const handleMouseUp = useCallback((e: React.MouseEvent) => {
-    if (dragging && canvasSize > 0 && viewBox.height > 0) {
+  // See HRuler: the drop releases right of the ruler, over the canvas, so the
+  // release must be tracked on window, not via the ruler's onMouseUp.
+  useEffect(() => {
+    if (!dragging) return
+    const onUp = (e: MouseEvent) => {
       const rect = canvasRef.current?.getBoundingClientRect()
-      if (!rect) return
-      // If mouse moved right of ruler, create a vertical guide
-      if (e.clientX > rect.right) {
-        const py = e.clientY - rect.top
-        const docY = viewBox.y + (py / canvasSize) * viewBox.height
-        addGuide('v', Math.round(docY * 10) / 10)
+      const svg = getSvg?.()
+      // Released right of the V-ruler → vertical guide at the drop's document X.
+      if (rect && svg && e.clientX > rect.right) {
+        addGuide('v', guideDropPosition('v', screenToDoc(svg, e.clientX, e.clientY)))
       }
+      setDragging(false)
     }
-    setDragging(false)
-  }, [dragging, canvasSize, viewBox])
+    window.addEventListener('mouseup', onUp)
+    return () => window.removeEventListener('mouseup', onUp)
+  }, [dragging, getSvg])
 
   return (
     <canvas
       ref={canvasRef}
       className="block"
+      data-role="vruler"
       style={{ width: RULER_SIZE, height: '100%', cursor: 'default' }}
       onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
     />
   )
 }

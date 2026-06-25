@@ -34,6 +34,11 @@ function AppContent() {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const toolsRegistered = useRef(false)
 
+  // Stable live-SVG accessor for the rulers' drag-to-guide drop mapping
+  // (screenToDoc needs the current transform at mouseup; svgRef.current
+  // is set in handleSvgReady).
+  const getSvg = useCallback(() => svgRef.current, [])
+
   const handleSvgReady = useCallback((svg: SVGSVGElement) => {
     svgRef.current = svg
     editor.setSvg(svg)
@@ -324,10 +329,10 @@ function AppContent() {
         >
           <div style={{ gridArea: 'corner' }} />
           <div style={{ gridArea: 'hruler', overflow: 'hidden', opacity: 0.6 }}>
-            <HRuler viewBox={canvasState.viewBox} canvasSize={canvasSize.width} cursorPos={canvasState.cursorX} />
+            <HRuler viewBox={canvasState.viewBox} canvasSize={canvasSize.width} cursorPos={canvasState.cursorX} getSvg={getSvg} />
           </div>
           <div style={{ gridArea: 'vruler', overflow: 'hidden', opacity: 0.6 }}>
-            <VRuler viewBox={canvasState.viewBox} canvasSize={canvasSize.height} cursorPos={canvasState.cursorY} />
+            <VRuler viewBox={canvasState.viewBox} canvasSize={canvasSize.height} cursorPos={canvasState.cursorY} getSvg={getSvg} />
           </div>
           <div ref={canvasContainerRef} style={{ gridArea: 'canvas', overflow: 'hidden' }}>
             <Canvas

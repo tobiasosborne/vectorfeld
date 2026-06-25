@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { addGuide, removeGuide, getGuides, clearAllGuides, subscribeGuides, getGuideCandidates, resetGuides } from './guides'
+import { guideDropPosition } from '../components/Ruler'
 
 beforeEach(() => {
   resetGuides()
@@ -68,5 +69,36 @@ describe('guides', () => {
     const guides = getGuides()
     guides.push({ id: 'fake', axis: 'v', position: 0 })
     expect(getGuides()).toHaveLength(1) // original unaffected
+  })
+})
+
+describe('guideDropPosition (vectorfeld-3yu.20 axis-swap regression)', () => {
+  // Asymmetric drop so an axis swap (the original bug) produces a different
+  // number and fails. docX !== docY by construction.
+  const drop = { x: 30, y: 200 }
+
+  it("an 'h' guide tracks the drop's document Y (not X)", () => {
+    expect(guideDropPosition('h', drop)).toBe(200)
+  })
+
+  it("a 'v' guide tracks the drop's document X (not Y)", () => {
+    expect(guideDropPosition('v', drop)).toBe(30)
+  })
+
+  it('rounds to 0.1mm', () => {
+    expect(guideDropPosition('h', { x: 12.34, y: 56.789 })).toBe(56.8)
+    expect(guideDropPosition('v', { x: 12.34, y: 56.789 })).toBe(12.3)
+  })
+
+  it('a created horizontal guide renders at the drop Y, a vertical guide at the drop X', () => {
+    // End-to-end through the guide model: axis tag and coordinate must agree
+    // with Canvas rendering (axis:'h' line lives at y=position; 'v' at x=position).
+    addGuide('h', guideDropPosition('h', drop))
+    addGuide('v', guideDropPosition('v', drop))
+    const guides = getGuides()
+    const h = guides.find((g) => g.axis === 'h')
+    const v = guides.find((g) => g.axis === 'v')
+    expect(h?.position).toBe(200) // horizontal line at document y = 200
+    expect(v?.position).toBe(30)  // vertical line at document x = 30
   })
 })
