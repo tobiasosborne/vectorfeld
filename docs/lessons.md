@@ -147,3 +147,26 @@
 - pdf-lib defaults Helvetica/Times/Courier to the standard 14 references — they appear in the page's `/Resources/Font` but with no `/FontDescriptor/FontFile{,2,3}` stream. The graft engine's source-font extraction path correctly skips them via `hasEmbeddedProgram=false`, but tests built on synthetic pdf-lib source PDFs can't exercise extraction at all.
 - Rule for graft-engine integration tests that need to verify source-font handling: use the flyer fixture (or any real-PDF fixture under `test/dogfood/fixtures/`), or build an explicit fixture via `mupdf.addFont(carlitoBytes)` so an embedded program is actually present.
 - Detection: if `listPageFonts(synthDoc, 0)` returns one entry with `hasEmbeddedProgram=false` and a standard-font BaseFont (`Helvetica`, `Times-Roman`, `Courier`), the test setup is wrong for source-font work.
+
+## Parallel subagents on ONE working tree: forbid git ops, ignore foreign tsc errors
+
+- Concrete burn (adversarial-review remediation): three implementer subagents ran concurrently on the shared working tree (disjoint files). One, to test its OWN `tsc -b` cleanly amid the others' in-flight edits, did `git checkout HEAD -- <other agents' files>` then "restored" them — a near-miss that could have clobbered the other two agents' uncommitted work. It also mis-reported "tsc errors" that were just the other agents' transient mid-edit unused-imports.
+- Rules when fanning out implementers over a shared tree:
+  1. Partition by file. Each agent edits ONLY its assigned file(s) + its own new test/scenario files.
+  2. Explicitly forbid `git checkout/stash/revert/restore` and forbid reverting/modifying any file the agent did not create.
+  3. Tell agents that `tsc -b` is repo-wide: errors in files they did NOT edit are concurrent work to be IGNORED; only their own files must be clean.
+  4. Implementers must NOT run `npm run golden` / dev server / headed scenarios (they race on `:5173` + masters). The ORCHESTRATOR runs all integration gates once on the consistent tree, then commits each bead selectively.
+- git worktree isolation is NOT a cheap fix here: JS worktrees lack `node_modules`, so `npm test`/`tsc` break inside them. Sequential or partitioned-shared-tree is the pragmatic model.
+
+## Implementer-written headed scenarios are unverified scaffolding — the orchestrator must run + fix them
+
+- Implementers told "prepare the headed scenario, don't run it" routinely ship scenarios with targeting/measurement bugs that produce FALSE failures:
+  - **Off-screen click**: picking a `<text>`/element by DOM order can land on a run below the 900px viewport fold (a tall A4 page) — `page.mouse.click` at `getBoundingClientRect()` y≈1448 hits nothing. Filter targets to those fully within `window.innerWidth/innerHeight`, prefer the widest on-screen run.
+  - **Wrong-element measurement**: every pdf-lib export draws the full-page white artboard background rect FIRST, so `pts.slice(0,4)` measures the background (axis-aligned, distinctX=2), not the foreground shape. Exclude page-boundary points (`x<=1||y<=1||x>=maxX-1||y>=maxY-1`) before asserting.
+  - **Wrong selection signal**: the app marks selection via `[data-role="selection-box"]` overlays, NOT a `data-selected` attribute on elements. Gate on the Inspector header (`/^TEXT\b/`) + `hasFontSection`, never on a `[data-selected]` query.
+- Rule: never trust an implementer's "GATE FAIL" at face value — render the artifact / inspect the raw content stream to decide whether the FIX or the SCENARIO is wrong, then fix the scenario before committing.
+
+## Golden re-master: verify the new master is RIGHT before `--accept`, never blind-record
+
+- A change to a shape emitter (e.g. routing rect/ellipse/circle through path ops) ripples to ALL pdf-lib golden stories because every export draws the artboard background rect first — even `03-text`/`09-bezier` go red though they have no rotated shape.
+- Before `node test/golden/run.mjs --accept <story>`: (1) confirm the `.svg.canonical` is byte-IDENTICAL (SVG is the pixel-lossless source of truth — if SVG is unchanged, the visual document is unchanged); (2) confirm fill/stroke ops are preserved in the new `.pdf.json`; (3) render the pending `.pdf` (`pdftoppm`/`mutool`) and eyeball it. Only then accept. The gate already proved it can fail (it went red on your change) — re-recording the VERIFIED-correct value keeps it strict. Never `golden:record` to make red go away.
