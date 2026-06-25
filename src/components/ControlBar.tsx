@@ -104,6 +104,14 @@ export function ControlBar() {
     return subscribeSelection(update)
   }, [])
 
+  // Re-render on every history mutation so the Frame readout (X/Y/W/H/R) reflects
+  // post-nudge/edit/undo geometry. Without this, the readout subscribes only to
+  // SELECTION changes, so a nudge or inspector edit (which mutate geometry but not
+  // the selection) leaves it showing STALE values until re-select (vectorfeld-3yu.17).
+  // Mirrors PropertiesPanel. Focused inputs keep their in-progress text because
+  // CompactInput's `editing` guard ignores the external value while focused.
+  useEffect(() => history.subscribe(() => setTick(t => t + 1)), [history])
+
   const applyAttr = (el: Element, attr: string, value: string) => {
     history.execute(new ModifyAttributeCommand(el, attr, value))
     refreshOverlay()
