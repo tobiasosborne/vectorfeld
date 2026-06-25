@@ -69,6 +69,13 @@ import type * as mupdfTypes from 'mupdf'
 
 const MM_TO_PT = 72 / 25.4
 const OVERLAY_FONT_KEY = 'VfCarlito'
+const OVERLAY_FONT_KEY_BOLD = 'VfCarlitoBold'
+const OVERLAY_FONT_KEY_ITALIC = 'VfCarlitoItalic'
+
+/** Prefix shared by every overlay-Carlito page-resource key. The family-
+ *  alias stage of {@link makeFontRegistry} is BOUNDED to keys with this
+ *  prefix so a generic-sans run can never resolve to a source-font slot. */
+const OVERLAY_FONT_KEY_PREFIX = 'VfCarlito'
 
 const LEAF_TAGS = new Set(['rect', 'line', 'circle', 'ellipse', 'path', 'text'])
 const TEXT_TAGS = new Set(['text'])
@@ -80,6 +87,14 @@ export interface ExportViaGraftOpts {
    *  via emitText. Engine throws a clear actionable error if a font is
    *  needed and none is supplied. */
   carlito?: Uint8Array
+  /** Carlito-Bold bytes. Optional — when present, bold overlay/generic-sans
+   *  runs route to a dedicated bold slot instead of collapsing to regular
+   *  Carlito (vectorfeld-3yu.23). Omitting it still exports (bold degrades
+   *  gracefully to whatever Carlito faces are registered). */
+  carlitoBold?: Uint8Array
+  /** Carlito-Italic bytes. Optional — when present, italic overlay/generic-
+   *  sans runs route to a dedicated italic slot (vectorfeld-3yu.23). */
+  carlitoItalic?: Uint8Array
 }
 
 interface ClassifiedEntry {
@@ -368,10 +383,31 @@ async function ensureFontIfNeeded(
     const sourceSlots = await gatherSourceFontSlots(out, pageIdx, found)
     slots.push(...sourceSlots)
   }
+  // Families owned by a registered source slot. A run with such a family
+  // resolves to its source slot at rules 1–3 (source slots precede Carlito
+  // in the registry), so it never needs a Carlito Bold/Italic face — this
+  // is what keeps a recolored *bold source heading* off the Carlito bold
+  // face and out of the golden-master churn. (vectorfeld-3yu.23)
+  const sourceFamilies = new Set(slots.map((s) => s.family.toLowerCase()))
 
-  // Carlito slot — fallback for new content + coverage gaps
-  // (chars the source-font subset doesn't have). Always registered
-  // when text emission is needed.
+  // Carlito slots — fallback for new content + coverage gaps (chars the
+  // source-font subset doesn't have). The Regular face is ALWAYS registered
+  // (it is also the registry's fallbackKey).
+  //
+  // Bold/Italic faces register only when (a) their bytes are supplied AND
+  // (b) the document actually emits a bold/italic overlay run. The usage
+  // gate matters: mupdf's saveToBuffer does NOT prune an unreferenced font
+  // from /Resources/Font, so always-registering bold+italic would bloat
+  // every text page with two unused CID fonts and churn every text golden
+  // master — not just the bold/italic ones. Omitting the bytes (or the
+  // usage) still exports: a bold/italic run then degrades gracefully via
+  // the family-alias chain to whatever Carlito faces exist. (vectorfeld-3yu.23)
+  //
+  // NOTE: Carlito ships no BoldItalic face, so a bold+italic run currently
+  // maps to Bold (handled in makeFontRegistry's alias stage); adding the
+  // 4th face is a separate follow-up bead.
+  const wants = overlayWantsFaces(classifications, foundIdx, sourceFamilies)
+
   const { fontkitFont: carlitoFont } = await registerCidFont(
     out, pageIdx, OVERLAY_FONT_KEY, opts.carlito,
   )
@@ -382,6 +418,32 @@ async function ensureFontIfNeeded(
     style: 'normal',
     fontkitFont: carlitoFont,
   })
+
+  if (opts.carlitoBold && wants.bold) {
+    const { fontkitFont } = await registerCidFont(
+      out, pageIdx, OVERLAY_FONT_KEY_BOLD, opts.carlitoBold,
+    )
+    slots.push({
+      key: OVERLAY_FONT_KEY_BOLD,
+      family: 'Carlito',
+      weight: 'bold',
+      style: 'normal',
+      fontkitFont,
+    })
+  }
+
+  if (opts.carlitoItalic && wants.italic) {
+    const { fontkitFont } = await registerCidFont(
+      out, pageIdx, OVERLAY_FONT_KEY_ITALIC, opts.carlitoItalic,
+    )
+    slots.push({
+      key: OVERLAY_FONT_KEY_ITALIC,
+      family: 'Carlito',
+      weight: 'normal',
+      style: 'italic',
+      fontkitFont,
+    })
+  }
 
   return makeFontRegistry(slots, OVERLAY_FONT_KEY)
 }
@@ -476,6 +538,82 @@ function layerHasText(layer: Element): boolean {
   return hasDescendantWithTag(layer, TEXT_TAGS)
 }
 
+/**
+ * Scan the text the overlay pipeline will actually emit and report whether
+ * a bold and/or italic Carlito face is needed. USAGE-GATES bold/italic
+ * registration so pages that don't render bold/italic via Carlito stay
+ * byte-clean — mupdf's save does NOT prune an unreferenced font, so an
+ * always-on bold/italic face would bloat every text page and churn every
+ * text golden master (vectorfeld-3yu.23).
+ *
+ * Mirrors {@link classificationsNeedFont}'s element selection so the scan
+ * sees exactly the runs `emitText` will: foundation-graft contributes
+ * nothing; foundation-mixed contributes modified + new elements; every
+ * other layer contributes all its text. Per text element it derives each
+ * run's effective `(family, weight, style)` the same way `collectTextRuns`
+ * does — tspans inherit text-level attrs.
+ *
+ * A face is needed only for a run that RESOLVES to it (precisely mirroring
+ * `resolveFontKey`):
+ *   - `rendersViaCarlito`: the run's family is NOT owned by a source slot
+ *     (those resolve to their source font at rules 1–3) AND is a generic-
+ *     sans alias family (or literal 'Carlito'). Unmatched non-alias
+ *     families fall back to regular Carlito and need no extra face.
+ *   - bold ⇒ Bold face; non-bold italic ⇒ Italic face. Bold+italic maps to
+ *     Bold (no BoldItalic face), matching the alias's weight-first rule.
+ * This keeps a recolored bold/italic *source* heading off the Carlito faces
+ * (it renders in its own source font) while still catching new/generic-sans
+ * bold/italic overlay text.
+ */
+function overlayWantsFaces(
+  classifications: ClassifiedEntry[],
+  foundIdx: number,
+  sourceFamilies: ReadonlySet<string>,
+): { bold: boolean; italic: boolean } {
+  const acc = { bold: false, italic: false }
+
+  const rendersViaCarlito = (familyRaw: string | null): boolean => {
+    const fam = (familyRaw ?? '').toLowerCase()
+    if (sourceFamilies.has(fam)) return false
+    return fam === 'carlito' || SANS_ALIAS_FAMILIES.has(fam)
+  }
+  const consider = (familyRaw: string | null, weightRaw: string | null, styleRaw: string | null): void => {
+    if (!rendersViaCarlito(familyRaw)) return
+    if (normalizeWeight(weightRaw) === 'bold') acc.bold = true
+    else if (normalizeStyle(styleRaw) === 'italic') acc.italic = true
+  }
+  const scanTextEl = (textEl: Element): void => {
+    const fam = textEl.getAttribute('font-family')
+    const wgt = textEl.getAttribute('font-weight')
+    const sty = textEl.getAttribute('font-style')
+    const tspans = Array.from(textEl.children).filter((c) => c.tagName.toLowerCase() === 'tspan')
+    if (tspans.length === 0) { consider(fam, wgt, sty); return }
+    for (const ts of tspans) {
+      consider(
+        ts.getAttribute('font-family') ?? fam,
+        ts.getAttribute('font-weight') ?? wgt,
+        ts.getAttribute('font-style') ?? sty,
+      )
+    }
+  }
+  const scanSubtree = (root: Element): void => {
+    if (root.tagName.toLowerCase() === 'text') { scanTextEl(root); return }
+    for (const c of Array.from(root.children)) scanSubtree(c)
+  }
+
+  classifications.forEach((c, i) => {
+    if (acc.bold && acc.italic) return // both found — nothing more to learn
+    if (i === foundIdx && c.cls.kind === 'graft') return
+    if (i === foundIdx && c.cls.kind === 'mixed') {
+      for (const el of [...c.cls.modifiedElements, ...c.cls.newElements]) scanSubtree(el)
+      return
+    }
+    scanSubtree(c.layer)
+  })
+
+  return acc
+}
+
 function mixedNeedsFont(modifiedElements: Element[], newElements: Element[]): boolean {
   return [...modifiedElements, ...newElements].some(
     (el) => el.tagName.toLowerCase() === 'text' || hasDescendantWithTag(el, TEXT_TAGS),
@@ -508,6 +646,39 @@ export interface RegisteredFont {
 }
 
 /**
+ * Generic / well-known sans-serif `font-family` names that the app and
+ * SVG/PDF imports emit but that never literally equal `Carlito`. The app's
+ * text tool defaults new text to `sans-serif`; imported/pasted runs carry
+ * names like `Arial` or `Helvetica`. None of these match a registered
+ * Carlito slot by family, so without an alias every bold/italic generic-
+ * sans run would collapse to the regular fallback even when bold/italic
+ * Carlito faces are registered (vectorfeld-3yu.23).
+ *
+ * All entries are lowercase (the lookup lowercases the run's family first).
+ * Carlito itself is intentionally absent — `family='Carlito'` already
+ * matches the registered slots directly at rules 1–3, never reaching the
+ * alias stage.
+ */
+const SANS_ALIAS_FAMILIES = new Set<string>([
+  'sans-serif',
+  'sans',
+  'ui-sans-serif',
+  'system-ui',
+  'arial',
+  'helvetica',
+  'helvetica neue',
+  'calibri',
+  'liberation sans',
+  'segoe ui',
+  'tahoma',
+  'verdana',
+  'trebuchet ms',
+  'roboto',
+  'open sans',
+  'noto sans',
+])
+
+/**
  * Build a `FontRegistry` that picks among multiple registered fonts
  * by matching the SVG (family, weight, style) triple. Used by the
  * graft engine to route new text through Carlito while routing
@@ -518,7 +689,15 @@ export interface RegisteredFont {
  *   1. Exact match on (lowercased family, weight, style).
  *   2. Exact match on (family, weight=fallback-normal, style).
  *   3. Exact match on (family) regardless of weight/style.
- *   4. Fallback to `fallbackKey` (the overlay-Carlito slot).
+ *   4. FAMILY ALIAS (vectorfeld-3yu.23): if the run's family is a generic
+ *      sans name ({@link SANS_ALIAS_FAMILIES}) with no registered slot,
+ *      route into the Carlito overlay group by weight/style — bold→bold,
+ *      italic→italic, bold+italic→bold (no BoldItalic face). BOUNDED to
+ *      keys prefixed `VfCarlito` so it can NEVER hijack a source-font slot:
+ *      source fonts carry real family names (e.g. `Calibri`) and already
+ *      matched at rules 1–3, so this stage only fires when no family match
+ *      exists at all — source-font fidelity is untouched.
+ *   5. Fallback to `fallbackKey` (the overlay-Carlito-Regular slot).
  *
  * When no fonts are passed and `fallbackKey` is the only slot, the
  * registry behaves like the previous single-font registry.
@@ -538,6 +717,11 @@ export function makeFontRegistry(
     family: f.family.toLowerCase(),
   }))
 
+  // The bounded alias group: only overlay-Carlito faces. Precomputed once;
+  // the family-alias stage picks exclusively from here so it cannot resolve
+  // to a `VfSrc*` source-font slot (vectorfeld-3yu.23).
+  const carlitoAliasSlots = slots.filter((s) => s.key.startsWith(OVERLAY_FONT_KEY_PREFIX))
+
   return {
     resolveFontKey(family, style, weight) {
       const fam = (family ?? '').toLowerCase()
@@ -552,6 +736,20 @@ export function makeFontRegistry(
       // 3. family only
       const byFamily = slots.find((s) => s.family === fam)
       if (byFamily) return byFamily.key
+      // 4. family alias for generic sans → Carlito overlay group (bounded)
+      if (carlitoAliasSlots.length > 0 && SANS_ALIAS_FAMILIES.has(fam)) {
+        // Exact weight + style within the Carlito group.
+        const aliasExact = carlitoAliasSlots.find(
+          (s) => normalizeWeight(s.weight) === wgt && normalizeStyle(s.style) === sty,
+        )
+        if (aliasExact) return aliasExact.key
+        // Weight first so bold+italic prefers Bold over Italic (no BoldItalic face).
+        const aliasWeight = carlitoAliasSlots.find((s) => normalizeWeight(s.weight) === wgt)
+        if (aliasWeight) return aliasWeight.key
+        const aliasStyle = carlitoAliasSlots.find((s) => normalizeStyle(s.style) === sty)
+        if (aliasStyle) return aliasStyle.key
+      }
+      // 5. fallback (regular Carlito)
       return fallbackKey
     },
     getFontkitFont(fontKey) {

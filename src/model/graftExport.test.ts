@@ -23,6 +23,21 @@ import { extractPdfText } from '../../test/roundtrip/helpers/pdfText'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 const CARLITO = new Uint8Array(readFileSync(resolve(process.cwd(), 'src/fonts/Carlito-Regular.ttf')))
+const CARLITO_BOLD = new Uint8Array(readFileSync(resolve(process.cwd(), 'src/fonts/Carlito-Bold.ttf')))
+const CARLITO_ITALIC = new Uint8Array(readFileSync(resolve(process.cwd(), 'src/fonts/Carlito-Italic.ttf')))
+
+/** Collect the page's /Resources/Font dictionary keys. */
+async function pageFontKeys(bytes: Uint8Array, pageIdx = 0): Promise<string[]> {
+  const doc = await openSourcePdfDoc(bytes)
+  try {
+    const fontsDict = doc.findPage(pageIdx).get('Resources').resolve().get('Font')
+    const keys: string[] = []
+    if (fontsDict.isDictionary()) fontsDict.forEach((_v, k) => keys.push(String(k)))
+    return keys
+  } finally {
+    closeSourcePdfDoc(doc)
+  }
+}
 
 /**
  * Concatenate all content streams of a page into one decoded latin1 string,
@@ -298,6 +313,41 @@ describe('exportViaGraft — source-font in-place edit (vectorfeld-eb0)', () => 
     }
   })
 
+  it('precise gate: a recolored BOLD source heading uses its source font, NOT Carlito-Bold (no churn) (vectorfeld-3yu.23)', async () => {
+    // Even with all three Carlito faces supplied (the production path), a
+    // modified bold *source* run resolves to its embedded Calibri-Bold via
+    // rules 1–3 — so the unused Carlito-Bold face must NOT be registered.
+    // Proves the usage gate excludes source-owned families and keeps such
+    // pages byte-stable (golden story 10 stays unchanged).
+    const docXml = `<svg xmlns="${SVG_NS}" viewBox="0 0 210 297">
+      <g data-layer-name="L">
+        <text id="hello" x="10" y="20" font-family="Calibri" font-weight="bold" font-size="24.96">x</text>
+      </g>
+    </svg>`
+    const docSvg = svgRoot(docXml)
+    const layer = docSvg.querySelector('g[data-layer-name]')!
+    tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
+    snapshotImportedElements(layer)
+    docSvg.querySelector('#hello')!.setAttribute('fill', '#ff0000')
+
+    const doc = createDocumentModel(docSvg)
+    const store = new SourcePdfStore()
+    store.setPrimary({ bytes: flyerBytes, filename: 'flyer.pdf', pageCount: 1 })
+
+    const out = await exportViaGraft(doc, store, {
+      carlito: CARLITO,
+      carlitoBold: CARLITO_BOLD,
+      carlitoItalic: CARLITO_ITALIC,
+    })
+    const keys = await pageFontKeys(out)
+    // Source Calibri-Bold present; regular-Carlito fallback present;
+    // but NO unused Carlito-Bold/Italic faces.
+    expect(keys.some((k) => k.startsWith('VfSrc') && k.includes('Bold'))).toBe(true)
+    expect(keys).toContain('VfCarlito')
+    expect(keys).not.toContain('VfCarlitoBold')
+    expect(keys).not.toContain('VfCarlitoItalic')
+  })
+
   it('falls back to Carlito when source-text family does not match an embedded source font', async () => {
     // Modify a source text whose font-family doesn't appear in the
     // flyer's embedded fonts. matchSvgFontToSource returns null →
@@ -332,6 +382,77 @@ describe('exportViaGraft — source-font in-place edit (vectorfeld-eb0)', () => 
     } finally {
       closeSourcePdfDoc(reloaded)
     }
+  })
+})
+
+describe('exportViaGraft — bold/italic overlay faces (vectorfeld-3yu.23)', () => {
+  // App-authored text defaults to font-family='sans-serif' (textTool), so
+  // these runs exercise the family-alias path end-to-end: no slot matches
+  // 'sans-serif' by family, so the alias routes bold→VfCarlitoBold,
+  // italic→VfCarlitoItalic, regular→VfCarlito.
+  const BOLD_ITALIC_SVG = `<svg xmlns="${SVG_NS}" viewBox="0 0 80 40">
+    <g data-layer-name="L">
+      <text x="5" y="10" font-size="6" font-family="sans-serif">reg</text>
+      <text x="5" y="20" font-size="6" font-family="sans-serif" font-weight="bold">bold</text>
+      <text x="5" y="30" font-size="6" font-family="sans-serif" font-style="italic">ital</text>
+    </g>
+  </svg>`
+
+  it('emits 3 distinct CID font keys when all three faces are supplied', async () => {
+    const doc = createDocumentModel(svgRoot(BOLD_ITALIC_SVG))
+    const out = await exportViaGraft(doc, new SourcePdfStore(), {
+      carlito: CARLITO,
+      carlitoBold: CARLITO_BOLD,
+      carlitoItalic: CARLITO_ITALIC,
+    })
+
+    const keys = await pageFontKeys(out)
+    expect(keys).toContain('VfCarlito')
+    expect(keys).toContain('VfCarlitoBold')
+    expect(keys).toContain('VfCarlitoItalic')
+    // Three distinct overlay faces → three distinct registered CID fonts.
+    const overlayKeys = keys.filter((k) => k.startsWith('VfCarlito'))
+    expect(new Set(overlayKeys).size).toBe(3)
+
+    // The content stream actually references the bold + italic faces, not
+    // just the regular one (proves the alias routed each run distinctly).
+    const content = await pageContent(out)
+    expect(content).toContain('/VfCarlitoBold')
+    expect(content).toContain('/VfCarlitoItalic')
+  })
+
+  it('does not bloat a regular-only page — unused bold/italic faces are pruned on save', async () => {
+    // Even though production always supplies all three faces, a page that
+    // emits only regular text must not carry the unused bold/italic CID
+    // fonts — otherwise EVERY text-bearing graft export would change bytes,
+    // not just bold/italic ones. Proves subsetFonts prunes unreferenced
+    // overlay faces, bounding golden-master churn to bold/italic stories.
+    const regOnly = `<svg xmlns="${SVG_NS}" viewBox="0 0 80 40">
+      <g data-layer-name="L"><text x="5" y="10" font-size="6" font-family="sans-serif">only regular</text></g>
+    </svg>`
+    const doc = createDocumentModel(svgRoot(regOnly))
+    const out = await exportViaGraft(doc, new SourcePdfStore(), {
+      carlito: CARLITO,
+      carlitoBold: CARLITO_BOLD,
+      carlitoItalic: CARLITO_ITALIC,
+    })
+    const keys = await pageFontKeys(out)
+    expect(keys).toContain('VfCarlito')
+    expect(keys).not.toContain('VfCarlitoBold')
+    expect(keys).not.toContain('VfCarlitoItalic')
+  })
+
+  it('exports without error when bold/italic bytes are omitted (graceful)', async () => {
+    const doc = createDocumentModel(svgRoot(BOLD_ITALIC_SVG))
+    const out = await exportViaGraft(doc, new SourcePdfStore(), { carlito: CARLITO })
+    expect(out.length).toBeGreaterThan(0)
+
+    const keys = await pageFontKeys(out)
+    expect(keys).toContain('VfCarlito')
+    // No bold/italic faces were registered; bold/italic runs collapsed to
+    // the single regular face via the alias chain.
+    expect(keys).not.toContain('VfCarlitoBold')
+    expect(keys).not.toContain('VfCarlitoItalic')
   })
 })
 

@@ -210,8 +210,20 @@ export async function exportPdfBytes(
 ): Promise<Uint8Array> {
   const store = getActiveSourcePdfStore()
   if (shouldUseGraftEngine(doc, store)) {
-    const carlito = opts.carlito ?? (await loadFontsForExport()).sansRegular
-    return exportViaGraft(doc, store, { carlito })
+    // Explicit `opts.carlito` override (tests) deliberately skips the
+    // network font fetch, so honor it as a regular-only single face.
+    // Production (no override) threads all three Carlito faces so bold/
+    // italic overlay + generic-sans runs route to dedicated slots instead
+    // of collapsing to regular (vectorfeld-3yu.23).
+    if (opts.carlito) {
+      return exportViaGraft(doc, store, { carlito: opts.carlito })
+    }
+    const fonts = await loadFontsForExport()
+    return exportViaGraft(doc, store, {
+      carlito: fonts.sansRegular,
+      carlitoBold: fonts.sansBold,
+      carlitoItalic: fonts.sansItalic,
+    })
   }
   // pdf-lib fallback path. Embeds Carlito + Liberation Serif so imported
   // PDF fonts (Calibri, Playfair Display, etc.) round-trip with near-
