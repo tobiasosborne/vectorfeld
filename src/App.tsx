@@ -152,7 +152,7 @@ function AppContent() {
       label: 'File',
       items: [
         { label: 'Open SVG...', shortcut: '', action: () => editor.doc && importSvg(editor.doc) },
-        { label: 'Open PDF...', shortcut: '', action: () => editor.doc && importPdf(editor.doc) },
+        { label: 'Open PDF...', shortcut: '', action: () => editor.doc && importPdf(editor.doc, editor.history) },
         { label: 'Open PDF as Background Layer...', shortcut: '', action: () => editor.doc && importPdfAsBackgroundLayer(editor.doc) },
         { label: 'Place Image...', shortcut: '', action: () => editor.doc && placeImage(editor.doc, editor.history) },
         { separator: true, label: '' },

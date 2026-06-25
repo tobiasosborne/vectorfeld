@@ -114,6 +114,93 @@ const s8 = await layerStats(page)
 console.log('bg-first:', JSON.stringify(s8, null, 2))
 await shot(page, 'exp-pdf-import-08-bg-first')
 
+// ── vectorfeld-3yu.1: confirm-if-dirty + undoable Open PDF ──────────────────
+// Helper: draw a rectangle so the document is dirty (history.canUndo === true).
+async function drawDirtyRect(page) {
+  const box = await page.locator('[data-role="canvas-root"]').boundingBox()
+  await page.keyboard.press('r') // rectangle tool
+  await page.waitForTimeout(120)
+  await page.mouse.move(box.x + 140, box.y + 140)
+  await page.mouse.down()
+  for (let i = 1; i <= 5; i++) {
+    await page.mouse.move(box.x + 140 + 24 * i, box.y + 140 + 18 * i)
+    await page.waitForTimeout(10)
+  }
+  await page.mouse.up()
+  await page.waitForTimeout(150)
+}
+
+console.log('\n##### STEP 9: dirty doc + Open PDF, ACCEPT confirm → REPLACE, then Ctrl+Z RESTORES')
+await page.reload({ waitUntil: 'networkidle' })
+await sleep(1000)
+await drawDirtyRect(page)
+const dirtyBefore = await page.evaluate(() => ({
+  viewBox: document.querySelector('svg[viewBox]')?.getAttribute('viewBox') || null,
+  rects: document.querySelectorAll('g[data-layer-name] rect').length,
+  layerNames: Array.from(document.querySelectorAll('g[data-layer-name]')).map(l => l.getAttribute('data-layer-name')),
+}))
+console.log('before open (dirty):', JSON.stringify(dirtyBefore))
+
+// Accept the confirm() dialog this import raises.
+let confirmSeen9 = false
+const onDialogAccept = async (d) => { confirmSeen9 = true; console.log('  dialog:', JSON.stringify(d.message())); await d.accept() }
+page.on('dialog', onDialogAccept)
+await menuFileItem(page, 'Open PDF...', EDITABLE)
+await sleep(5000)
+page.off('dialog', onDialogAccept)
+const afterAccept = await layerStats(page)
+console.log('after ACCEPT (should be replaced flyer):', JSON.stringify({
+  confirmSeen: confirmSeen9, viewBox: afterAccept.viewBox,
+  layers: afterAccept.layers.map(l => ({ n: l.name, k: l.kids, rects: l.pathEls })),
+}))
+await shot(page, 'exp-pdf-import-09a-after-accept')
+
+// Ctrl+Z must restore the prior document (the dirty rect + original viewBox).
+await page.keyboard.press('Control+z')
+await sleep(1200)
+const afterUndo = await page.evaluate(() => ({
+  viewBox: document.querySelector('svg[viewBox]')?.getAttribute('viewBox') || null,
+  rects: document.querySelectorAll('g[data-layer-name] rect').length,
+  layerNames: Array.from(document.querySelectorAll('g[data-layer-name]')).map(l => l.getAttribute('data-layer-name')),
+}))
+console.log('after Ctrl+Z (should restore prior doc):', JSON.stringify(afterUndo))
+const undoRestored =
+  afterUndo.viewBox === dirtyBefore.viewBox &&
+  afterUndo.rects === dirtyBefore.rects &&
+  JSON.stringify(afterUndo.layerNames) === JSON.stringify(dirtyBefore.layerNames)
+console.log(undoRestored ? 'PASS: Open PDF is undoable — prior document restored'
+                         : 'FAIL: undo did NOT restore prior document')
+await shot(page, 'exp-pdf-import-09b-after-undo')
+
+console.log('\n##### STEP 10: dirty doc + Open PDF, DISMISS confirm → document UNCHANGED')
+await page.reload({ waitUntil: 'networkidle' })
+await sleep(1000)
+await drawDirtyRect(page)
+const beforeDismiss = await page.evaluate(() => ({
+  viewBox: document.querySelector('svg[viewBox]')?.getAttribute('viewBox') || null,
+  rects: document.querySelectorAll('g[data-layer-name] rect').length,
+}))
+console.log('before dismiss (dirty):', JSON.stringify(beforeDismiss))
+
+let confirmSeen10 = false
+const onDialogDismiss = async (d) => { confirmSeen10 = true; console.log('  dialog:', JSON.stringify(d.message())); await d.dismiss() }
+page.on('dialog', onDialogDismiss)
+await menuFileItem(page, 'Open PDF...', EDITABLE)
+await sleep(3000)
+page.off('dialog', onDialogDismiss)
+const afterDismiss = await page.evaluate(() => ({
+  viewBox: document.querySelector('svg[viewBox]')?.getAttribute('viewBox') || null,
+  rects: document.querySelectorAll('g[data-layer-name] rect').length,
+}))
+console.log('after DISMISS:', JSON.stringify({ confirmSeen: confirmSeen10, ...afterDismiss }))
+const dismissIntact =
+  confirmSeen10 &&
+  afterDismiss.viewBox === beforeDismiss.viewBox &&
+  afterDismiss.rects === beforeDismiss.rects
+console.log(dismissIntact ? 'PASS: dismissing confirm leaves the document intact'
+                          : 'FAIL: document changed despite dismissing the confirm')
+await shot(page, 'exp-pdf-import-10-after-dismiss')
+
 dumpLog(log)
 await browser.close()
 console.log('\nDONE')

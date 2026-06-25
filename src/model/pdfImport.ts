@@ -12,8 +12,10 @@ import { clearSelection } from './selection'
 import { parseSvgString, type ParsedSvg } from './fileio'
 import { analyzeImportedSvg } from './importAnalysis'
 import { getActiveSourcePdfStore, recordImportedSource } from './sourcePdf'
-import { tagImportedLayer, PRIMARY_LAYER_ID } from './sourceTagging'
+import { tagImportedLayer } from './sourceTagging'
 import { snapshotImportedElements } from './sourceSnapshot'
+import { ReplaceDocumentCommand } from './documentReplace'
+import type { CommandHistory } from './commands'
 import RenderWorker from './pdfRender.worker.ts?worker'
 
 // ── Worker management ──────────────────────────────────────────────────
@@ -160,11 +162,16 @@ async function readAndForkPdfBytes(file: File): Promise<{ retained: Uint8Array; 
 }
 
 /**
- * Import a PDF file into the document.
- * Opens a file picker, reads the PDF, converts first page to SVG,
- * post-processes, and imports into the document model.
+ * Import a PDF file into the document as the PRIMARY content, REPLACING the
+ * current document. Opens a file picker, reads the PDF, converts first page to
+ * SVG, post-processes, then applies the swap as a single undoable
+ * `ReplaceDocumentCommand` via `history`.
+ *
+ * Because this destroys in-progress work, it prompts before replacing a dirty
+ * document (`history.canUndo`). The confirm lives inside `onchange` so
+ * cancelling the OS file dialog never prompts.
  */
-export async function importPdf(doc: DocumentModel): Promise<void> {
+export async function importPdf(doc: DocumentModel, history: CommandHistory): Promise<void> {
   return new Promise((resolve, reject) => {
     const input = document.createElement('input')
     input.type = 'file'
@@ -174,18 +181,26 @@ export async function importPdf(doc: DocumentModel): Promise<void> {
       const file = input.files?.[0]
       if (!file) { resolve(); return }
 
+      // Confirm-if-dirty: a primary import wipes the whole document. Only the
+      // existence of undoable work counts as "dirty" (the existing signal).
+      if (history.canUndo &&
+          !window.confirm('Opening a PDF will replace the current document. Continue?')) {
+        resolve()
+        return
+      }
+
       try {
         const { retained, forwarded } = await readAndForkPdfBytes(file)
         const { svg, pageCount } = await renderPageToSvg(forwarded)
         const processedSvg = postProcessPdfSvg(svg)
         const parsed = parseSvgString(processedSvg)
 
-        applyParsedSvg(doc, parsed)
-        recordImportedSource(getActiveSourcePdfStore(), 'primary', null, {
-          bytes: retained,
-          filename: file.name,
-          pageCount,
-        })
+        const sourceEntry = { bytes: retained, filename: file.name, pageCount }
+        history.execute(
+          new ReplaceDocumentCommand(doc, parsed, {
+            store: { store: getActiveSourcePdfStore(), sourceEntry },
+          }),
+        )
         resolve()
       } catch (err) {
         reject(err instanceof Error ? err : new Error(String(err)))
@@ -300,48 +315,4 @@ export function applyParsedAsBackgroundLayer(doc: DocumentModel, parsed: ParsedS
   // Fire selection notification LAST so the LayersPanel (which subscribes
   // to selection changes) sees the new layer on its refresh pass.
   clearSelection()
-}
-
-/**
- * Apply parsed SVG to the document model.
- * Mirrors the pattern from fileio.ts.
- */
-function applyParsedSvg(doc: DocumentModel, parsed: ParsedSvg): void {
-  clearSelection()
-
-  if (parsed.viewBox) {
-    doc.svg.setAttribute('viewBox', parsed.viewBox)
-  }
-
-  for (const layer of doc.getLayerElements()) {
-    layer.remove()
-  }
-
-  if (parsed.defs.length > 0) {
-    const docDefs = doc.getDefs()
-    while (docDefs.firstChild) docDefs.removeChild(docDefs.firstChild)
-    for (const child of parsed.defs) {
-      docDefs.appendChild(document.importNode(child, true))
-    }
-  }
-
-  // MuPDF emits content in PDF points wrapped in one anonymous <g>; viewBox
-  // was converted to mm. Flatten that wrapper and distribute the pt→mm scale
-  // across each resulting top-level element so every text/image/path remains
-  // an individually selectable layer child.
-  const firstOverlay = doc.svg.querySelector('[data-role="grid-overlay"], [data-role="user-guides-overlay"], [data-role="guides-overlay"], [data-role="overlay"]')
-  for (const layer of parsed.layers) {
-    const imported = document.importNode(layer, true) as Element
-    flattenAndScalePdfLayer(imported, PT_TO_MM)
-    tagLayerWithImportAnalysis(imported, '(imported PDF)')
-    tagImportedLayer(imported, { page: 0, layerId: PRIMARY_LAYER_ID })
-    snapshotImportedElements(imported)
-    if (firstOverlay) {
-      doc.svg.insertBefore(imported, firstOverlay)
-    } else {
-      doc.svg.appendChild(imported)
-    }
-  }
-
-  syncIdCounter(doc.svg)
 }
