@@ -296,6 +296,23 @@ describe('ReplaceDocumentCommand', () => {
       const path = doc.getLayerElements()[0].querySelector('path')!
       expect(path.getAttribute('transform')).toMatch(/^scale\(0\.3527/)
     })
+
+    // vectorfeld-3yu.21: the mostly-outlined badge never fired on the primary
+    // Open PDF… path because the old applyParsedSvg ran no import analysis. The
+    // primary path now flows through processImportedPdfLayer, so a heavily
+    // outlined import (>=20 paths, no text) must surface data-mostly-outlined.
+    it('PDF path surfaces data-mostly-outlined for a heavily-outlined import (3yu.21)', () => {
+      const doc = makeDoc()
+      const manyPaths = Array.from({ length: 24 }, (_, i) => `<path d="M${i} 0 L${i} 1"/>`).join('')
+      replaceDocumentWithParsed(doc, fakeParsed(manyPaths), processImportedPdfLayer)
+      expect(doc.getLayerElements()[0].getAttribute('data-mostly-outlined')).toBe('true')
+    })
+
+    it('PDF path leaves data-mostly-outlined unset for a text-rich import (3yu.21)', () => {
+      const doc = makeDoc()
+      replaceDocumentWithParsed(doc, fakeParsed('<text>plenty of real editable text content here</text>'), processImportedPdfLayer)
+      expect(doc.getLayerElements()[0].getAttribute('data-mostly-outlined')).toBeNull()
+    })
   })
 
   describe('store concern WITHOUT a sourceEntry (SVG: clear-only)', () => {
