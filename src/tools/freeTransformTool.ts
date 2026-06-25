@@ -16,7 +16,7 @@ import { getSelection, refreshOverlay } from '../model/selection'
 import { CompoundCommand, ModifyAttributeCommand } from '../model/commands'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
-import { parseTransform, decomposeMatrix, applyMatrixToPoint, setSkew, parseSkew, multiplyMatrix, rotateMatrix, scaleAroundMatrix, matrixToString, invertMatrix, type Matrix } from '../model/matrix'
+import { parseTransform, applyMatrixToPoint, setSkew, parseSkew, multiplyMatrix, rotateMatrix, scaleAroundMatrix, matrixToString, invertMatrix, type Matrix } from '../model/matrix'
 import { scalePathD } from '../model/pathOps'
 
 type Pt = { x: number; y: number }
@@ -188,20 +188,15 @@ export function createFreeTransformTool(
           let degrees = angle * (180 / Math.PI)
           if (e.shiftKey) degrees = Math.round(degrees / 15) * 15
 
-          if (el.tagName === 'g') {
-            // Groups: compose rotation with original transform via matrix
-            const rotM = rotateMatrix(degrees, center.x, center.y)
-            const origM = parseTransform(state.origTransform)
-            el.setAttribute('transform', matrixToString(multiplyMatrix(rotM, origM)))
-          } else {
-            // Elements with position attrs: rotate() string + skew preservation
-            // Add delta to the original rotation so we don't clobber existing rotation
-            const baseAngle = decomposeMatrix(parseTransform(state.origTransform)).rotate
-            const existingSkew = parseSkew(state.origTransform)
-            let t = `rotate(${(baseAngle + degrees).toFixed(2)}, ${center.x.toFixed(2)}, ${center.y.toFixed(2)})`
-            t = setSkew(t, existingSkew.skewX, existingSkew.skewY)
-            el.setAttribute('transform', t)
-          }
+          // Compose the incremental rotation onto the element's existing
+          // transform matrix. This works uniformly for <g> groups AND for
+          // elements carrying a matrix() (e.g. every MuPDF-imported element):
+          // multiplying rotateMatrix(degrees, …) onto origM preserves the
+          // baked translate/scale/shear instead of rebuilding a rotate()
+          // string that would discard them (data loss — vectorfeld-3yu.8).
+          const rotM = rotateMatrix(degrees, center.x, center.y)
+          const origM = parseTransform(state.origTransform)
+          el.setAttribute('transform', matrixToString(multiplyMatrix(rotM, origM)))
           refreshOverlay()
         } else if (state.mode === 'skew') {
           const dx = pt.x - state.startMouse.x
