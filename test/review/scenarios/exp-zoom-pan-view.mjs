@@ -168,6 +168,25 @@ const z7corner = await snap()
 console.log('cursor at canvas top-left -> status X', z7corner.statusX, 'Y', z7corner.statusY, '(can it show negatives?)')
 await shot(page, `${SID}-07-zoomed-out`)
 
+// ---- STEP 7b: plain wheel → pan (no zoom) ----
+console.log('\n=== STEP 7b: plain wheel scrolls (pans), does NOT zoom ===')
+const beforePan = await snap()
+// Use a REAL wheel (Playwright mouse.wheel) — the canvas wheel handler is a
+// native {passive:false} listener that a synthetic dispatchEvent doesn't
+// reliably reach. Position the cursor over the canvas, then wheel with no modifier.
+await page.mouse.move(cb3.x + cb3.width * 0.5, cb3.y + cb3.height * 0.5)
+await page.mouse.wheel(0, 200)
+await page.waitForTimeout(120)
+const afterPan = await snap()
+console.log('before pan vb:', JSON.stringify(beforePan.vb))
+console.log('after  pan vb:', JSON.stringify(afterPan.vb))
+const panTranslated = afterPan.vb && beforePan.vb && afterPan.vb.y !== beforePan.vb.y
+const panNoZoom = afterPan.vb && beforePan.vb &&
+  Math.abs(afterPan.vb.w - beforePan.vb.w) < 0.01 &&
+  Math.abs(afterPan.vb.h - beforePan.vb.h) < 0.01
+console.log('viewBox.y changed (pan occurred):', panTranslated, '— width/height unchanged (no zoom):', panNoZoom)
+await shot(page, `${SID}-07b-plain-wheel-pan`)
+
 // ---- STEP 8: View menu contents ----
 console.log('\n=== STEP 8: View menu ===')
 await page.getByRole('button',{name:'View',exact:true}).click()

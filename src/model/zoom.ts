@@ -63,4 +63,16 @@ export function zoomAtPoint(
   setViewBox(svg, newX, newY, newWidth, newHeight)
 }
 
+/**
+ * Translate the viewBox by (dx, dy) in document units.
+ * Pure: no DOM side-effects. Use to implement scroll-to-pan.
+ */
+export function panViewBox(
+  vb: { x: number; y: number; width: number; height: number },
+  dx: number,
+  dy: number
+): { x: number; y: number; width: number; height: number } {
+  return { x: vb.x + dx, y: vb.y + dy, width: vb.width, height: vb.height }
+}
+
 export { MIN_ZOOM, MAX_ZOOM, ZOOM_FACTOR }

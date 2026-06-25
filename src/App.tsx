@@ -33,6 +33,8 @@ function AppContent() {
   const editor = useEditor()
   const svgRef = useRef<SVGSVGElement | null>(null)
   const toolsRegistered = useRef(false)
+  const zoomInRef = useRef<(() => void) | null>(null)
+  const zoomOutRef = useRef<(() => void) | null>(null)
 
   // Stable live-SVG accessor for the rulers' drag-to-guide drop mapping
   // (screenToDoc needs the current transform at mouseup; svgRef.current
@@ -51,6 +53,11 @@ function AppContent() {
       toolsRegistered.current = true
     }
   }, [editor])
+
+  const handleZoomReady = useCallback((zoomIn: () => void, zoomOut: () => void) => {
+    zoomInRef.current = zoomIn
+    zoomOutRef.current = zoomOut
+  }, [])
 
   const [dimensions, setDimensions] = useState<DocumentDimensions>({ width: 210, height: 297 })
   const [showArtboard, setShowArtboard] = useState(false)
@@ -340,6 +347,7 @@ function AppContent() {
               onStateChange={handleCanvasState}
               onSvgReady={handleSvgReady}
               onContextMenu={handleContextMenu}
+              onZoomReady={handleZoomReady}
             />
           </div>
         </div>
@@ -424,6 +432,8 @@ function AppContent() {
           cursorX={canvasState.cursorX}
           cursorY={canvasState.cursorY}
           zoomPercent={canvasState.zoomPercent}
+          onZoomIn={() => zoomInRef.current?.()}
+          onZoomOut={() => zoomOutRef.current?.()}
         />
       </Panel>
 

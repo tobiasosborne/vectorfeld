@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
-import { zoomAtPoint } from '../model/zoom'
+import { zoomAtPoint, panViewBox } from '../model/zoom'
 import { screenToDoc, getZoomPercent } from '../model/coordinates'
 import { getActiveTool, isKeyboardCaptured, subscribe as subscribeTool } from '../tools/registry'
 import { setOverlayGroup, refreshOverlaySync } from '../model/selection'
@@ -28,9 +28,10 @@ interface CanvasProps {
   onStateChange?: (state: CanvasState) => void
   onSvgReady?: (svg: SVGSVGElement) => void
   onContextMenu?: (e: MouseEvent) => void
+  onZoomReady?: (zoomIn: () => void, zoomOut: () => void) => void
 }
 
-export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgReady, onContextMenu }: CanvasProps) {
+export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgReady, onContextMenu, onZoomReady }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
   const gridGroupRef = useRef<SVGGElement | null>(null)
@@ -48,6 +49,34 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
   dimensionsRef.current = dimensions
   const onSvgReadyRef = useRef(onSvgReady)
   onSvgReadyRef.current = onSvgReady
+
+  const onZoomReadyRef = useRef(onZoomReady)
+  onZoomReadyRef.current = onZoomReady
+
+  // Zoom button impls: updated every render so they always close over the latest
+  // emitState/updateGrid. Exposed via stable wrappers passed to onZoomReady.
+  const zoomInImplRef = useRef<() => void>(() => {})
+  const zoomOutImplRef = useRef<() => void>(() => {})
+
+  // Update zoom-button impls every render so they see the latest emitState/updateGrid.
+  zoomInImplRef.current = () => {
+    const svg = svgRef.current
+    if (!svg) return
+    const rect = svg.getBoundingClientRect()
+    zoomAtPoint(svg, rect.left + rect.width / 2, rect.top + rect.height / 2, -1)
+    refreshOverlaySync()
+    updateGrid()
+    emitState()
+  }
+  zoomOutImplRef.current = () => {
+    const svg = svgRef.current
+    if (!svg) return
+    const rect = svg.getBoundingClientRect()
+    zoomAtPoint(svg, rect.left + rect.width / 2, rect.top + rect.height / 2, 1)
+    refreshOverlaySync()
+    updateGrid()
+    emitState()
+  }
 
   // Create SVG only once on mount
   useEffect(() => {
@@ -128,6 +157,7 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     container.appendChild(svg)
     svgRef.current = svg
     onSvgReadyRef.current?.(svg)
+    onZoomReadyRef.current?.(stableZoomIn, stableZoomOut)
 
     return () => {
       unsubArtboards()
@@ -159,6 +189,11 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
       viewBox: { x: vb.x, y: vb.y, width: vb.width, height: vb.height },
     })
   }, [onStateChange])
+
+  // Stable zoom-button callbacks ([] deps) that delegate to mutable impl refs.
+  // Called by StatusBar +/- buttons; impls are updated each render.
+  const stableZoomIn = useCallback(() => zoomInImplRef.current(), [])
+  const stableZoomOut = useCallback(() => zoomOutImplRef.current(), [])
 
   // Grid rendering
   const updateGrid = useCallback(() => {
@@ -226,15 +261,31 @@ export function Canvas({ dimensions = DEFAULT_DIMENSIONS, onStateChange, onSvgRe
     return subscribeWireframe(update)
   }, [])
 
-  // Zoom handler
+  // Wheel handler: Ctrl/Cmd+wheel → zoom at cursor; plain wheel → pan the viewBox.
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault()
       if (!svgRef.current) return
-      zoomAtPoint(svgRef.current, e.clientX, e.clientY, e.deltaY)
-      refreshOverlaySync() // Recalculate handle sizes after zoom (synchronous for visual consistency)
+      const svg = svgRef.current
+      if (e.ctrlKey || e.metaKey) {
+        // Zoom toward the cursor position
+        zoomAtPoint(svg, e.clientX, e.clientY, e.deltaY)
+        refreshOverlaySync() // Recalculate handle sizes after zoom (synchronous for visual consistency)
+      } else {
+        // Scroll-to-pan: translate the viewBox by the wheel delta in doc units.
+        // shift+wheel typically supplies deltaX on macOS; honor both axes.
+        const vb = svg.viewBox.baseVal
+        const scaleX = vb.width / (svg.clientWidth || 1)
+        const scaleY = vb.height / (svg.clientHeight || 1)
+        const newVb = panViewBox(
+          { x: vb.x, y: vb.y, width: vb.width, height: vb.height },
+          e.deltaX * scaleX,
+          e.deltaY * scaleY,
+        )
+        svg.setAttribute('viewBox', `${newVb.x} ${newVb.y} ${newVb.width} ${newVb.height}`)
+      }
       updateGrid()
       emitState()
     }

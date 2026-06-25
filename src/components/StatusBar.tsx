@@ -26,7 +26,7 @@ const chipBtnStyle: CSSProperties = {
   border: 0,
   background: 'transparent',
   color: 'var(--color-faint)',
-  cursor: 'default',
+  cursor: 'pointer',
   fontSize: 12,
 }
 
