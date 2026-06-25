@@ -1,5 +1,20 @@
 import { describe, it, expect } from 'vitest'
 import { parsePathAnchors, updatePathAnchor, parsePathWithHandles, updatePathControlPoint } from './directSelectTool'
+import { parsePathD } from '../model/pathOps'
+
+/**
+ * These helpers compare path geometry by structure rather than by raw
+ * whitespace. The node editor now rebuilds paths via pathOps' `commandsToD`,
+ * which emits a normalized format (`M15 25`, no space after the command
+ * letter) that differs from the old hand-rolled regex serializer. Comparing
+ * via `parsePathD` keeps the assertions independent of that surface format.
+ */
+function commandTypes(d: string): string {
+  return parsePathD(d).map(c => c.type).join('')
+}
+function flatCoords(d: string): number[] {
+  return parsePathD(d).flatMap(c => c.points.flatMap(p => [p.x, p.y]))
+}
 
 describe('Direct Selection Tool', () => {
   describe('parsePathAnchors', () => {
@@ -46,32 +61,82 @@ describe('Direct Selection Tool', () => {
     it('handles empty path', () => {
       expect(parsePathAnchors('')).toEqual([])
     })
+
+    // --- Fixtures the old regex parser got wrong ---
+
+    it('parses relative m/l as absolute (old parser read them verbatim)', () => {
+      const anchors = parsePathAnchors('m 10 10 l 5 0 l 0 5')
+      expect(anchors).toEqual([
+        { x: 10, y: 10 },
+        { x: 15, y: 10 },
+        { x: 15, y: 15 },
+      ])
+    })
+
+    it('captures H/V commands (old parser dropped them entirely)', () => {
+      const anchors = parsePathAnchors('M 0 0 H 10 V 10')
+      expect(anchors).toEqual([
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 10 },
+      ])
+    })
+
+    it('captures S smooth-cubic anchors (old parser dropped them)', () => {
+      const anchors = parsePathAnchors('M0 0 C5 0 5 10 10 10 S15 20 20 20')
+      expect(anchors).toHaveLength(3)
+      expect(anchors[0]).toEqual({ x: 0, y: 0 })
+      expect(anchors[1]).toEqual({ x: 10, y: 10 })
+      expect(anchors[2]).toEqual({ x: 20, y: 20 })
+    })
   })
 
   describe('updatePathAnchor', () => {
     it('updates M command anchor', () => {
       const result = updatePathAnchor('M 10 20 L 30 40', 0, { x: 15, y: 25 })
-      expect(result).toContain('M 15 25')
-      expect(result).toContain('L 30 40')
+      expect(commandTypes(result)).toBe('ML')
+      expect(parsePathAnchors(result)).toEqual([
+        { x: 15, y: 25 },
+        { x: 30, y: 40 },
+      ])
     })
 
     it('updates L command anchor', () => {
       const result = updatePathAnchor('M 0 0 L 10 10 L 20 20', 1, { x: 15, y: 15 })
-      expect(result).toContain('M 0 0')
-      expect(result).toContain('15 15')
+      expect(parsePathAnchors(result)).toEqual([
+        { x: 0, y: 0 },
+        { x: 15, y: 15 },
+        { x: 20, y: 20 },
+      ])
     })
 
     it('updates C command endpoint and moves adjacent handles by same delta', () => {
       const result = updatePathAnchor('M 0 0 C 5 0 5 10 10 10', 1, { x: 12, y: 12 })
-      expect(result).toContain('M 0 0')
-      expect(result).toContain('12 12')
-      // cp1 (outgoing from anchor 0) is preserved; cp2 (incoming to anchor 1) moves by delta (+2,+2)
-      expect(result).toContain('5 0 7 12')
+      const cmds = parsePathD(result)
+      expect(cmds.map(c => c.type).join('')).toBe('MC')
+      const c = cmds[1]
+      // cp1 (outgoing from anchor 0) is preserved
+      expect(c.points[0]).toEqual({ x: 5, y: 0 })
+      // cp2 (incoming to anchor 1) moves by delta (+2,+2): 5,10 -> 7,12
+      expect(c.points[1]).toEqual({ x: 7, y: 12 })
+      // endpoint set to new pos
+      expect(c.points[2]).toEqual({ x: 12, y: 12 })
     })
 
     it('preserves Z command', () => {
       const result = updatePathAnchor('M 0 0 L 10 0 L 10 10 Z', 1, { x: 15, y: 5 })
-      expect(result).toContain('Z')
+      expect(commandTypes(result)).toBe('MLLZ')
+    })
+
+    it('drops no command when editing a relative + H/V + S compound path', () => {
+      const d = 'm 5 5 l 10 0 H 30 V 20 C 35 20 35 30 40 30 S 45 40 50 40'
+      const before = parsePathD(d)
+      // editing the 3rd anchor (index 2) by a non-trivial delta
+      const result = updatePathAnchor(d, 2, { x: 99, y: 99 })
+      const after = parsePathD(result)
+      // No segment dropped: same command count and same command-type sequence.
+      expect(after).toHaveLength(before.length)
+      expect(after.map(c => c.type)).toEqual(before.map(c => c.type))
     })
   })
 
@@ -104,18 +169,27 @@ describe('Direct Selection Tool', () => {
   describe('updatePathControlPoint', () => {
     it('updates cp1 (outgoing handle)', () => {
       const result = updatePathControlPoint('M 0 0 C 5 0 5 10 10 10', 0, 'out', { x: 7, y: 2 })
-      expect(result).toContain('7 2 5 10 10 10')
+      const c = parsePathD(result)[1]
+      expect(c.points).toEqual([
+        { x: 7, y: 2 },
+        { x: 5, y: 10 },
+        { x: 10, y: 10 },
+      ])
     })
 
     it('updates cp2 (incoming handle)', () => {
       const result = updatePathControlPoint('M 0 0 C 5 0 5 10 10 10', 1, 'in', { x: 8, y: 12 })
-      expect(result).toContain('5 0 8 12 10 10')
+      const c = parsePathD(result)[1]
+      expect(c.points).toEqual([
+        { x: 5, y: 0 },
+        { x: 8, y: 12 },
+        { x: 10, y: 10 },
+      ])
     })
 
     it('preserves other coordinates', () => {
       const result = updatePathControlPoint('M 0 0 C 5 0 5 10 10 10', 0, 'out', { x: 7, y: 2 })
-      expect(result).toContain('M 0 0')
-      expect(result).toContain('10 10') // endpoint preserved
+      expect(flatCoords(result)).toEqual([0, 0, 7, 2, 5, 10, 10, 10])
     })
   })
 })

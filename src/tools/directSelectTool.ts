@@ -7,6 +7,7 @@ import type { CommandHistory } from '../model/commands'
 import { ModifyAttributeCommand, AddElementCommand, RemoveElementCommand, CompoundCommand } from '../model/commands'
 import type { Point } from '../model/coordinates'
 import { elementToPathD, extractStyleAttrs } from '../model/shapeToPath'
+import { parsePathD, commandsToD } from '../model/pathOps'
 
 export interface ControlPoints {
   /** cp1 (outgoing from prev anchor) and cp2 (incoming to this anchor) per C segment */
@@ -14,43 +15,34 @@ export interface ControlPoints {
   handleOut: Point | null   // outgoing control handle from this anchor
 }
 
+/**
+ * All four node-editing functions below are built on the canonical
+ * `parsePathD`/`commandsToD` pair from pathOps. That parser converts every
+ * command (relative m/l/c, H/V, S/Q/T, A) to ABSOLUTE M/L/C/Z, so the first
+ * edit normalizes the path losslessly and no segment is ever dropped. The old
+ * standalone regex parser these replaced read relative commands verbatim as
+ * absolute and silently discarded H/V/S/Q/T/A — see bead vectorfeld-3yu.7.
+ *
+ * Anchor indexing: every non-Z command (M/L/C) contributes exactly one anchor,
+ * at `cmd.points[cmd.points.length - 1]`. For a C command that endpoint is
+ * points[2]; points[0] is cp1 (the outgoing handle of the PREVIOUS anchor) and
+ * points[1] is cp2 (the incoming handle of THIS anchor).
+ */
+
 /** Parse path anchors with their control handles */
 export function parsePathWithHandles(d: string): { pos: Point; handles: ControlPoints }[] {
   const result: { pos: Point; handles: ControlPoints }[] = []
-  const re = /([MLCZmlcz])\s*([-\d.e+]+(?:\s*,?\s*[-\d.e+]+)*)?/g
-  let match
-  while ((match = re.exec(d)) !== null) {
-    const cmd = match[1]
-    const nums = (match[2] || '').trim()
-    if (!nums && cmd !== 'Z' && cmd !== 'z') continue
-    const values = nums ? nums.split(/[\s,]+/).map(Number) : []
-
-    if (cmd === 'M' || cmd === 'm' || cmd === 'L' || cmd === 'l') {
-      for (let i = 0; i < values.length - 1; i += 2) {
-        result.push({
-          pos: { x: values[i], y: values[i + 1] },
-          handles: { handleIn: null, handleOut: null },
-        })
+  for (const cmd of parsePathD(d)) {
+    if (cmd.type === 'M' || cmd.type === 'L') {
+      result.push({ pos: { ...cmd.points[0] }, handles: { handleIn: null, handleOut: null } })
+    } else if (cmd.type === 'C') {
+      // points[0]=cp1 (outgoing from previous anchor), [1]=cp2 (incoming), [2]=endpoint
+      if (result.length > 0) {
+        result[result.length - 1].handles.handleOut = { ...cmd.points[0] }
       }
-    } else if (cmd === 'C' || cmd === 'c') {
-      for (let i = 0; i < values.length - 5; i += 6) {
-        // cp1 is outgoing from PREVIOUS anchor
-        const cp1 = { x: values[i], y: values[i + 1] }
-        const cp2 = { x: values[i + 2], y: values[i + 3] }
-        const endPt = { x: values[i + 4], y: values[i + 5] }
-
-        // Set outgoing handle on previous anchor
-        if (result.length > 0) {
-          result[result.length - 1].handles.handleOut = cp1
-        }
-
-        // Add endpoint with incoming handle
-        result.push({
-          pos: endPt,
-          handles: { handleIn: cp2, handleOut: null },
-        })
-      }
+      result.push({ pos: { ...cmd.points[2] }, handles: { handleIn: { ...cmd.points[1] }, handleOut: null } })
     }
+    // Z contributes no anchor
   }
   return result
 }
@@ -62,69 +54,31 @@ export function updatePathControlPoint(
   handleType: 'in' | 'out',
   newPos: Point
 ): string {
-  const segments: { cmd: string; coords: number[] }[] = []
-  const re = /([MLCZmlcz])\s*([-\d.e+]+(?:\s*,?\s*[-\d.e+]+)*)?/g
-  let match
-  while ((match = re.exec(d)) !== null) {
-    const cmd = match[1]
-    const nums = (match[2] || '').trim()
-    const values = nums ? nums.split(/[\s,]+/).map(Number) : []
-    segments.push({ cmd, coords: values })
-  }
-
-  // Walk through to find the right C segment
-  let currentIdx = 0
-  for (const seg of segments) {
-    if (seg.cmd === 'M' || seg.cmd === 'm' || seg.cmd === 'L' || seg.cmd === 'l') {
-      for (let i = 0; i < seg.coords.length - 1; i += 2) {
-        currentIdx++
-      }
-    } else if (seg.cmd === 'C' || seg.cmd === 'c') {
-      for (let i = 0; i < seg.coords.length - 5; i += 6) {
-        // This C segment: cp1 is handleOut of anchor (currentIdx-1), cp2 is handleIn of anchor (currentIdx)
-        const prevIdx = currentIdx - 1
-        if (handleType === 'out' && prevIdx === anchorIdx) {
-          seg.coords[i] = newPos.x
-          seg.coords[i + 1] = newPos.y
-        }
-        if (handleType === 'in' && currentIdx === anchorIdx) {
-          seg.coords[i + 2] = newPos.x
-          seg.coords[i + 3] = newPos.y
-        }
-        currentIdx++
-      }
+  const commands = parsePathD(d)
+  // Anchor index advances on every non-Z command.
+  let currentIdx = -1
+  for (const cmd of commands) {
+    if (cmd.type === 'Z') continue
+    currentIdx++
+    if (cmd.type !== 'C') continue
+    // C: cp1 (points[0]) is handleOut of anchor (currentIdx-1); cp2 (points[1]) is handleIn of anchor (currentIdx).
+    if (handleType === 'out' && currentIdx - 1 === anchorIdx) {
+      cmd.points[0] = { x: newPos.x, y: newPos.y }
+    }
+    if (handleType === 'in' && currentIdx === anchorIdx) {
+      cmd.points[1] = { x: newPos.x, y: newPos.y }
     }
   }
-
-  return segments.map(s => {
-    if (s.coords.length === 0) return s.cmd
-    return `${s.cmd} ${s.coords.join(' ')}`
-  }).join(' ')
+  return commandsToD(commands)
 }
 
 /** Parse SVG path d attribute into anchor points (M, L, C commands) */
 export function parsePathAnchors(d: string): Point[] {
   const points: Point[] = []
-  // Match M/L/C commands and their coordinate pairs
-  const re = /([MLCZmlcz])\s*([-\d.e+]+(?:\s*,?\s*[-\d.e+]+)*)?/g
-  let match
-  while ((match = re.exec(d)) !== null) {
-    const cmd = match[1]
-    const nums = (match[2] || '').trim()
-    if (!nums && cmd !== 'Z' && cmd !== 'z') continue
-    const values = nums.split(/[\s,]+/).map(Number)
-
-    if (cmd === 'M' || cmd === 'm' || cmd === 'L' || cmd === 'l') {
-      for (let i = 0; i < values.length - 1; i += 2) {
-        points.push({ x: values[i], y: values[i + 1] })
-      }
-    } else if (cmd === 'C' || cmd === 'c') {
-      // C cp1x cp1y cp2x cp2y x y — we only take the endpoint
-      for (let i = 0; i < values.length - 5; i += 6) {
-        points.push({ x: values[i + 4], y: values[i + 5] })
-      }
-    }
-    // Z doesn't add a point
+  for (const cmd of parsePathD(d)) {
+    if (cmd.type === 'Z') continue
+    const end = cmd.points[cmd.points.length - 1]
+    points.push({ x: end.x, y: end.y })
   }
   return points
 }
@@ -132,78 +86,53 @@ export function parsePathAnchors(d: string): Point[] {
 /** Update a specific anchor point's position in a path d string,
  *  also moving adjacent Bezier control handles by the same delta. */
 export function updatePathAnchor(d: string, anchorIdx: number, newPos: Point): string {
-  const segments: { cmd: string; coords: number[] }[] = []
-  const re = /([MLCZmlcz])\s*([-\d.e+]+(?:\s*,?\s*[-\d.e+]+)*)?/g
-  let match
-  while ((match = re.exec(d)) !== null) {
-    const cmd = match[1]
-    const nums = (match[2] || '').trim()
-    const values = nums ? nums.split(/[\s,]+/).map(Number) : []
-    segments.push({ cmd, coords: values })
-  }
+  const commands = parsePathD(d)
 
-  // First pass: find old position so we can compute delta
+  // First pass: find old endpoint of the target anchor so we can compute delta.
   let oldPos: Point | null = null
-  let ci = 0
-  for (const seg of segments) {
-    if (seg.cmd === 'M' || seg.cmd === 'm' || seg.cmd === 'L' || seg.cmd === 'l') {
-      for (let i = 0; i < seg.coords.length - 1; i += 2) {
-        if (ci === anchorIdx) oldPos = { x: seg.coords[i], y: seg.coords[i + 1] }
-        ci++
-      }
-    } else if (seg.cmd === 'C' || seg.cmd === 'c') {
-      for (let i = 0; i < seg.coords.length - 5; i += 6) {
-        if (ci === anchorIdx) oldPos = { x: seg.coords[i + 4], y: seg.coords[i + 5] }
-        ci++
-      }
+  let ci = -1
+  for (const cmd of commands) {
+    if (cmd.type === 'Z') continue
+    ci++
+    if (ci === anchorIdx) {
+      const end = cmd.points[cmd.points.length - 1]
+      oldPos = { x: end.x, y: end.y }
+      break
     }
   }
 
   const dx = oldPos ? newPos.x - oldPos.x : 0
   const dy = oldPos ? newPos.y - oldPos.y : 0
 
-  // Second pass: move anchor and adjacent control handles by the same delta.
-  // For a C segment endpoint at anchorIdx:
-  //   - cp2 (coords[i+2..i+3]) is the incoming handle => move with this anchor
-  // For the NEXT C segment after this anchor:
-  //   - cp1 (coords[i..i+1]) is the outgoing handle => move with this anchor
-  let currentIdx = 0
+  // Second pass: move the anchor's endpoint, plus adjacent control handles by
+  // the same delta.
+  //   - For the C command whose endpoint is anchorIdx: cp2 (incoming handle,
+  //     points[1]) moves with the anchor; endpoint (points[2]) is set to newPos.
+  //   - For the NEXT C command (whose cp1/points[0] is anchorIdx's outgoing
+  //     handle): cp1 moves with the anchor.
+  let currentIdx = -1
   let prevAnchorIdx = -1
-  for (const seg of segments) {
-    if (seg.cmd === 'M' || seg.cmd === 'm' || seg.cmd === 'L' || seg.cmd === 'l') {
-      for (let i = 0; i < seg.coords.length - 1; i += 2) {
-        if (currentIdx === anchorIdx) {
-          seg.coords[i] = newPos.x
-          seg.coords[i + 1] = newPos.y
-        }
-        prevAnchorIdx = currentIdx
-        currentIdx++
+  for (const cmd of commands) {
+    if (cmd.type === 'Z') continue
+    currentIdx++
+    if (cmd.type === 'C') {
+      // cp1 (outgoing from previous anchor) — move if previous anchor is the target.
+      if (prevAnchorIdx === anchorIdx) {
+        cmd.points[0] = { x: cmd.points[0].x + dx, y: cmd.points[0].y + dy }
       }
-    } else if (seg.cmd === 'C' || seg.cmd === 'c') {
-      for (let i = 0; i < seg.coords.length - 5; i += 6) {
-        // cp1 (outgoing from previous anchor) — move if previous anchor is the target
-        if (prevAnchorIdx === anchorIdx) {
-          seg.coords[i] += dx
-          seg.coords[i + 1] += dy
-        }
-        // cp2 (incoming to this anchor) — move if this anchor is the target
-        if (currentIdx === anchorIdx) {
-          seg.coords[i + 2] += dx
-          seg.coords[i + 3] += dy
-          seg.coords[i + 4] = newPos.x
-          seg.coords[i + 5] = newPos.y
-        }
-        prevAnchorIdx = currentIdx
-        currentIdx++
+      // cp2 (incoming to this anchor) — move if this anchor is the target.
+      if (currentIdx === anchorIdx) {
+        cmd.points[1] = { x: cmd.points[1].x + dx, y: cmd.points[1].y + dy }
+        cmd.points[2] = { x: newPos.x, y: newPos.y }
       }
+    } else if (currentIdx === anchorIdx) {
+      // M or L: move the endpoint.
+      cmd.points[0] = { x: newPos.x, y: newPos.y }
     }
+    prevAnchorIdx = currentIdx
   }
 
-  // Rebuild d string
-  return segments.map(s => {
-    if (s.coords.length === 0) return s.cmd
-    return `${s.cmd} ${s.coords.join(' ')}`
-  }).join(' ')
+  return commandsToD(commands)
 }
 
 function anchorDocSize(svg: SVGSVGElement): number {
