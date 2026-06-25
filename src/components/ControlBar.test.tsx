@@ -147,3 +147,71 @@ describe('ControlBar', () => {
     expect((screen.getByTestId('frame-x') as HTMLInputElement).value).toBe('12.00')
   })
 })
+
+// vectorfeld-3yu.18: the ControlBar W/H fields are the most-exposed entry point.
+// A negative/zero entry must never reach the DOM as a negative dimension (which
+// the SVG renderer rejects, vanishing the shape and stranding phantom handles).
+describe('ControlBar — negative/zero dimension clamp (vectorfeld-3yu.18)', () => {
+  // Type `value` into the frame-* input identified by testid, then commit on blur.
+  function typeAndCommit(testid: string, value: string) {
+    const input = screen.getByTestId(testid) as HTMLInputElement
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value } })
+    fireEvent.blur(input)
+  }
+
+  it('clamps a negative rect width to the positive floor instead of writing it', () => {
+    const rect = makeSvgElement('rect', { x: '0', y: '0', width: '100', height: '50' })
+    mockGetSelection.mockReturnValue([rect])
+    render(<ControlBar />)
+
+    typeAndCommit('frame-w', '-50')
+
+    expect(rect.getAttribute('width')).toBe('0.1')
+    expect(parseFloat(rect.getAttribute('width')!)).toBeGreaterThan(0)
+  })
+
+  it('clamps a zero rect height to the positive floor', () => {
+    const rect = makeSvgElement('rect', { x: '0', y: '0', width: '100', height: '50' })
+    mockGetSelection.mockReturnValue([rect])
+    render(<ControlBar />)
+
+    typeAndCommit('frame-h', '0')
+
+    expect(rect.getAttribute('height')).toBe('0.1')
+    expect(parseFloat(rect.getAttribute('height')!)).toBeGreaterThan(0)
+  })
+
+  it('leaves a valid positive width unchanged (no over-clamping)', () => {
+    const rect = makeSvgElement('rect', { x: '0', y: '0', width: '100', height: '50' })
+    mockGetSelection.mockReturnValue([rect])
+    render(<ControlBar />)
+
+    typeAndCommit('frame-w', '250')
+
+    expect(rect.getAttribute('width')).toBe('250')
+  })
+
+  it('clamps the ellipse derived radius (W maps to rx) so rx is never negative', () => {
+    // W -> rx = W/2. A negative W must not produce rx="-25" (invalid SVG).
+    const ellipse = makeSvgElement('ellipse', { cx: '50', cy: '50', rx: '30', ry: '20' })
+    mockGetSelection.mockReturnValue([ellipse])
+    render(<ControlBar />)
+
+    typeAndCommit('frame-w', '-50')
+
+    expect(parseFloat(ellipse.getAttribute('rx')!)).toBeGreaterThanOrEqual(0)
+    expect(ellipse.getAttribute('rx')).toBe('0') // rx floor is 0, not 0.1
+  })
+
+  it('clamps the circle derived radius (W maps to r) to the positive floor', () => {
+    const circle = makeSvgElement('circle', { cx: '50', cy: '50', r: '25' })
+    mockGetSelection.mockReturnValue([circle])
+    render(<ControlBar />)
+
+    typeAndCommit('frame-w', '-10')
+
+    expect(circle.getAttribute('r')).toBe('0.1') // r is a true size -> 0.1 floor
+    expect(parseFloat(circle.getAttribute('r')!)).toBeGreaterThan(0)
+  })
+})

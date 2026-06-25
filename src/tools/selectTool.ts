@@ -14,7 +14,7 @@ import { parseTransform, multiplyMatrix, translateMatrix, rotateMatrix, invertMa
 
 // Named constants
 const MIN_BBOX_DIM = 0.001       // Minimum bbox dimension to avoid division by zero
-const MIN_SCALE_SIZE = 0.1       // Minimum width/height during scale
+export const MIN_SCALE_SIZE = 0.1 // Minimum width/height during scale (shared with numeric clamp)
 const ROTATION_SNAP_DEG = 15     // Shift-constrained rotation increment
 const MARQUEE_THRESHOLD = 0.5    // Doc-space threshold for click-vs-drag (marquee)
 const MOVE_DEAD_ZONE = 0.01      // Doc-space dead zone for move commit

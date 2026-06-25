@@ -6,6 +6,7 @@ import { translatePathD } from '../model/pathOps'
 import { decomposeMatrix, parseTransform, rotateMatrix, multiplyMatrix, matrixToString } from '../model/matrix'
 import { transformedAABB, computeTranslateAttrs } from '../model/geometry'
 import type { BBox } from '../model/geometry'
+import { clampAttr } from '../model/numeric'
 
 function formatNum(val: string): string {
   const n = parseFloat(val)
@@ -113,11 +114,23 @@ export function ControlBar() {
   useEffect(() => history.subscribe(() => setTick(t => t + 1)), [history])
 
   const applyAttr = (el: Element, attr: string, value: string) => {
-    history.execute(new ModifyAttributeCommand(el, attr, value))
+    // vectorfeld-3yu.18: clamp dimension attrs (width/height/r→0.1, rx/ry→0) so a
+    // negative/zero entry can't write invalid SVG; null rejects the write outright.
+    const clamped = clampAttr(attr, value)
+    if (clamped === null) return
+    history.execute(new ModifyAttributeCommand(el, attr, clamped))
     refreshOverlay()
   }
   const applyAttrs = (el: Element, changes: Array<[string, string]>) => {
-    const cmds = changes.map(([attr, val]) => new ModifyAttributeCommand(el, attr, val))
+    // Clamp every attr in the batch (covers derived rx/ry/r for ellipse/circle W/H).
+    // If any dimension is non-numeric, reject the whole batch to keep it atomic.
+    const clamped: Array<[string, string]> = []
+    for (const [attr, val] of changes) {
+      const c = clampAttr(attr, val)
+      if (c === null) return
+      clamped.push([attr, c])
+    }
+    const cmds = clamped.map(([attr, val]) => new ModifyAttributeCommand(el, attr, val))
     if (cmds.length === 1) history.execute(cmds[0])
     else if (cmds.length > 1) history.execute(new CompoundCommand(cmds, 'Change position'))
     refreshOverlay()

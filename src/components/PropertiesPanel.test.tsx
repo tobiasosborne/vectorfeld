@@ -1,6 +1,8 @@
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { PropertiesPanel } from './PropertiesPanel'
+import { useEditor } from '../model/EditorContext'
+import { CommandHistory } from '../model/commands'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -227,5 +229,104 @@ describe('PropertiesPanel', () => {
 
     render(<PropertiesPanel />)
     expect(screen.getByTitle('Lock aspect ratio')).toBeInTheDocument()
+  })
+})
+
+// vectorfeld-3yu.18: negative/zero dimension entries (both the plain applyAttr
+// path AND the lock-aspect path that builds ModifyAttributeCommands directly)
+// must clamp before writing. Unlike the tests above, these use a REAL executing
+// CommandHistory so we can assert the resulting DOM attribute.
+describe('PropertiesPanel — negative/zero dimension clamp (vectorfeld-3yu.18)', () => {
+  const defaultEditor = () => ({
+    history: { execute: vi.fn(), subscribe: vi.fn(() => () => {}) },
+    doc: { getDefs: () => document.createElementNS('http://www.w3.org/2000/svg', 'defs') },
+  })
+
+  let execHistory: CommandHistory
+
+  beforeEach(() => {
+    execHistory = new CommandHistory()
+    vi.mocked(useEditor).mockReturnValue({
+      history: execHistory,
+      doc: { getDefs: () => document.createElementNS('http://www.w3.org/2000/svg', 'defs') },
+    } as never)
+  })
+
+  afterEach(() => {
+    // Restore the file-wide default useEditor so unrelated tests are unaffected.
+    vi.mocked(useEditor).mockImplementation(defaultEditor as never)
+  })
+
+  /** The <input> inside the <label> whose text is exactly `label`. */
+  function dimInput(label: string): HTMLInputElement {
+    const labelEl = screen.getByText(label).closest('label')!
+    return labelEl.querySelector('input')!
+  }
+
+  function typeAndCommit(input: HTMLInputElement, value: string) {
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value } })
+    fireEvent.blur(input)
+  }
+
+  it('clamps a negative rect width (plain path) instead of writing a negative attr', () => {
+    const rect = makeSvgElement('rect', { x: '0', y: '0', width: '100', height: '50', stroke: '#000', 'stroke-width': '1' })
+    mockGetSelection.mockReturnValue([rect])
+    render(<PropertiesPanel />)
+
+    typeAndCommit(dimInput('W'), '-50')
+
+    expect(rect.getAttribute('width')).toBe('0.1')
+    expect(parseFloat(rect.getAttribute('width')!)).toBeGreaterThan(0)
+  })
+
+  it('clamps a zero rect width (plain path) to the positive floor', () => {
+    const rect = makeSvgElement('rect', { x: '0', y: '0', width: '100', height: '50', stroke: '#000', 'stroke-width': '1' })
+    mockGetSelection.mockReturnValue([rect])
+    render(<PropertiesPanel />)
+
+    typeAndCommit(dimInput('W'), '0')
+
+    expect(rect.getAttribute('width')).toBe('0.1')
+  })
+
+  it('clamps BOTH primary and ratio-derived secondary in the lock-aspect path', () => {
+    // 2:1 box, lock on. A negative W must clamp width AND the derived height.
+    const rect = makeSvgElement('rect', { x: '0', y: '0', width: '100', height: '50', stroke: '#000', 'stroke-width': '1' })
+    mockGetSelection.mockReturnValue([rect])
+    render(<PropertiesPanel />)
+
+    fireEvent.click(screen.getByTitle('Lock aspect ratio'))
+    typeAndCommit(dimInput('W'), '-50')
+
+    expect(parseFloat(rect.getAttribute('width')!)).toBeGreaterThan(0)
+    expect(parseFloat(rect.getAttribute('height')!)).toBeGreaterThan(0)
+    expect(rect.getAttribute('width')).toBe('0.1')
+    expect(rect.getAttribute('height')).toBe('0.1') // ratio-derived secondary also clamped
+  })
+
+  it('clamps the ellipse RX lock-aspect path (rx floor is 0, not 0.1)', () => {
+    const ellipse = makeSvgElement('ellipse', { cx: '50', cy: '50', rx: '30', ry: '20', stroke: '#000', 'stroke-width': '1' })
+    mockGetSelection.mockReturnValue([ellipse])
+    render(<PropertiesPanel />)
+
+    fireEvent.click(screen.getByTitle('Lock aspect ratio'))
+    typeAndCommit(dimInput('RX'), '-10')
+
+    expect(parseFloat(ellipse.getAttribute('rx')!)).toBeGreaterThanOrEqual(0)
+    expect(parseFloat(ellipse.getAttribute('ry')!)).toBeGreaterThanOrEqual(0)
+    expect(ellipse.getAttribute('rx')).toBe('0')
+  })
+
+  it('leaves a valid positive width unchanged through the lock-aspect path', () => {
+    const rect = makeSvgElement('rect', { x: '0', y: '0', width: '100', height: '50', stroke: '#000', 'stroke-width': '1' })
+    mockGetSelection.mockReturnValue([rect])
+    render(<PropertiesPanel />)
+
+    fireEvent.click(screen.getByTitle('Lock aspect ratio'))
+    typeAndCommit(dimInput('W'), '200')
+
+    expect(rect.getAttribute('width')).toBe('200')
+    expect(parseFloat(rect.getAttribute('height')!)).toBeCloseTo(100, 5) // 2:1 preserved
   })
 })

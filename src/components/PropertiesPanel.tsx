@@ -14,6 +14,7 @@ import { parseSkew, setSkew } from '../model/matrix'
 import type { AlignOp, DistributeOp } from '../model/align'
 import { CompoundCommand } from '../model/commands'
 import { getElementAABB } from '../model/geometry'
+import { clampAttr } from '../model/numeric'
 
 /** Attributes that must be valid numbers */
 const NUMERIC_ATTRS = new Set([
@@ -125,6 +126,12 @@ export function PropertiesPanel({ embedded = false }: PropertiesPanelProps = {})
   const applyAttr = (el: Element, attr: string, value: string) => {
     // Bug 3: validate numeric attributes
     if (NUMERIC_ATTRS.has(attr) && isNaN(parseFloat(value))) return
+
+    // vectorfeld-3yu.18: clamp dimension attrs (width/height/r→0.1, rx/ry→0) so a
+    // negative/zero entry can't write invalid SVG and make the shape vanish.
+    const clamped = clampAttr(attr, value)
+    if (clamped === null) return
+    value = clamped
 
     // Bug 1: distribute fill/stroke to children when element is a <g>
     if (el.tagName === 'g' && (attr === 'fill' || attr === 'stroke' || attr === 'stroke-width' || attr === 'opacity')) {
@@ -329,9 +336,12 @@ export function PropertiesPanel({ embedded = false }: PropertiesPanelProps = {})
                           const oldW = parseFloat(getAttr(el, 'width')) || 1
                           const oldH = parseFloat(getAttr(el, 'height')) || 1
                           const ratio = oldH / oldW
+                          // vectorfeld-3yu.18: clamp both primary + ratio-derived
+                          // secondary so neither dimension goes negative/zero.
+                          const secH = String(newW * ratio)
                           const cmds = [
-                            new ModifyAttributeCommand(el, 'width', v),
-                            new ModifyAttributeCommand(el, 'height', String(newW * ratio)),
+                            new ModifyAttributeCommand(el, 'width', clampAttr('width', v) ?? v),
+                            new ModifyAttributeCommand(el, 'height', clampAttr('height', secH) ?? secH),
                           ]
                           history.execute(new CompoundCommand(cmds, 'Resize'))
                         } else {
@@ -345,9 +355,10 @@ export function PropertiesPanel({ embedded = false }: PropertiesPanelProps = {})
                           const oldW = parseFloat(getAttr(el, 'width')) || 1
                           const oldH = parseFloat(getAttr(el, 'height')) || 1
                           const ratio = oldW / oldH
+                          const secW = String(newH * ratio)
                           const cmds = [
-                            new ModifyAttributeCommand(el, 'height', v),
-                            new ModifyAttributeCommand(el, 'width', String(newH * ratio)),
+                            new ModifyAttributeCommand(el, 'height', clampAttr('height', v) ?? v),
+                            new ModifyAttributeCommand(el, 'width', clampAttr('width', secW) ?? secW),
                           ]
                           history.execute(new CompoundCommand(cmds, 'Resize'))
                         } else {
@@ -365,9 +376,10 @@ export function PropertiesPanel({ embedded = false }: PropertiesPanelProps = {})
                           const oldRx = parseFloat(getAttr(el, 'rx')) || 1
                           const oldRy = parseFloat(getAttr(el, 'ry')) || 1
                           const ratio = oldRy / oldRx
+                          const secRy = String(newRx * ratio)
                           const cmds = [
-                            new ModifyAttributeCommand(el, 'rx', v),
-                            new ModifyAttributeCommand(el, 'ry', String(newRx * ratio)),
+                            new ModifyAttributeCommand(el, 'rx', clampAttr('rx', v) ?? v),
+                            new ModifyAttributeCommand(el, 'ry', clampAttr('ry', secRy) ?? secRy),
                           ]
                           history.execute(new CompoundCommand(cmds, 'Resize'))
                         } else {
@@ -381,9 +393,10 @@ export function PropertiesPanel({ embedded = false }: PropertiesPanelProps = {})
                           const oldRx = parseFloat(getAttr(el, 'rx')) || 1
                           const oldRy = parseFloat(getAttr(el, 'ry')) || 1
                           const ratio = oldRx / oldRy
+                          const secRx = String(newRy * ratio)
                           const cmds = [
-                            new ModifyAttributeCommand(el, 'ry', v),
-                            new ModifyAttributeCommand(el, 'rx', String(newRy * ratio)),
+                            new ModifyAttributeCommand(el, 'ry', clampAttr('ry', v) ?? v),
+                            new ModifyAttributeCommand(el, 'rx', clampAttr('rx', secRx) ?? secRx),
                           ]
                           history.execute(new CompoundCommand(cmds, 'Resize'))
                         } else {
