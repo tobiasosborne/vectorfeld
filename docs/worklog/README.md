@@ -4,6 +4,7 @@ Chronological session logs. Each file describes one working session: what shippe
 
 | Date | Session | One-line |
 |---|---|---|
+| 2026-06-25 | [p0-remediation-wave](2026-06-25-p0-remediation-wave.md) | **Main remediation wave** — 11 `3yu` beads shipped (Open PDF/SVG undoable, hit-test→`<text>`, paste-id uniquify, pdf rotation export, ungroup/eraser/directSelect/free-transform/cross-layer-group), each headed-verified; CLAUDE.md anti-bloat upgrade; ~10 follow-ups raised; 908 tests + golden 11/11 |
 | 2026-06-22 | [adversarial-review-remediation](2026-06-22-adversarial-review-remediation.md) | **Major adversarial review** — 80 agents, 175 findings, verdict **SAVE not rewrite**; epic `vectorfeld-3yu` (+26 children) filed, `6z0` closed; Phase 0 shipped 3 data-loss fixes (`3yu.6/9/19`); report in `docs/review/` |
 | 2026-05-04 | [6z0-handoff](2026-05-04-6z0-handoff.md) | **Handoff** — vectorfeld-6z0 mid-investigation cut-off; WIP debug instrumentation in `df591f5`; post-mortem suggests bug already fixed by pdf-lib migration, awaiting fresh dogfood verification |
 | 2026-04-27 | [eb0-shipped](2026-04-27-eb0-shipped.md) | **vectorfeld-eb0 shipped** — in-place source-font edits; graft engine extracts + uses source's embedded font for modifications + Carlito coverage fallback (5 sub-beads) |
