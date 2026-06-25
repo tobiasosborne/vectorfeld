@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { ReplaceDocumentCommand, replaceDocumentWithParsed } from './documentReplace'
+import {
+  ReplaceDocumentCommand,
+  replaceDocumentWithParsed,
+  processImportedPdfLayer,
+} from './documentReplace'
 import { createDocumentModel } from './document'
 import { SourcePdfStore, type SourcePdfEntry } from './sourcePdf'
 import type { ParsedSvg } from './fileio'
@@ -255,6 +259,77 @@ describe('ReplaceDocumentCommand', () => {
         cmd.execute()
         cmd.undo()
       }).not.toThrow()
+    })
+  })
+
+  describe('processLayer hook (SVG vs PDF per-layer processing)', () => {
+    it('SVG path (no processLayer) imports layers as-is: no pt→mm scale, no source tags', () => {
+      const doc = makeDoc()
+      // A wrapper-less layer with a single path that has no transform.
+      replaceDocumentWithParsed(doc, fakeParsed('<path d="M0 0"/>'))
+      const layer = doc.getLayerElements()[0]
+      const path = layer.querySelector('path')!
+      // No PDF processing ran → no scale prefix, no diagnostics/provenance tags.
+      expect(path.getAttribute('transform')).toBeNull()
+      expect(layer.getAttribute('data-text-chars')).toBeNull()
+      expect(layer.getAttribute('data-source-pdf-id')).toBeNull()
+    })
+
+    it('PDF path (processImportedPdfLayer) applies pt→mm scale + source tags', () => {
+      const doc = makeDoc()
+      replaceDocumentWithParsed(doc, fakeParsed('<path d="M0 0"/>'), processImportedPdfLayer)
+      const layer = doc.getLayerElements()[0]
+      const path = layer.querySelector('path')!
+      // flattenAndScalePdfLayer prepends scale(PT_TO_MM ≈ 0.3527…).
+      expect(path.getAttribute('transform')).toMatch(/^scale\(0\.3527/)
+      // tagLayerWithImportAnalysis sets diagnostics; tagImportedLayer sets provenance.
+      expect(layer.getAttribute('data-text-chars')).not.toBeNull()
+      expect(layer.getAttribute('data-source-pdf-id')).not.toBeNull()
+    })
+
+    it('ReplaceDocumentCommand threads opts.processLayer through execute()', () => {
+      const doc = makeDoc()
+      const cmd = new ReplaceDocumentCommand(doc, fakeParsed('<path d="M0 0"/>'), {
+        processLayer: processImportedPdfLayer,
+      })
+      cmd.execute()
+      const path = doc.getLayerElements()[0].querySelector('path')!
+      expect(path.getAttribute('transform')).toMatch(/^scale\(0\.3527/)
+    })
+  })
+
+  describe('store concern WITHOUT a sourceEntry (SVG: clear-only)', () => {
+    it('execute() clears primary + backgrounds and sets NO new primary', () => {
+      const doc = makeDoc()
+      const store = new SourcePdfStore()
+      store.setPrimary(entry('stale.pdf'))
+      store.addBackground('Some BG', entry('bg.pdf'))
+
+      const cmd = new ReplaceDocumentCommand(doc, fakeParsed('<path d="M0 0"/>'), {
+        store: { store }, // no sourceEntry → SVG clear-only
+      })
+      cmd.execute()
+
+      expect(store.primary).toBeNull()
+      expect(store.backgrounds.size).toBe(0)
+    })
+
+    it('undo() restores the prior primary + backgrounds after a clear-only swap', () => {
+      const doc = makeDoc()
+      const store = new SourcePdfStore()
+      const oldEntry = entry('stale.pdf')
+      const bgEntry = entry('bg.pdf')
+      store.setPrimary(oldEntry)
+      store.addBackground('Some BG', bgEntry)
+
+      const cmd = new ReplaceDocumentCommand(doc, fakeParsed('<path d="M0 0"/>'), {
+        store: { store },
+      })
+      cmd.execute()
+      cmd.undo()
+
+      expect(store.primary).toBe(oldEntry)
+      expect(store.backgrounds.get('Some BG')).toBe(bgEntry)
     })
   })
 

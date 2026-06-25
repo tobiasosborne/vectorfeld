@@ -42,17 +42,48 @@ function tagLayerWithImportAnalysis(layer: Element): void {
 }
 
 /**
+ * PDF-specific per-layer post-processing for the primary `Open PDF…` path.
+ *
+ * MuPDF emits content in PDF points wrapped in one anonymous <g>; the viewBox
+ * was already converted to mm. Flatten that wrapper and distribute the pt→mm
+ * scale across each resulting top-level element so every child stays
+ * individually selectable, then tag the layer with import diagnostics +
+ * source-PDF provenance and snapshot its elements for the graft engine.
+ *
+ * Passed to `replaceDocumentWithParsed` as the `processLayer` hook by the PDF
+ * caller. SVG imports pass NO hook — they have no wrapper to flatten, no
+ * pt→mm scale, and no source-PDF bytes to tag against. Exported so the PDF
+ * call site and tests can reference the exact processing.
+ */
+export function processImportedPdfLayer(layer: Element): void {
+  flattenAndScalePdfLayer(layer, PT_TO_MM)
+  tagLayerWithImportAnalysis(layer)
+  tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
+  snapshotImportedElements(layer)
+}
+
+/**
  * Replace the live document with parsed content. Pure DOM swap, no command
  * history — `ReplaceDocumentCommand` is the undoable wrapper. Exported for
  * testing and for direct reuse by `replaceDocumentWithParsed` callers that
  * have already arranged their own undo.
+ *
+ * `processLayer`, if supplied, runs against each imported layer (already
+ * `importNode`d into the live document) BEFORE it is inserted. The PDF path
+ * passes `processImportedPdfLayer` (pt→mm scale + source tagging); the SVG
+ * path passes nothing, importing layers as-is (matching the old
+ * `fileio.applyParsedSvg`, which did NO scaling or tagging).
  *
  * Mirrors the old `applyParsedSvg` body exactly, with ONE deliberate
  * difference: `clearSelection()` fires LAST (after the DOM swap), matching the
  * additive background path. Firing it first leaves the LayersPanel refreshing
  * against a half-mutated tree → phantom rows.
  */
-export function replaceDocumentWithParsed(doc: DocumentModel, parsed: ParsedSvg): void {
+export function replaceDocumentWithParsed(
+  doc: DocumentModel,
+  parsed: ParsedSvg,
+  processLayer?: (layer: Element) => void,
+): void {
   if (parsed.viewBox) {
     doc.svg.setAttribute('viewBox', parsed.viewBox)
   }
@@ -69,22 +100,12 @@ export function replaceDocumentWithParsed(doc: DocumentModel, parsed: ParsedSvg)
     }
   }
 
-  // MuPDF emits content in PDF points wrapped in one anonymous <g>; viewBox was
-  // converted to mm. Flatten that wrapper and distribute the pt→mm scale across
-  // each resulting top-level element so every child stays individually
-  // selectable. (For SVG imports the layer has no wrapper to flatten and the
-  // scale is benign — identity at pt→mm only matters for PDF, but flattening a
-  // wrapper-less layer is a no-op aside from the scale prefix; SVG callers that
-  // need a different scale should not route through this PDF-shaped helper.)
   const firstOverlay = doc.svg.querySelector(
     '[data-role="grid-overlay"], [data-role="user-guides-overlay"], [data-role="guides-overlay"], [data-role="overlay"]',
   )
   for (const layer of parsed.layers) {
     const imported = document.importNode(layer, true) as Element
-    flattenAndScalePdfLayer(imported, PT_TO_MM)
-    tagLayerWithImportAnalysis(imported)
-    tagImportedLayer(imported, { page: 0, layerId: PRIMARY_LAYER_ID })
-    snapshotImportedElements(imported)
+    processLayer?.(imported)
     if (firstOverlay) {
       doc.svg.insertBefore(imported, firstOverlay)
     } else {
@@ -101,16 +122,25 @@ export function replaceDocumentWithParsed(doc: DocumentModel, parsed: ParsedSvg)
 
 /**
  * Optional source-PDF store concern for `ReplaceDocumentCommand`.
- * When supplied, execute() clears the store and sets `store.primary = entry`;
- * undo() restores the prior `primary` + `backgrounds`. SVG imports omit this.
+ *
+ * `execute()` always clears the store first (so a stale primary's ~10MB byte
+ * buffer + its source-id routing are torn down). If `sourceEntry` is supplied,
+ * it then becomes the new `primary`; when it is absent/null — the SVG case,
+ * which has no source bytes — the store is left empty after the clear.
+ * `undo()` restores the prior `primary` + `backgrounds` either way.
  */
 export interface ReplaceDocumentStoreOptions {
   store: SourcePdfStore
-  sourceEntry: SourcePdfEntry
+  /** New primary entry; omit/null to clear the store without a new primary
+   *  (SVG imports carry no source PDF bytes). */
+  sourceEntry?: SourcePdfEntry | null
 }
 
 export interface ReplaceDocumentOptions {
   store?: ReplaceDocumentStoreOptions
+  /** Per-layer post-processing applied to each imported layer before
+   *  insertion. PDF passes `processImportedPdfLayer`; SVG passes nothing. */
+  processLayer?: (layer: Element) => void
 }
 
 /** A captured layer plus the sibling it sat before, so position is restorable. */
@@ -169,12 +199,17 @@ export class ReplaceDocumentCommand implements Command {
       this.savedBackgrounds = new Map(store.backgrounds)
     }
 
-    replaceDocumentWithParsed(this.doc, this.parsed)
+    replaceDocumentWithParsed(this.doc, this.parsed, this.opts.processLayer)
 
     if (this.opts.store) {
       const { store, sourceEntry } = this.opts.store
+      // Always clear: tears down a stale primary's pinned bytes + source-id
+      // routing. Only set a new primary when the caller supplied one (PDF);
+      // SVG imports have no source bytes, so the store stays empty.
       store.clearAll()
-      store.setPrimary(sourceEntry)
+      if (sourceEntry) {
+        store.setPrimary(sourceEntry)
+      }
     }
   }
 

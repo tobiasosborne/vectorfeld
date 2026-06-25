@@ -2,6 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { exportSvgString, parseSvgString, sanitizeSvgTree } from './fileio'
 import { createDocumentModel, resetIdCounter, generateId, syncIdCounter } from './document'
 import type { DocumentModel } from './document'
+import { ReplaceDocumentCommand } from './documentReplace'
+import {
+  SourcePdfStore,
+  setActiveSourcePdfStore,
+  getActiveSourcePdfStore,
+} from './sourcePdf'
+import { subscribeSelection } from './selection'
 
 function makeSvg(): SVGSVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
@@ -313,5 +320,118 @@ describe('sanitizeSvgTree', () => {
     expect(layer.querySelector('script')).toBeNull()
     const rect = layer.querySelector('rect')
     expect(rect?.getAttribute('onclick')).toBeNull()
+  })
+})
+
+/**
+ * Open-SVG teardown (vectorfeld-3yu.15 + .14 SVG side).
+ *
+ * `importSvg`'s file-reader callback builds exactly this command:
+ *   new ReplaceDocumentCommand(doc, parseSvgString(text),
+ *     { store: { store: getActiveSourcePdfStore() } })   // clear-only, no entry
+ * with NO processLayer (SVG layers import as-is). These tests exercise that
+ * construction directly — the file-picker/FileReader shell is untestable in
+ * jsdom, but the command IS the behaviour under test.
+ */
+describe('Open SVG: SourcePdfStore teardown + undoable swap', () => {
+  function makeDocWithOverlay(): DocumentModel {
+    document.body.innerHTML = ''
+    resetIdCounter()
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.setAttribute('viewBox', '0 0 210 297')
+    const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    layer.setAttribute('data-layer-name', 'Original')
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    rect.setAttribute('id', 'orig-rect')
+    layer.appendChild(rect)
+    svg.appendChild(layer)
+    const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    overlay.setAttribute('data-role', 'overlay')
+    svg.appendChild(overlay)
+    document.body.appendChild(svg)
+    return createDocumentModel(svg)
+  }
+
+  const SVG_TEXT =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+    '<g data-layer-name="Imported"><circle cx="50" cy="50" r="20"/></g></svg>'
+
+  function openSvgCommand(doc: DocumentModel): ReplaceDocumentCommand {
+    // Exactly what importSvg builds.
+    return new ReplaceDocumentCommand(doc, parseSvgString(SVG_TEXT), {
+      store: { store: getActiveSourcePdfStore() },
+    })
+  }
+
+  beforeEach(() => {
+    setActiveSourcePdfStore(new SourcePdfStore())
+  })
+
+  it('clears a stale primary + backgrounds left by a prior PDF import', () => {
+    const store = getActiveSourcePdfStore()
+    store.setPrimary({ bytes: new Uint8Array([1, 2, 3]), filename: 'old.pdf', pageCount: 1 })
+    store.addBackground('BG', { bytes: new Uint8Array([4]), filename: 'bg.pdf', pageCount: 1 })
+
+    const doc = makeDocWithOverlay()
+    openSvgCommand(doc).execute()
+
+    expect(getActiveSourcePdfStore().getPrimary()).toBeNull()
+    expect(getActiveSourcePdfStore().backgrounds.size).toBe(0)
+  })
+
+  it('fires a selection notify ONCE, AFTER the layers are swapped (no phantom rows)', () => {
+    const doc = makeDocWithOverlay()
+    let notifyCount = 0
+    let layerNameAtNotify: string | null = null
+    const unsub = subscribeSelection(() => {
+      notifyCount++
+      // At notify time the DOM must already show the NEW document's layer,
+      // not the original — proving clearSelection fired LAST.
+      const layers = doc.getLayerElements()
+      layerNameAtNotify = layers.length === 1 ? layers[0].getAttribute('data-layer-name') : 'MULTIPLE'
+    })
+
+    openSvgCommand(doc).execute()
+    unsub()
+
+    expect(notifyCount).toBe(1)
+    expect(layerNameAtNotify).toBe('Imported')
+  })
+
+  it('execute→undo restores the prior document AND prior store', () => {
+    const store = getActiveSourcePdfStore()
+    const oldPrimary = { bytes: new Uint8Array([9]), filename: 'old.pdf', pageCount: 1 }
+    store.setPrimary(oldPrimary)
+
+    const doc = makeDocWithOverlay()
+    const originalLayer = doc.getLayerElements()[0]
+    const originalRect = doc.svg.querySelector('#orig-rect')!
+
+    const cmd = openSvgCommand(doc)
+    cmd.execute()
+    // Swapped: store cleared, new layer present.
+    expect(getActiveSourcePdfStore().getPrimary()).toBeNull()
+    expect(doc.getLayerElements()[0].getAttribute('data-layer-name')).toBe('Imported')
+
+    cmd.undo()
+    // Prior document restored with SAME element identity.
+    const restored = doc.getLayerElements()
+    expect(restored.length).toBe(1)
+    expect(restored[0]).toBe(originalLayer)
+    expect(restored[0].querySelector('#orig-rect')).toBe(originalRect)
+    expect(doc.svg.getAttribute('viewBox')).toBe('0 0 210 297')
+    // Prior store restored.
+    expect(getActiveSourcePdfStore().getPrimary()).toBe(oldPrimary)
+  })
+
+  it('imports SVG layers WITHOUT pt→mm scaling (no scale transform injected)', () => {
+    const doc = makeDocWithOverlay()
+    openSvgCommand(doc).execute()
+    const layer = doc.getLayerElements()[0]
+    const circle = layer.querySelector('circle')!
+    // No processLayer → no scale(...) prefix and no PDF source tags.
+    expect(circle.getAttribute('transform')).toBeNull()
+    expect(layer.getAttribute('data-source-pdf-id')).toBeNull()
+    expect(layer.getAttribute('data-text-chars')).toBeNull()
   })
 })

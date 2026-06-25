@@ -1,12 +1,11 @@
 import type { DocumentModel } from './document'
-import { syncIdCounter } from './document'
-import { clearSelection } from './selection'
 import { AddElementCommand } from './commands'
 import type { CommandHistory } from './commands'
 import { svgStringToPdfBytes, type FontBytes } from './pdfExport'
 import { exportViaGraft } from './graftExport'
 import { getActiveSourcePdfStore, type SourcePdfStore } from './sourcePdf'
 import { classifyLayer } from './graftClassify'
+import { ReplaceDocumentCommand } from './documentReplace'
 
 // Carlito (Calibri-metric-compatible open clone) for sans, Liberation Serif
 // as a Playfair-Display-compatible fallback for serif. Vite resolves the
@@ -403,52 +402,25 @@ export function parseSvgString(xmlString: string): ParsedSvg {
 }
 
 /**
- * Apply a parsed SVG to the document model.
- * Clears existing layers/defs and imports the parsed content.
+ * Import an SVG file into the document, REPLACING the current document as a
+ * single undoable `ReplaceDocumentCommand` via `history`. Opens a file picker,
+ * parses the SVG, then swaps the whole document.
+ *
+ * SVG imports carry no source-PDF bytes, so the command's store concern just
+ * CLEARS the active store (no `sourceEntry`): this tears down any stale primary
+ * (≈10MB pinned bytes) and its source-id routing left behind by a prior PDF
+ * import — without that, a round-tripped SVG bearing a `data-source-pdf-id`
+ * would graft-export against the wrong source PDF (vectorfeld-3yu.15). No
+ * `processLayer` is passed: SVG layers import as-is (no pt→mm scale, no
+ * source tagging), matching the old `applyParsedSvg`.
+ *
+ * Because the swap destroys in-progress work, it prompts before replacing a
+ * dirty document (`history.canUndo`) — mirroring Open PDF — which also fixes
+ * the sibling "Open SVG silently destroys the document" data-loss
+ * (vectorfeld-3yu.14). The confirm lives inside `onchange` so cancelling the
+ * OS file dialog never prompts.
  */
-function applyParsedSvg(doc: DocumentModel, parsed: ParsedSvg): void {
-  // Clear selection before modifying DOM (prevents stale references)
-  clearSelection()
-
-  // Copy viewBox
-  if (parsed.viewBox) {
-    doc.svg.setAttribute('viewBox', parsed.viewBox)
-  }
-
-  // Clear existing layers
-  for (const layer of doc.getLayerElements()) {
-    layer.remove()
-  }
-
-  // Import defs
-  if (parsed.defs.length > 0) {
-    const docDefs = doc.getDefs()
-    while (docDefs.firstChild) docDefs.removeChild(docDefs.firstChild)
-    for (const child of parsed.defs) {
-      docDefs.appendChild(document.importNode(child, true))
-    }
-  }
-
-  // Import layers before overlay groups to maintain correct z-order
-  const firstOverlay = doc.svg.querySelector('[data-role="grid-overlay"], [data-role="user-guides-overlay"], [data-role="guides-overlay"], [data-role="overlay"]')
-  for (const layer of parsed.layers) {
-    const imported = document.importNode(layer, true)
-    if (firstOverlay) {
-      doc.svg.insertBefore(imported, firstOverlay)
-    } else {
-      doc.svg.appendChild(imported)
-    }
-  }
-
-  // Advance ID counter past imported IDs to prevent collisions
-  syncIdCounter(doc.svg)
-}
-
-/**
- * Import an SVG file into the document model.
- * Returns a promise that resolves when the file is loaded.
- */
-export function importSvg(doc: DocumentModel): Promise<void> {
+export function importSvg(doc: DocumentModel, history: CommandHistory): Promise<void> {
   return new Promise((resolve, reject) => {
     const input = document.createElement('input')
     input.type = 'file'
@@ -461,12 +433,25 @@ export function importSvg(doc: DocumentModel): Promise<void> {
         resolve()
         return
       }
+
+      // Confirm-if-dirty: the swap wipes the whole document. Only the existence
+      // of undoable work counts as "dirty" (the same signal Open PDF uses).
+      if (history.canUndo &&
+          !window.confirm('Opening an SVG will replace the current document. Continue?')) {
+        resolve()
+        return
+      }
+
       const reader = new FileReader()
       reader.onerror = () => reject(new Error('Failed to read file'))
       reader.onload = () => {
         const text = reader.result as string
         const parsed = parseSvgString(text)
-        applyParsedSvg(doc, parsed)
+        history.execute(
+          new ReplaceDocumentCommand(doc, parsed, {
+            store: { store: getActiveSourcePdfStore() },
+          }),
+        )
         resolve()
       }
       reader.readAsText(file)

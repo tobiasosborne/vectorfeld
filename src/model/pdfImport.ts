@@ -14,7 +14,7 @@ import { analyzeImportedSvg } from './importAnalysis'
 import { getActiveSourcePdfStore, recordImportedSource } from './sourcePdf'
 import { tagImportedLayer } from './sourceTagging'
 import { snapshotImportedElements } from './sourceSnapshot'
-import { ReplaceDocumentCommand } from './documentReplace'
+import { ReplaceDocumentCommand, processImportedPdfLayer } from './documentReplace'
 import type { CommandHistory } from './commands'
 import RenderWorker from './pdfRender.worker.ts?worker'
 
@@ -199,6 +199,7 @@ export async function importPdf(doc: DocumentModel, history: CommandHistory): Pr
         history.execute(
           new ReplaceDocumentCommand(doc, parsed, {
             store: { store: getActiveSourcePdfStore(), sourceEntry },
+            processLayer: processImportedPdfLayer,
           }),
         )
         resolve()

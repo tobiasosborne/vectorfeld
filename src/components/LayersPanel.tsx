@@ -3,6 +3,7 @@ import { useEditor } from '../model/EditorContext'
 import { AddElementCommand, RemoveElementCommand, ReorderElementCommand } from '../model/commands'
 import { setActiveLayerElement } from '../model/activeLayer'
 import { subscribeSelection } from '../model/selection'
+import { getActiveSourcePdfStore } from '../model/sourcePdf'
 
 interface LayerInfo {
   element: Element
@@ -96,6 +97,13 @@ export function LayersPanel({ embedded = false }: LayersPanelProps = {}) {
 
   const deleteLayer = (idx: number) => {
     if (layers.length <= 1 || !editor.doc) return
+    // If this layer is a background-PDF source layer, drop its retained bytes
+    // from the store too — otherwise the entry (another ~10MB pinned buffer)
+    // leaks, keyed by a now-gone layer name, and stale-routes future graft
+    // exports (vectorfeld-3yu.15). Source-layer add/remove isn't yet a Command,
+    // so this teardown is not undo-symmetric (follow-up bead noted).
+    const name = layers[idx].element.getAttribute('data-layer-name')
+    if (name) getActiveSourcePdfStore().removeBackground(name)
     const cmd = new RemoveElementCommand(editor.doc, layers[idx].element)
     editor.history.execute(cmd)
     refreshLayers()
