@@ -5,6 +5,8 @@ import {
   computeDocumentBounds, artboardAtPoint, resetArtboards,
   subscribeArtboards,
 } from './artboard'
+import { CommandHistory } from './commands'
+import { ResizeArtboardCommand } from './artboardCommands'
 
 describe('artboard', () => {
   beforeEach(() => resetArtboards())
@@ -108,5 +110,66 @@ describe('artboard', () => {
     addArtboard()
     const names = getArtboards().map(a => a.name)
     expect(new Set(names).size).toBe(3)
+  })
+
+  describe('ResizeArtboardCommand', () => {
+    it('execute resizes the active artboard and shrinks document bounds', () => {
+      const ab = addArtboard(210, 297)
+      const history = new CommandHistory()
+      const cmd = new ResizeArtboardCommand(ab.id, { width: 100, height: 100 })
+      expect(cmd.description).toBe('Resize Artboard')
+
+      history.execute(cmd)
+
+      expect(getActiveArtboard()?.width).toBe(100)
+      expect(getActiveArtboard()?.height).toBe(100)
+      // computeDocumentBounds reads the model, so the page (viewBox source) shrinks.
+      const bounds = computeDocumentBounds(0)
+      expect(bounds.width).toBe(100)
+      expect(bounds.height).toBe(100)
+    })
+
+    it('undo restores the previous size and bounds', () => {
+      const ab = addArtboard(210, 297)
+      const history = new CommandHistory()
+      history.execute(new ResizeArtboardCommand(ab.id, { width: 100, height: 100 }))
+
+      history.undo()
+
+      expect(getActiveArtboard()?.width).toBe(210)
+      expect(getActiveArtboard()?.height).toBe(297)
+      expect(computeDocumentBounds(0).width).toBe(210)
+      expect(computeDocumentBounds(0).height).toBe(297)
+    })
+
+    it('redo re-applies the resize', () => {
+      const ab = addArtboard(210, 297)
+      const history = new CommandHistory()
+      history.execute(new ResizeArtboardCommand(ab.id, { width: 100, height: 100 }))
+      history.undo()
+
+      history.redo()
+
+      expect(getActiveArtboard()?.width).toBe(100)
+      expect(getActiveArtboard()?.height).toBe(100)
+      expect(computeDocumentBounds(0).width).toBe(100)
+      expect(computeDocumentBounds(0).height).toBe(100)
+    })
+
+    it('targets the artboard by id (not just whichever is active)', () => {
+      const ab1 = addArtboard(210, 297, 'First')
+      const ab2 = addArtboard(150, 150, 'Second')
+      setActiveArtboard(ab2.id)
+      const history = new CommandHistory()
+
+      // Resize the non-active artboard (ab1) explicitly.
+      history.execute(new ResizeArtboardCommand(ab1.id, { width: 100, height: 100 }))
+
+      expect(getArtboards().find(a => a.id === ab1.id)?.width).toBe(100)
+      expect(getArtboards().find(a => a.id === ab2.id)?.width).toBe(150) // untouched
+
+      history.undo()
+      expect(getArtboards().find(a => a.id === ab1.id)?.width).toBe(210)
+    })
   })
 })

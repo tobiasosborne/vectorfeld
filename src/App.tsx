@@ -18,6 +18,8 @@ import { computeReflectH, computeReflectV } from './model/reflect'
 import { computeAlign, applyDelta, type AlignOp } from './model/align'
 import { getSelection, subscribeSelection, refreshOverlay, clearSelection, setSelection } from './model/selection'
 import { ModifyAttributeCommand, CompoundCommand, AddElementCommand, RemoveElementCommand, ReorderElementCommand, GroupCommand, UngroupCommand } from './model/commands'
+import { ResizeArtboardCommand } from './model/artboardCommands'
+import { getActiveArtboard } from './model/artboard'
 import { elementToPathD, extractStyleAttrs } from './model/shapeToPath'
 import { joinPaths } from './model/pathOps'
 import { importPdf, importPdfAsBackgroundLayer } from './model/pdfImport'
@@ -423,7 +425,17 @@ function AppContent() {
       {showArtboard && (
         <ArtboardDialog
           dimensions={dimensions}
-          onApply={setDimensions}
+          onApply={(d) => {
+            // Resize the artboard MODEL (Canvas renders from it) through history
+            // so Document Setup actually changes the page (vectorfeld-3yu.10).
+            const active = getActiveArtboard()
+            if (active) {
+              editor.history.execute(new ResizeArtboardCommand(active.id, d))
+            }
+            // setDimensions stays: it is load-bearing — the Canvas viewBox
+            // recompute effect is keyed on `dimensions`.
+            setDimensions(d)
+          }}
           onClose={() => setShowArtboard(false)}
         />
       )}
