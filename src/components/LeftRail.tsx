@@ -23,7 +23,7 @@ const RAIL: RailSlot[] = [
   { key: 'rect',         shortcut: 'R', toolName: 'rectangle' },
   { key: 'knife',        shortcut: 'K', comingSoon: true },
   { key: 'eyedropper',   shortcut: 'I', toolName: 'eyedropper' },
-  { key: 'erase',        shortcut: 'E', toolName: 'eraser' },
+  { key: 'erase',        shortcut: 'X', toolName: 'eraser' },
 ]
 
 // Tools reachable via keyboard but not on the rail — surface them through

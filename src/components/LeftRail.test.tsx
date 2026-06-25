@@ -92,4 +92,37 @@ describe('<LeftRail>', () => {
     expect(overflow).not.toBeNull()
     expect(overflow.textContent).toContain('⋯')
   })
+
+  it('eraser slot displays shortcut X (not the stale E that triggers ellipse)', () => {
+    const { container } = render(<LeftRail />)
+    const eraseBtn = container.querySelector('[data-tool-slot="erase"]') as HTMLElement
+    expect(eraseBtn).not.toBeNull()
+    // Real binding is 'x' (eraserTool.ts shortcut:'x'); 'e' routes to ellipse.
+    expect(eraseBtn.textContent?.toLowerCase()).toContain('x')
+  })
+
+  it('every real-tool rail slot displays its registry shortcut (case-insensitive, skips comingSoon brush/knife)', () => {
+    // This is the loop guard: if the hardcoded label ever diverges from the
+    // registered shortcut again, this test fails before it ships.
+    // slot key -> expected registry shortcut (lowercase)
+    const realSlots: Array<[string, string]> = [
+      ['select',       'v'],
+      ['directSelect', 'a'],
+      ['pen',          'p'],
+      ['text',         't'],
+      ['rect',         'r'],
+      ['eyedropper',   'i'],
+      ['erase',        'x'],
+    ]
+    const { container } = render(<LeftRail />)
+    for (const [slotKey, registryShortcut] of realSlots) {
+      const btn = container.querySelector(`[data-tool-slot="${slotKey}"]`) as HTMLElement
+      expect(btn, `slot "${slotKey}" not found`).not.toBeNull()
+      // The shortcut span renders slot.shortcut — must match registry (case-insensitive).
+      expect(
+        btn.textContent?.toLowerCase(),
+        `slot "${slotKey}" shortcut mismatch`
+      ).toContain(registryShortcut.toLowerCase())
+    }
+  })
 })
