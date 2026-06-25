@@ -4,6 +4,12 @@ import {
   GroupCommand,
   UngroupCommand,
 } from './commands'
+import {
+  parseTransform,
+  multiplyMatrix,
+  applyMatrixToPoint,
+  type Matrix,
+} from './matrix'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
@@ -281,5 +287,128 @@ describe('UngroupCommand', () => {
 
     expect(parent.contains(group)).toBe(false)
     expect(parent.contains(solo)).toBe(true)
+  })
+
+  // -------------------------------------------------------------------------
+  // Transform baking (vectorfeld-3yu.4): ungrouping a transformed group must
+  // bake the group's transform into each child (group ∘ child) so the child's
+  // effective transform is preserved once it loses the group as an ancestor.
+  // -------------------------------------------------------------------------
+
+  /** Compare two matrices componentwise within float tolerance. */
+  function expectMatrixClose(actual: Matrix, expected: Matrix, eps = 1e-6) {
+    for (let i = 0; i < 6; i++) {
+      expect(actual[i]).toBeCloseTo(expected[i], 5)
+    }
+    void eps
+  }
+
+  it('(a) bakes a translate group transform into the child (group ∘ child, child has none)', () => {
+    group.setAttribute('transform', 'translate(10,20)')
+    // x has no transform of its own.
+    const groupM = parseTransform('translate(10,20)')
+
+    const cmd = new UngroupCommand(parent, group)
+    cmd.execute()
+
+    const childM = parseTransform(x.getAttribute('transform') ?? '')
+    // Effective child transform must equal groupM ∘ childM (childM = identity).
+    expectMatrixClose(childM, multiplyMatrix(groupM, parseTransform('')))
+  })
+
+  it('(b) composes group ∘ child in the correct order when the child has its own transform', () => {
+    group.setAttribute('transform', 'translate(10,20)')
+    x.setAttribute('transform', 'translate(3,4)')
+    const groupM = parseTransform('translate(10,20)')
+    const childM = parseTransform('translate(3,4)')
+
+    const cmd = new UngroupCommand(parent, group)
+    cmd.execute()
+
+    const baked = parseTransform(x.getAttribute('transform') ?? '')
+    expectMatrixClose(baked, multiplyMatrix(groupM, childM))
+    // Sanity: order matters. group∘child translate = (13,24), not commuted away.
+    const p = applyMatrixToPoint(baked, 0, 0)
+    expect(p.x).toBeCloseTo(13, 5)
+    expect(p.y).toBeCloseTo(24, 5)
+  })
+
+  it('(c) rotate(90,5,5) group: a child corner maps via groupM ∘ childM', () => {
+    group.setAttribute('transform', 'rotate(90,5,5)')
+    const groupM = parseTransform('rotate(90,5,5)')
+
+    const cmd = new UngroupCommand(parent, group)
+    cmd.execute()
+
+    const baked = parseTransform(x.getAttribute('transform') ?? '')
+    // Pick an arbitrary local point and check it maps the same as groupM does
+    // (child had no transform, so effective = groupM).
+    const local = { x: 10, y: 7 }
+    const viaBaked = applyMatrixToPoint(baked, local.x, local.y)
+    const viaGroup = applyMatrixToPoint(groupM, local.x, local.y)
+    expect(viaBaked.x).toBeCloseTo(viaGroup.x, 5)
+    expect(viaBaked.y).toBeCloseTo(viaGroup.y, 5)
+  })
+
+  it('(d) skewed group (matrix with shear) composes the child correctly', () => {
+    // matrix(1, 0, 0.5, 1, 3, 4) is a horizontal shear plus translate.
+    group.setAttribute('transform', 'matrix(1, 0, 0.5, 1, 3, 4)')
+    x.setAttribute('transform', 'scale(2,2)')
+    const groupM = parseTransform('matrix(1, 0, 0.5, 1, 3, 4)')
+    const childM = parseTransform('scale(2,2)')
+
+    const cmd = new UngroupCommand(parent, group)
+    cmd.execute()
+
+    const baked = parseTransform(x.getAttribute('transform') ?? '')
+    expectMatrixClose(baked, multiplyMatrix(groupM, childM))
+  })
+
+  it('(e) undo restores the EXACT original child transform string (incl. null→removed)', () => {
+    group.setAttribute('transform', 'translate(10,20)')
+    // x has its own transform, y has none.
+    x.setAttribute('transform', 'rotate(15)')
+    expect(y.hasAttribute('transform')).toBe(false)
+
+    const cmd = new UngroupCommand(parent, group)
+    cmd.execute()
+    // After execute, both were baked.
+    expect(x.getAttribute('transform')).not.toBe('rotate(15)')
+    expect(y.hasAttribute('transform')).toBe(true)
+
+    cmd.undo()
+    // Byte-exact restore.
+    expect(x.getAttribute('transform')).toBe('rotate(15)')
+    expect(y.hasAttribute('transform')).toBe(false)
+  })
+
+  it('(f) redo equals first execute — re-bakes from captured original, no double-bake', () => {
+    group.setAttribute('transform', 'translate(10,20)')
+    x.setAttribute('transform', 'translate(3,4)')
+
+    const cmd = new UngroupCommand(parent, group)
+    cmd.execute()
+    const afterFirst = x.getAttribute('transform')
+
+    cmd.undo()
+    cmd.execute() // redo
+    const afterRedo = x.getAttribute('transform')
+
+    // String-identical: the bake is computed from the pristine captured original
+    // each time, so there is no cumulative drift.
+    expect(afterRedo).toBe(afterFirst)
+  })
+
+  it('(g) no-transform group leaves the child transform string-IDENTICAL (fast path)', () => {
+    // Group has NO transform attribute.
+    expect(group.hasAttribute('transform')).toBe(false)
+    x.setAttribute('transform', 'translate(3,4)')
+
+    const cmd = new UngroupCommand(parent, group)
+    cmd.execute()
+
+    // Cheap reparent: child string is byte-identical, no matrix() rewrite.
+    expect(x.getAttribute('transform')).toBe('translate(3,4)')
+    expect(y.hasAttribute('transform')).toBe(false)
   })
 })

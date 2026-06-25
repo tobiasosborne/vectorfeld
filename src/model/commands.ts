@@ -1,5 +1,6 @@
 import type { DocumentModel } from './document'
 import { isFromSource } from './sourceTagging'
+import { parseTransform, multiplyMatrix, matrixToString } from './matrix'
 
 export interface Command {
   readonly description: string
@@ -260,15 +261,49 @@ export class UngroupCommand implements Command {
   private group: Element
   private children: Element[]
   private groupNextSibling: Element | null
+  /**
+   * Original `transform` attribute of each child captured at construction
+   * (null when the attribute was absent). Used to (a) bake the group transform
+   * from the pristine original on every execute()/redo() so redo is idempotent
+   * (no double-bake), and (b) restore the byte-exact original string on undo().
+   */
+  private originalTransforms: Map<Element, string | null>
 
   constructor(parent: Element, group: Element) {
     this.parent = parent
     this.group = group
     this.children = Array.from(group.children)
     this.groupNextSibling = group.nextElementSibling
+    this.originalTransforms = new Map(
+      this.children.map((child) => [child, child.getAttribute('transform')])
+    )
   }
 
   execute(): void {
+    // In SVG a child's effective transform is `group ∘ child`. When we reparent
+    // the child out of the <g>, the group's own transform vanishes, so we must
+    // bake it into each child to keep them in place. We bake from the CAPTURED
+    // ORIGINAL (not the current attribute) so redo after undo re-bakes exactly
+    // once and is idempotent.
+    //
+    // NOTE: this distributes ONLY the `transform`. Imported groups can survive
+    // sanitizeSvgTree carrying clip-path/mask/filter/opacity/style/class; those
+    // are NOT distributed to children here and would be lost on ungroup. See
+    // follow-up bead (non-transform group properties). Out of scope for this fix.
+    const groupTransform = this.group.getAttribute('transform')
+
+    // Fast path: a transform-less group needs no baking. Keep the cheap reparent
+    // so child transform strings stay byte-identical (avoids float churn /
+    // golden drift).
+    if (groupTransform !== null) {
+      const groupM = parseTransform(groupTransform)
+      for (const child of this.children) {
+        const original = this.originalTransforms.get(child) ?? null
+        const baked = multiplyMatrix(groupM, parseTransform(original ?? ''))
+        child.setAttribute('transform', matrixToString(baked))
+      }
+    }
+
     // Move children out of group, before the group
     for (const child of this.children) {
       this.parent.insertBefore(child, this.group)
@@ -285,6 +320,14 @@ export class UngroupCommand implements Command {
     }
     for (const child of this.children) {
       this.group.appendChild(child)
+      // Restore the exact original transform string (removeAttribute when the
+      // child originally had no transform attribute).
+      const original = this.originalTransforms.get(child) ?? null
+      if (original === null) {
+        child.removeAttribute('transform')
+      } else {
+        child.setAttribute('transform', original)
+      }
     }
   }
 
