@@ -13,6 +13,63 @@ import { getSelection, setSelection, clearSelection } from './selection'
 
 const PASTE_OFFSET = 5
 
+/**
+ * Rewrite all [id] attributes inside `root` (including `root` itself) to fresh
+ * generated ids, then remap any intra-subtree url(#old) / #old references on
+ * the load-bearing presentation attributes and href attributes.
+ *
+ * IMPORTANT: only ids that exist INSIDE the copied subtree are remapped.
+ * References to shared <defs> ids (e.g. vf-marker-*, shared gradients) are
+ * intentionally left untouched because their target is NOT in the Map.
+ */
+function uniquifyIds(root: Element): void {
+  // Pass 1: collect all [id] elements within the subtree and allocate fresh ids.
+  const idMap = new Map<string, string>()
+
+  if (root.hasAttribute('id')) {
+    idMap.set(root.getAttribute('id')!, generateId())
+  }
+  for (const el of root.querySelectorAll('[id]')) {
+    idMap.set(el.getAttribute('id')!, generateId())
+  }
+
+  // Apply the new ids.
+  if (root.hasAttribute('id')) {
+    root.setAttribute('id', idMap.get(root.getAttribute('id')!)!)
+  }
+  for (const el of root.querySelectorAll('[id]')) {
+    const oldId = el.getAttribute('id')!
+    el.setAttribute('id', idMap.get(oldId)!)
+  }
+
+  // Pass 2: rewrite intra-subtree references on the subtree (root + all descendants).
+  const REF_ATTRS = ['fill', 'stroke', 'marker-start', 'marker-mid', 'marker-end', 'clip-path', 'mask', 'filter']
+  const allNodes: Element[] = [root, ...Array.from(root.querySelectorAll('*'))]
+
+  for (const el of allNodes) {
+    // url(#old) attributes
+    for (const attr of REF_ATTRS) {
+      const val = el.getAttribute(attr)
+      if (val) {
+        const m = val.match(/^url\(#(.+)\)$/)
+        if (m && idMap.has(m[1])) {
+          el.setAttribute(attr, `url(#${idMap.get(m[1])})`)
+        }
+      }
+    }
+    // href / xlink:href of the form "#old"
+    for (const hrefAttr of ['href', 'xlink:href']) {
+      const val = el.getAttribute(hrefAttr)
+      if (val && val.startsWith('#')) {
+        const oldId = val.slice(1)
+        if (idMap.has(oldId)) {
+          el.setAttribute(hrefAttr, `#${idMap.get(oldId)}`)
+        }
+      }
+    }
+  }
+}
+
 /** Serialize the current selection into an array of XML strings. */
 export function copySelection(): string[] {
   const sel = getSelection()
@@ -92,6 +149,9 @@ export function pasteClipboard(
       while (original.firstChild) {
         created.appendChild(original.firstChild)
       }
+      // Regenerate all descendant ids and remap intra-subtree refs so that
+      // pasted containers never share ids with the originals (invalid SVG).
+      uniquifyIds(created)
     }
     const pasted = cmds.map((c) => c.getElement()).filter(Boolean) as Element[]
     setSelection(pasted)
