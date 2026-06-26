@@ -115,17 +115,40 @@ implementer-written headed scenarios had targeting/measurement bugs (off-screen 
 synthetic-wheel-not-reaching-native-listener, wrong-element measurement) — the
 orchestrator rendered/probed to confirm fix-vs-scenario and fixed each scenario.
 
+## 3yu.2 — core-use-case feature shipped (designed + built, same session)
+
+After the 20 remediation beads, designed (3-angle investigation → sign-off) and built
+**`3yu.2` — in-place editing of imported PDF text**, the app's primary journey. v1
+(owner-approved single-run scope): double-click a `<text>` → native `<textarea>` overlay
+positioned via the element's `getScreenCTM` (handles wrapper `scale()` ∘ MuPDF y-flip
+`matrix()` — dx=dy=0 on the real flyer) → retype → undoable `EditTextCommand` (collapses
+the per-char x-array to a scalar start-x; byte-exact `innerHTML` undo). A new `textContent`
+snapshot in `sourceSnapshot` flips a content-only edit to "modified" so the existing
+redact→source-font→`emitText` path re-emits the new word in the SOURCE embedded font.
+
+Caught + fixed a graft-redaction gap the implementer's synthetic test missed: a content
+edit shrinks the run's live bbox, so the redaction left the original run's right-hand
+glyphs behind. Now redacts the element's ORIGINAL import-time footprint
+(`getSnapshotBboxMm`), padding only the TRAILING edge for true content edits
+(`wasTextContentModified`) — never the left edge, so an adjacent un-edited fragment (a
+dropcap) is preserved; recolors stay unpadded (golden 10 byte-identical). Authoritative
+acceptance dogfooded on the REAL flyer: double-click the heading → "Klarheit" → export →
+reopen → the new word renders in the source heading font over a fully-redacted original.
+Deferred (beads filed): run-merge (multi-fragment line), multi-line/wrap, rich styling,
+delete-on-empty. (`70161c9`)
+
 ## Campaign total
 
-**20 `3yu` beads closed** (1/3/4/5/7/8/11/13/14/15/16 + 10/12/17/18/20/21/22/23/24), each
-headed-verified; **967 tests + golden 11/11**; ~16 follow-up beads raised. All pushed.
+**21 `3yu` beads closed** (1/2/3/4/5/7/8/11/13/14/15/16 + 10/12/17/18/20/21/22/23/24) —
+all data-loss/corruption P0s, every UI P1, AND the core-use-case feature `3yu.2` — each
+headed-verified; **985 tests + golden 11/11**; ~17 follow-up beads raised. All pushed.
+Epic `3yu` remaining: ONLY P2 cleanup.
 
 ## Next session — recommended
 
-Epic `3yu` remaining: design-only **`3yu.2`** (imported-PDF text **content** editor — a
-FEATURE, now unblocked by `3yu.3`: double-click-to-edit, in-place content + caret/IME,
-Text-tool-over-text — needs a design pass, not a quick fix); **`3yu.25`** (real-producer
-test fixtures) and **`3yu.26`** (dead-code deletion), both P2 cleanup. Plus the ~16
-follow-up beads (notably P2 `harden CommandHistory.undo/redo exception-safety`, undoable
+Epic `3yu` remaining: **`3yu.25`** (real-producer test fixtures — the green tests are
+partly false comfort without real-PDF inputs) and **`3yu.26`** (delete dead code the
+review surfaced), both P2 cleanup. Plus the ~17 follow-up beads (notably P2 `harden
+CommandHistory.undo/redo exception-safety`, run-merge for 3yu.2, undoable
 guides `7ap`, source-layer-add/remove as a Command). The data-loss/corruption core and
 all UI P1s are now fixed — what's left is a designed feature + cleanup.
