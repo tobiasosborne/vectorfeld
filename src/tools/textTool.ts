@@ -6,7 +6,9 @@ import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
 import type { Point } from '../model/coordinates'
 import { getDefaultStyle } from '../model/defaultStyle'
-import { setSelection } from '../model/selection'
+import { setSelection, refreshOverlaySync } from '../model/selection'
+import { hitTestElement } from '../model/geometry'
+import { enterTextEdit } from './textEdit'
 
 const DEFAULT_FONT_FAMILY = 'sans-serif'
 const DEFAULT_FONT_SIZE = 16
@@ -270,6 +272,23 @@ export function createTextTool(
         const svg = getSvg()
         if (!svg || e.button !== 0) return
         const pt = screenToDoc(svg, e.clientX, e.clientY)
+
+        // Clicking an existing text run edits it in place rather than authoring
+        // a new run (vectorfeld-3yu.2). Empty-canvas clicks still create text.
+        if (!state.editing) {
+          const hit = hitTestElement(svg, e.clientX, e.clientY)
+          const textEl = hit && (hit.tagName === 'text' ? hit : hit.closest('text'))
+          if (textEl) {
+            // preventDefault stops the default mousedown focus change from
+            // blurring the textarea we focus below (which would instantly
+            // commit-and-remove the empty overlay).
+            e.preventDefault()
+            setSelection([textEl])
+            refreshOverlaySync()
+            enterTextEdit(textEl, svg, getDoc(), getHistory())
+            return
+          }
+        }
 
         if (state.editing) {
           commit()

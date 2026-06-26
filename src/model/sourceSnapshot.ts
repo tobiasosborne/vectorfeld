@@ -14,10 +14,13 @@
  * means snapshots are garbage-collected when the element leaves the DOM —
  * no manual lifecycle, no leaks across documents.
  *
- * Scope: ATTRIBUTE-only. Text content changes are tracked at the
- * Command level (see `Command.touchesSource`); duplicating that signal
- * here would cost re-walking textContent on every comparison without
- * adding correctness for the canonical edit path.
+ * Scope: attributes PLUS `textContent`. The in-place text editor
+ * (`EditTextCommand`, vectorfeld-3yu.2) mutates only a source `<text>`'s
+ * tspan subtree and leaves the `<text>`'s own attributes byte-identical.
+ * The graft emit path dispatches on `<text>` and reads its tspan children,
+ * so the `<text>` itself must flip to "modified" or the edited run is
+ * redacted to blank. A textContent snapshot is therefore the load-bearing
+ * signal that makes a content-only edit classify as `mixed`.
  */
 
 import { isFromSource } from './sourceTagging'
@@ -25,6 +28,42 @@ import { elementBboxMm } from './graftBbox'
 import type { BBox } from './geometry'
 
 const snapshots: WeakMap<Element, Map<string, string>> = new WeakMap()
+
+/**
+ * Parallel snapshot of each tagged element's `textContent` at import time.
+ * Kept separate from the attribute map so the attribute-count comparison in
+ * `isElementModified` stays exact. Load-bearing for in-place text edits
+ * (vectorfeld-3yu.2): a content-only edit changes no attribute, so textContent
+ * is the only signal that flips the `<text>` into `findModifiedSourceElements`.
+ */
+const textSnapshots: WeakMap<Element, string> = new WeakMap()
+
+/**
+ * Import-time bbox (mm) per tagged element, for direct element→bbox lookup.
+ * A MODIFIED element must be redacted over its ORIGINAL footprint, not its
+ * current one: an in-place text edit (vectorfeld-3yu.2) collapses the run's
+ * per-char x-array and shrinks its bbox, so redacting the live bbox would leave
+ * the original run's right-hand glyphs un-redacted. (Removals already use the
+ * snapshotted bbox via the layer registry; this exposes the same for edits.)
+ */
+const bboxSnapshots: WeakMap<Element, BBox> = new WeakMap()
+
+/** The import-time bbox (mm) of a still-present source element, or null. */
+export function getSnapshotBboxMm(el: Element): BBox | null {
+  return bboxSnapshots.get(el) ?? null
+}
+
+/**
+ * True when `el`'s textContent differs from its import-time snapshot — i.e. an
+ * in-place text edit (vectorfeld-3yu.2), as opposed to an attribute-only change
+ * like a recolor. Used by the graft redaction to decide whether to pad the
+ * original footprint (content edits leave edge glyphs that a same-position
+ * re-emit would otherwise cover).
+ */
+export function wasTextContentModified(el: Element): boolean {
+  const snap = textSnapshots.get(el)
+  return snap !== undefined && snap !== (el.textContent ?? '')
+}
 
 /**
  * Per-layer registry of source-element snapshots — keyed by a synthetic
@@ -74,11 +113,13 @@ export function snapshotImportedElements(layer: Element): void {
   function walk(node: Element): void {
     if (isFromSource(node)) {
       snapshots.set(node, captureAttributes(node))
+      textSnapshots.set(node, node.textContent ?? '')
       // Record the element's import-time bbox in the side-registry so
       // we can mask it out later if the user removes it. Containers and
       // any node whose bbox can't be computed contribute null bboxes
       // (which still count toward removal detection but emit no mask).
       const bboxMm = elementBboxMm(node) ?? { x: 0, y: 0, width: 0, height: 0 }
+      bboxSnapshots.set(node, bboxMm)
       const uid = `s${nextSnapUid++}`
       registry.set(uid, { weakRef: new WeakRef(node), bboxMm })
       count++
@@ -147,6 +188,14 @@ export function isElementModified(el: Element): boolean {
   for (const a of Array.from(currentAttrs)) {
     if (snap.get(a.name) !== a.value) return true
   }
+
+  // textContent change with byte-identical attributes — this is the in-place
+  // text-edit path (vectorfeld-3yu.2). Without it a content edit would graft
+  // the ORIGINAL bytes. Checked last so attribute mismatches short-circuit the
+  // (subtree-walking) textContent read.
+  const textSnap = textSnapshots.get(el)
+  if (textSnap !== undefined && textSnap !== (el.textContent ?? '')) return true
+
   return false
 }
 

@@ -8,11 +8,12 @@ import {
   GroupCommand,
   UngroupCommand,
   CompoundCommand,
+  EditTextCommand,
   commandTouchesSource,
 } from './commands'
 import { createDocumentModel, resetIdCounter } from './document'
 import type { DocumentModel } from './document'
-import { PRIMARY_LAYER_ID } from './sourceTagging'
+import { PRIMARY_LAYER_ID, tagImportedLayer } from './sourceTagging'
 
 function makeSvg(): SVGSVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
@@ -298,5 +299,74 @@ describe('Command.touchesSource (graft classification)', () => {
   it('commandTouchesSource: false fallback when method absent', () => {
     const legacyCmd = { description: 'x', execute: vi.fn(), undo: vi.fn() }
     expect(commandTouchesSource(legacyCmd)).toBe(false)
+  })
+})
+
+describe('EditTextCommand', () => {
+  const SVG_NS = 'http://www.w3.org/2000/svg'
+
+  /** A <text> run with a single tspan carrying a per-char x-array (the shape
+   *  MuPDF PDF import produces). Optionally source-tagged. */
+  function makeTextRun(opts: { tagged?: boolean; xArray?: string } = {}): { text: Element; layer: Element } {
+    const layer = document.createElementNS(SVG_NS, 'g')
+    layer.setAttribute('data-layer-name', 'Layer 1')
+    const text = document.createElementNS(SVG_NS, 'text')
+    text.setAttribute('x', '10')
+    text.setAttribute('y', '20')
+    text.setAttribute('font-family', 'Helvetica')
+    text.setAttribute('font-size', '6')
+    text.setAttribute('fill', '#112233')
+    const tspan = document.createElementNS(SVG_NS, 'tspan')
+    tspan.setAttribute('x', opts.xArray ?? '10 14 19')
+    tspan.textContent = 'Hi'
+    text.appendChild(tspan)
+    layer.appendChild(text)
+    if (opts.tagged) tagImportedLayer(layer, { page: 0, layerId: PRIMARY_LAYER_ID })
+    return { text, layer }
+  }
+
+  it('round-trips textContent through execute/undo and restores the subtree byte-exact', () => {
+    const { text } = makeTextRun()
+    const before = text.innerHTML
+    const cmd = new EditTextCommand(text, 'Bye')
+    cmd.execute()
+    expect(text.textContent).toBe('Bye')
+    cmd.undo()
+    expect(text.textContent).toBe('Hi')
+    expect(text.innerHTML).toBe(before) // byte-exact, incl. the multi-value x-array
+  })
+
+  it('mutates the SAME <text> node in place (identity preserved)', () => {
+    const { layer, text } = makeTextRun()
+    const cmd = new EditTextCommand(text, 'Bye')
+    cmd.execute()
+    expect(layer.querySelector('text')).toBe(text) // never replaced
+    expect(text.isConnected || layer.contains(text)).toBe(true)
+  })
+
+  it('collapses a multi-value x-array to a scalar start-x; undo restores the array', () => {
+    const { text } = makeTextRun({ xArray: '10 14 19' })
+    const cmd = new EditTextCommand(text, 'Hello')
+    cmd.execute()
+    const tspan = text.querySelector('tspan')!
+    expect(tspan.getAttribute('x')).toBe('10')          // scalar first value, no array
+    expect(tspan.getAttribute('x')).not.toContain(' ')
+    cmd.undo()
+    expect(text.querySelector('tspan')!.getAttribute('x')).toBe('10 14 19')
+  })
+
+  it('preserves <text>-level styling (untouched node)', () => {
+    const { text } = makeTextRun()
+    new EditTextCommand(text, 'Bye').execute()
+    expect(text.getAttribute('font-family')).toBe('Helvetica')
+    expect(text.getAttribute('font-size')).toBe('6')
+    expect(text.getAttribute('fill')).toBe('#112233')
+  })
+
+  it('touchesSource() is true for source-tagged text, false for native text', () => {
+    const tagged = makeTextRun({ tagged: true })
+    const native = makeTextRun({ tagged: false })
+    expect(new EditTextCommand(tagged.text, 'x').touchesSource()).toBe(true)
+    expect(new EditTextCommand(native.text, 'x').touchesSource()).toBe(false)
   })
 })

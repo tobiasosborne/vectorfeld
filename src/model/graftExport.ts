@@ -52,6 +52,7 @@ import {
 } from './sourceFont'
 import { classifyLayer, type ClassifiedLayer } from './graftClassify'
 import { elementBboxPdfPt, mmBboxToPdfPt, type PdfRect } from './graftBbox'
+import { getSnapshotBboxMm, wasTextContentModified } from './sourceSnapshot'
 import {
   emitRect,
   emitLine,
@@ -149,8 +150,33 @@ export async function exportViaGraft(
       const found = classifications[foundIdx].cls as Extract<ClassifiedLayer, { kind: 'mixed' }>
       const redactRects: PdfRect[] = []
       for (const el of found.modifiedElements) {
-        const bbox = elementBboxPdfPt(el, pageHeightPt)
-        if (bbox) redactRects.push(bbox)
+        // Redact the element's ORIGINAL footprint (import-time bbox) so an
+        // in-place text edit that collapsed the run's x-array and shrank its
+        // bbox still removes ALL the original glyphs (vectorfeld-3yu.2). Union
+        // with the current bbox covers anything that moved or grew; the new
+        // content is re-emitted on top either way.
+        const origMm = getSnapshotBboxMm(el)
+        if (origMm) {
+          // For a CONTENT edit the new text doesn't cover the original run's
+          // full extent, and MuPDF redacts only glyph quads fully inside the
+          // rect — so a trailing glyph touching the bbox edge survives. Pad the
+          // footprint (generously horizontally to catch edge glyphs, minimally
+          // vertically to avoid an adjacent line). A recolor re-emits the same
+          // text at the same spot and covers its own edges, so it needs no pad
+          // (and padding it would needlessly perturb the golden master).
+          // Pad the TRAILING (right) edge only — that's where LTR glyphs escape
+          // — plus a tiny vertical margin. Deliberately do NOT pad the left
+          // edge: an adjacent un-edited fragment (e.g. a dropcap) sits there and
+          // must be preserved (merging fragments is the deferred run-merge bead).
+          const pad = wasTextContentModified(el)
+          const PR = pad ? 0.8 : 0, PY = pad ? 0.3 : 0 // mm
+          redactRects.push(mmBboxToPdfPt({
+            x: origMm.x, y: origMm.y - PY,
+            width: origMm.width + PR, height: origMm.height + 2 * PY,
+          }, pageHeightPt))
+        }
+        const cur = elementBboxPdfPt(el, pageHeightPt)
+        if (cur) redactRects.push(cur)
       }
       for (const bboxMm of found.removedBboxes) {
         redactRects.push(mmBboxToPdfPt(bboxMm, pageHeightPt))

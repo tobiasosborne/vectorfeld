@@ -188,8 +188,10 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 }
 
 /** True when the keyboard event target is a text-editable control that should
- *  own keystrokes itself (so global canvas shortcuts must not fire). */
-function isEditableTarget(el: HTMLElement | null): boolean {
+ *  own keystrokes itself (so global canvas shortcuts must not fire). Exported
+ *  so the in-place text editor (vectorfeld-3yu.2) can assert its `<textarea>`
+ *  overlay auto-suppresses document shortcuts (Ctrl+Z etc.) while focused. */
+export function isEditableTarget(el: HTMLElement | null): boolean {
   if (!el) return false
   const tag = el.tagName
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable

@@ -1,7 +1,8 @@
 import { registerTool } from './registry'
 import type { ToolConfig } from './registry'
 import { screenToDoc } from '../model/coordinates'
-import { setSelection, clearSelection, toggleSelection, getSelection, refreshOverlay } from '../model/selection'
+import { setSelection, clearSelection, toggleSelection, getSelection, refreshOverlay, refreshOverlaySync } from '../model/selection'
+import { enterTextEdit } from './textEdit'
 import type { HandlePosition } from '../model/selection'
 import type { DocumentModel } from '../model/document'
 import type { CommandHistory } from '../model/commands'
@@ -476,6 +477,25 @@ export function createSelectTool(
 
         const hit = hitTestElement(svg, e.clientX, e.clientY)
         const pt = screenToDoc(svg, e.clientX, e.clientY)
+
+        // Double-click on a text run → in-place content edit (vectorfeld-3yu.2).
+        // hitTestElement already resolved run-wrappers to the inner leaf; accept
+        // a <text> leaf (or a <tspan> via closest). Enter the textarea overlay
+        // and RETURN before any drag/marquee/move logic so the tiny dblclick
+        // drag is swallowed (dragState.mode stays 'none').
+        if (e.detail === 2 && hit) {
+          const textEl = hit.tagName === 'text' ? hit : hit.closest('text')
+          if (textEl) {
+            // preventDefault stops the browser's default mousedown focus change
+            // from blurring the textarea we are about to focus (which would
+            // immediately commit-and-tear-down the empty overlay).
+            e.preventDefault()
+            setSelection([textEl])
+            refreshOverlaySync()
+            enterTextEdit(textEl, svg, _getDoc(), getHistory())
+            return
+          }
+        }
 
         // Alt+click: cycle through stacked elements
         if (e.altKey && hit && !e.shiftKey) {

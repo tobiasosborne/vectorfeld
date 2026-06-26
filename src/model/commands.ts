@@ -372,6 +372,73 @@ export class UngroupCommand implements Command {
   }
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg'
+
+/** First whitespace-separated token of an SVG coordinate-list attribute
+ *  (a per-character `x="10 14 19"` array → `"10"`). Returns null when the
+ *  attribute is absent or blank. */
+function firstCoord(attr: string | null | undefined): string | null {
+  if (attr == null) return null
+  const trimmed = attr.trim()
+  if (trimmed === '') return null
+  return trimmed.split(/\s+/)[0]
+}
+
+/**
+ * In-place text-content edit for a single `<text>` run (vectorfeld-3yu.2).
+ *
+ * Mutates the SAME `<text>` node in place (never replaces it) so it stays in
+ * `selected[]`, `isConnected`, and inspector-reconciled — reusing the 3yu.9
+ * invariant. `execute()` collapses the run to ONE `<tspan>` whose per-character
+ * x/y arrays are reduced to their FIRST value: a scalar start position lets the
+ * source embedded font re-shape advances naturally on export, whereas a
+ * multi-value array positions each glyph individually and would stack glyphs on
+ * a longer edit (see `graftCs.collectTextRuns`). All `<text>`-level styling
+ * (font-family / font-size / fill / transform) lives on the unchanged `<text>`
+ * node and is therefore preserved.
+ *
+ * `undo()` restores the captured tspan subtree byte-exact (including the
+ * original multi-value x-array and source-tag attributes) so graft/golden
+ * output stays stable on undo.
+ *
+ * Detection: the edit changes NO `<text>` attribute, so classification relies
+ * on the textContent snapshot in `sourceSnapshot.ts` to flag the layer `mixed`.
+ */
+export class EditTextCommand implements Command {
+  readonly description = 'Edit text'
+  private element: Element
+  private newText: string
+  private oldInnerHTML: string
+
+  constructor(element: Element, newText: string) {
+    this.element = element
+    this.newText = newText
+    this.oldInnerHTML = element.innerHTML
+  }
+
+  execute(): void {
+    const doc = this.element.ownerDocument
+    const firstTspan = this.element.querySelector('tspan')
+    const tspan = doc.createElementNS(SVG_NS, 'tspan')
+    // Reduce the per-char x-array to its first value (scalar start-x) so the
+    // source font re-shapes advances; fall back to the <text>'s own x.
+    const x0 = firstCoord(firstTspan?.getAttribute('x')) ?? this.element.getAttribute('x')
+    if (x0 !== null) tspan.setAttribute('x', x0)
+    const y0 = firstCoord(firstTspan?.getAttribute('y'))
+    if (y0 !== null) tspan.setAttribute('y', y0)
+    tspan.textContent = this.newText
+    this.element.replaceChildren(tspan)
+  }
+
+  undo(): void {
+    this.element.innerHTML = this.oldInnerHTML
+  }
+
+  touchesSource(): boolean {
+    return isFromSource(this.element)
+  }
+}
+
 export class CompoundCommand implements Command {
   readonly description: string
   private commands: Command[]

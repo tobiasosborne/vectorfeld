@@ -5,6 +5,8 @@ import {
   findModifiedSourceElements,
   hasSnapshot,
   findRemovedElementBboxes,
+  getSnapshotBboxMm,
+  wasTextContentModified,
 } from './sourceSnapshot'
 import { tagImportedLayer, PRIMARY_LAYER_ID } from './sourceTagging'
 
@@ -86,14 +88,21 @@ describe('isElementModified', () => {
     expect(isElementModified(rect)).toBe(true)
   })
 
-  it('detects modified text content (treated as a kind of attribute change for now)', () => {
-    // textContent isn't a DOM attribute — for the graft engine, text content
-    // changes are caught at the higher level via Command.touchesSource AND/OR
-    // by snapshotting `text` element data-* annotations. This bead deliberately
-    // limits itself to *attribute* mutation; textContent edits are out of scope.
+  it('detects modified text content with byte-identical attributes', () => {
+    // Load-bearing for in-place text edits (vectorfeld-3yu.2): the editor
+    // mutates only the tspan subtree, leaving the <text>'s attributes
+    // unchanged. textContent is the only signal that flips it to "modified"
+    // so the graft engine re-emits the run instead of grafting original bytes.
     const { text } = makeTaggedLayer()
     text.textContent = 'edited'
-    // attribute-only snapshot ⇒ no detected mutation
+    expect(isElementModified(text)).toBe(true)
+  })
+
+  it('stays unmodified when textContent is restored to its snapshot', () => {
+    const { text } = makeTaggedLayer()
+    text.textContent = 'edited'
+    expect(isElementModified(text)).toBe(true)
+    text.textContent = 'hello' // back to the import-time content
     expect(isElementModified(text)).toBe(false)
   })
 })
@@ -128,6 +137,14 @@ describe('findModifiedSourceElements', () => {
     snapshotImportedElements(layer)
     path.setAttribute('d', 'M9 9')
     expect(findModifiedSourceElements(layer)).toEqual([path])
+  })
+
+  it('returns a <text> whose CONTENT was edited (attributes unchanged)', () => {
+    // Guards the load-bearing gap (vectorfeld-3yu.2): a content-only edit must
+    // surface the <text> for graft re-emission even though no attribute moved.
+    const { layer, text } = makeTaggedLayer()
+    text.textContent = 'edited'
+    expect(findModifiedSourceElements(layer)).toEqual([text])
   })
 })
 
@@ -174,5 +191,40 @@ describe('findRemovedElementBboxes', () => {
     const { layer, rect } = makeTaggedLayer()
     rect.setAttribute('x', '999')
     expect(findRemovedElementBboxes(layer)).toEqual([])
+  })
+})
+
+// vectorfeld-3yu.2: the graft redaction must cover a content-edited run's
+// ORIGINAL footprint (not its shrunken live bbox), and pad only true content
+// edits (not recolors). These helpers drive that decision.
+describe('redaction snapshot helpers (3yu.2)', () => {
+  it('getSnapshotBboxMm returns a bbox for a snapshotted element, null otherwise', () => {
+    const { text } = makeTaggedLayer()
+    expect(getSnapshotBboxMm(text)).not.toBeNull()
+    const orphan = document.createElementNS(SVG_NS, 'text')
+    expect(getSnapshotBboxMm(orphan)).toBeNull()
+  })
+
+  it('getSnapshotBboxMm stays at the import-time value after the live bbox shrinks', () => {
+    const { text } = makeTaggedLayer()
+    const orig = getSnapshotBboxMm(text)
+    text.textContent = 'x' // an edit that would shrink the live bbox
+    expect(getSnapshotBboxMm(text)).toEqual(orig) // redaction uses the original footprint
+  })
+
+  it('wasTextContentModified flips only on a content change', () => {
+    const { text } = makeTaggedLayer()
+    expect(wasTextContentModified(text)).toBe(false)
+    text.textContent = 'goodbye'
+    expect(wasTextContentModified(text)).toBe(true)
+    text.textContent = 'hello' // restored to snapshot
+    expect(wasTextContentModified(text)).toBe(false)
+  })
+
+  it('wasTextContentModified is false for an attribute-only change (recolor stays unpadded)', () => {
+    const { text } = makeTaggedLayer()
+    text.setAttribute('fill', '#00ff00')
+    expect(wasTextContentModified(text)).toBe(false)
+    expect(isElementModified(text)).toBe(true) // still classified modified, just not padded
   })
 })
